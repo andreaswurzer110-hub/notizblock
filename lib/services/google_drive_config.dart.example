@@ -1,0 +1,29 @@
+// VORLAGE für die OAuth-Konfiguration für Google Drive.
+//
+// Diese Datei nach `google_drive_config.dart` kopieren und mit den echten
+// Werten aus der Google Cloud Console füllen. Die echte Datei ist in
+// .gitignore und wird NICHT eingecheckt (enthält das Desktop-Client-Secret).
+//
+// Cloud Console → APIs & Dienste → Anmeldedaten:
+//   Desktop:  OAuth-Client-ID Typ "Desktop app" → liefert Client-ID + Secret.
+//   Android:  OAuth-Client-ID Typ "Android" (Paketname + SHA-1), KEIN Secret.
+
+class GoogleDriveConfig {
+  // --- Desktop (Windows / Linux / macOS) ---
+  static const String desktopClientId =
+      'DEINE_DESKTOP_CLIENT_ID.apps.googleusercontent.com';
+  static const String desktopClientSecret =
+      'DEIN_DESKTOP_CLIENT_SECRET';
+
+  // --- Android ---
+  // Für Android wird KEIN Secret hier benötigt (Match über Paketname + SHA-1).
+  // Optional: Web-/Server-Client-ID, falls serverseitige Auth gebraucht wird.
+  static const String androidServerClientId = '';
+
+  /// true, sobald echte Desktop-Credentials hinterlegt sind.
+  static bool get isDesktopConfigured =>
+      desktopClientId.isNotEmpty &&
+      !desktopClientId.startsWith('DEINE_') &&
+      desktopClientSecret.isNotEmpty &&
+      !desktopClientSecret.startsWith('DEIN_');
+}

@@ -1,0 +1,8 @@
+# Vorlage. Kopiere diese Datei nach android/key.properties und trage deine
+# echten Werte ein. android/key.properties ist gitignored (enthält Passwörter!).
+#
+# storeFile = absoluter Pfad zum Upload-Keystore (.jks), den du mit keytool erzeugst.
+storePassword=DEIN_STORE_PASSWORT
+keyPassword=DEIN_KEY_PASSWORT
+keyAlias=upload
+storeFile=C:\\Users\\awurz\\keys\\notizblock-upload.jks

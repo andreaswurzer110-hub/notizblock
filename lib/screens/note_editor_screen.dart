@@ -1,0 +1,585 @@
+﻿import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../models/note.dart';
+import '../providers/notes_provider.dart';
+import '../providers/settings_provider.dart';
+import '../services/google_drive_service.dart';
+import '../widgets/color_picker.dart';
+import 'home_screen.dart';
+import 'package:notizblock/l10n/generated/app_localizations.dart';
+import 'package:intl/intl.dart';
+
+class NoteEditorScreen extends StatefulWidget {
+  final Note? note;
+  // true, wenn der Editor direkt aus einem (Android-)Widget geöffnet wurde:
+  // dann ist er der einzige Screen -> Zurück verlässt die App, Menü-Button führt
+  // zur Hauptansicht.
+  final bool openedFromWidget;
+
+  const NoteEditorScreen({super.key, this.note, this.openedFromWidget = false});
+
+  @override
+  State<NoteEditorScreen> createState() => _NoteEditorScreenState();
+}
+
+class _NoteEditorScreenState extends State<NoteEditorScreen>
+    with WidgetsBindingObserver {
+  late TextEditingController _titleController;
+  late TextEditingController _contentController;
+  late String _selectedColor;
+  late bool _isPinned;
+  bool _hasChanges = false;
+  bool _syncing = false;
+  bool _applyingExternal = false;
+  Timer? _saveDebounce;
+  DateTime? _lastShownModified;
+  // Die tatsächlich in der DB liegende Notiz. Für neue Notizen anfangs null;
+  // nach dem ersten Speichern gesetzt, damit weitere Speichervorgänge die
+  // gleiche Notiz AKTUALISIEREN statt neu anzulegen (verhindert Duplikate).
+  Note? _currentNote;
+  // Serialisiert Speichervorgänge, damit zwei schnelle Auslöser nicht beide
+  // eine neue Notiz anlegen.
+  Future<void>? _saveChain;
+  final FocusNode _titleFocus = FocusNode();
+  final FocusNode _contentFocus = FocusNode();
+  NotesProvider? _notesProvider;
+
+  bool get isNewNote => widget.note == null;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.note?.title ?? '');
+    _contentController = TextEditingController(text: widget.note?.content ?? '');
+    _selectedColor = widget.note?.color ?? '#FFFDE7';
+    _isPinned = widget.note?.isPinned ?? false;
+    _lastShownModified = widget.note?.modifiedAt;
+    _currentNote = widget.note;
+
+    WidgetsBinding.instance.addObserver(this);
+    _titleController.addListener(_onTextChanged);
+    _contentController.addListener(_onTextChanged);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App geht in den Hintergrund/wird beendet -> ungesicherte Änderungen noch
+    // schreiben (sonst gehen neue Notizen verloren, wenn der Editor nicht über
+    // den Zurück-Pfad verlassen wird).
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      if (_hasChanges) _saveNote();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Standard-Farbe für neue Notizen aus Einstellungen
+    if (isNewNote && _selectedColor == '#FFFDE7') {
+      final settings = context.read<SettingsProvider>();
+      _selectedColor = settings.defaultNoteColor;
+    }
+
+    // Live-Aktualisierung bei externen Änderungen (z.B. aus Sticky-Fenstern)
+    final provider = context.read<NotesProvider>();
+    if (provider != _notesProvider) {
+      _notesProvider?.removeListener(_onExternalNoteChange);
+      _notesProvider = provider;
+      _notesProvider!.addListener(_onExternalNoteChange);
+    }
+  }
+
+  // Übernimmt externe Änderungen an dieser Notiz, ohne aktives Tippen zu stören.
+  void _onExternalNoteChange() {
+    if (isNewNote || !mounted) return;
+    final note = _notesProvider?.getNoteById(widget.note!.id);
+    if (note == null) return;
+
+    // Titel/Inhalt nur ersetzen, wenn das Feld nicht fokussiert ist
+    // (sonst würde es die gerade getippte Eingabe überschreiben).
+    _applyingExternal = true;
+    if (!_titleFocus.hasFocus && note.title != _titleController.text) {
+      _titleController.value = TextEditingValue(
+        text: note.title,
+        selection: TextSelection.collapsed(offset: note.title.length),
+      );
+    }
+    if (!_contentFocus.hasFocus && note.content != _contentController.text) {
+      _contentController.value = TextEditingValue(
+        text: note.content,
+        selection: TextSelection.collapsed(offset: note.content.length),
+      );
+    }
+    _applyingExternal = false;
+    final colorChanged = note.color != _selectedColor && !_hasChanges;
+    // Neu rendern, wenn sich Farbe ODER die angezeigte Änderungszeit ändert.
+    if (colorChanged || note.modifiedAt != _lastShownModified) {
+      _lastShownModified = note.modifiedAt;
+      setState(() {
+        if (colorChanged) _selectedColor = note.color;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveDebounce?.cancel();
+    _notesProvider?.removeListener(_onExternalNoteChange);
+    _titleController.removeListener(_onTextChanged);
+    _contentController.removeListener(_onTextChanged);
+    _titleController.dispose();
+    _contentController.dispose();
+    _titleFocus.dispose();
+    _contentFocus.dispose();
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    // Externe Übernahme (Sync/anderes Fenster) markiert die Notiz NICHT als
+    // geändert – sonst würde sie beim Schließen unnötig neu gespeichert (bump).
+    if (_applyingExternal) return;
+    if (!_hasChanges) {
+      setState(() {
+        _hasChanges = true;
+      });
+    }
+    // Schon beim Tippen automatisch speichern (entprellt), damit der Auto-Sync
+    // zeitnah hochlädt und nichts verloren geht. Auch neue Notizen: nach dem
+    // ersten Speichern merkt sich `_currentNote` die Notiz -> kein Duplikat.
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 1000), () {
+      if (mounted) _saveNote();
+    });
+  }
+
+  Color _parseColor(String hexColor) {
+    final hex = hexColor.replaceFirst('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  Future<bool> _onWillPop() async {
+    if (!_hasChanges) return true;
+
+    // Leere Notiz
+    if (_titleController.text.isEmpty && _contentController.text.isEmpty) {
+      return true;
+    }
+
+    // Automatisch speichern
+    await _saveNote();
+    return true;
+  }
+
+  // Zurück: erst speichern, dann je nach Stack zurück oder App verlassen.
+  // Aus einem Widget geöffnet ist der Editor der einzige Screen -> einmal Zurück
+  // führt direkt zum Homescreen (App in den Hintergrund).
+  Future<void> _handleBack() async {
+    await _onWillPop();
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      await SystemNavigator.pop();
+    }
+  }
+
+  // Zur Hauptansicht (Notizliste) wechseln – als neuer Wurzel-Screen.
+  Future<void> _goToMainMenu() async {
+    await _onWillPop();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+  }
+
+  // Manueller Sync aus dem Editor (Absicherung).
+  Future<void> _syncNow() async {
+    setState(() => _syncing = true);
+    if (_hasChanges) await _saveNote();
+    final result = await GoogleDriveService.instance.synchronize();
+    if (!mounted) return;
+    setState(() => _syncing = false);
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.success ? l10n.syncSuccess : '${l10n.syncFailed}: ${result.message}'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: result.success ? 3 : 6),
+      ),
+    );
+  }
+
+  // Speichern serialisieren: ein laufender Speichervorgang wird erst beendet,
+  // bevor der nächste startet. So legt ein zweiter schneller Auslöser keine
+  // zweite neue Notiz an (er sieht dann das bereits gesetzte `_currentNote`).
+  Future<void> _saveNote() {
+    final pending = _saveChain ?? Future<void>.value();
+    final next = pending.then((_) => _doSaveNote());
+    // Kette nicht durch einen Fehler dauerhaft blockieren.
+    _saveChain = next.catchError((_) {});
+    return next;
+  }
+
+  Future<void> _doSaveNote() async {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    final notesProvider = _notesProvider ?? context.read<NotesProvider>();
+
+    // Leere Notiz: bestehende löschen, neue gar nicht erst anlegen.
+    if (title.isEmpty && content.isEmpty) {
+      if (_currentNote != null) {
+        await notesProvider.deleteNote(_currentNote!.id);
+        _currentNote = null;
+      }
+      _hasChanges = false;
+      return;
+    }
+
+    if (_currentNote == null) {
+      // Erstes Speichern -> anlegen und merken (danach Update-Modus).
+      final created = await notesProvider.addNote(
+        title: title,
+        content: content,
+        color: _selectedColor,
+      );
+      if (created != null) _currentNote = created;
+    } else {
+      // Nichts wirklich geändert? Dann nicht speichern (sonst unnötiger
+      // modifiedAt-Bump).
+      if (title == _currentNote!.title &&
+          content == _currentNote!.content &&
+          _selectedColor == _currentNote!.color &&
+          _isPinned == _currentNote!.isPinned) {
+        _hasChanges = false;
+        return;
+      }
+      final updated = _currentNote!.copyWith(
+        title: title,
+        content: content,
+        color: _selectedColor,
+        isPinned: _isPinned,
+      );
+      await notesProvider.updateNote(updated);
+      _currentNote = updated;
+    }
+
+    _hasChanges = false;
+  }
+
+  void _showColorPicker() async {
+    final newColor = await showColorPickerSheet(
+      context,
+      currentColor: _selectedColor,
+    );
+    if (newColor != null) {
+      setState(() {
+        _selectedColor = newColor;
+        _hasChanges = true;
+      });
+    }
+  }
+
+  void _togglePin() {
+    setState(() {
+      _isPinned = !_isPinned;
+      _hasChanges = true;
+    });
+  }
+
+  void _confirmDelete() {
+    final l10n = AppLocalizations.of(context)!;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(l10n.deleteNote),
+        content: Text(l10n.deleteNoteConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (!isNewNote) {
+                context.read<NotesProvider>().deleteNote(widget.note!.id);
+              }
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMoreOptions() {
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Farbe
+                ListTile(
+                  leading: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: _parseColor(_selectedColor),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                  ),
+                  title: Text(l10n.color),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showColorPicker();
+                  },
+                ),
+
+                // Löschen
+                if (!isNewNote)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outlined, color: Colors.red),
+                    title: Text(
+                      l10n.delete,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _confirmDelete();
+                    },
+                  ),
+
+                // Info
+                if (!isNewNote && widget.note != null) ...[
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.createdAt(_formatDateTime(widget.note!.createdAt)),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.modifiedAt(
+                              _formatDateTime(widget.note!.modifiedAt)),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Aktuellste bekannte Änderungszeit: bevorzugt der Provider-Stand (zieht nach
+  // Speichern/Sync nach), sonst der Stand beim Öffnen.
+  DateTime get _currentModifiedAt {
+    final id = _currentNote?.id ?? widget.note?.id;
+    if (id != null) {
+      final current = _notesProvider?.getNoteById(id);
+      if (current != null) return current.modifiedAt;
+    }
+    return _currentNote?.modifiedAt ?? widget.note?.modifiedAt ?? DateTime.now();
+  }
+
+  String _formatDateTime(DateTime date) {
+    return DateFormat('d. MMMM yyyy, HH:mm', 'de').format(date);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final noteColor = _parseColor(_selectedColor);
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    
+    // Schriftgröße der Notiztexte aus den Einstellungen.
+    final fontScale = context.watch<SettingsProvider>().noteFontScale;
+    // Textfarbe je nach Helligkeit der Notizfarbe (kräftige/dunkle Farben ->
+    // heller Text), damit es immer lesbar bleibt.
+    final noteTextColor =
+        ThemeData.estimateBrightnessForColor(noteColor) == Brightness.dark
+            ? Colors.white
+            : Colors.black87;
+    final noteHintColor = noteTextColor.withValues(alpha: 0.4);
+
+    // Im Dark Mode: Scaffold dunkel, Notizbereich in Notizfarbe
+    // Im Light Mode: Alles in Notizfarbe
+    final scaffoldColor = isDarkMode ? theme.scaffoldBackgroundColor : noteColor;
+    final appBarColor = isDarkMode ? theme.appBarTheme.backgroundColor : noteColor;
+    final foregroundColor = isDarkMode ? Colors.white : noteTextColor;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _handleBack();
+      },
+      child: Scaffold(
+        backgroundColor: scaffoldColor,
+        appBar: AppBar(
+          backgroundColor: appBarColor,
+          foregroundColor: foregroundColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _handleBack,
+          ),
+          actions: [
+            // Letzte Änderungs-/Sync-Zeit (nur bei bestehenden Notizen).
+            if (!isNewNote)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Text(
+                    DateFormat('d.M. HH:mm', 'de').format(_currentModifiedAt),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: foregroundColor.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            // Aus Widget geöffnet: Button zur Hauptansicht (Notizliste)
+            if (widget.openedFromWidget)
+              IconButton(
+                icon: const Icon(Icons.home_outlined),
+                tooltip: l10n.appTitle,
+                onPressed: _goToMainMenu,
+              ),
+            // Manueller Sync (Absicherung), wenn bei Drive angemeldet
+            if (GoogleDriveService.instance.isSignedIn)
+              IconButton(
+                icon: _syncing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                tooltip: l10n.syncNow,
+                onPressed: _syncing ? null : _syncNow,
+              ),
+            // Pin-Button
+            IconButton(
+              icon: Icon(
+                _isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+              ),
+              onPressed: _togglePin,
+              tooltip: _isPinned ? l10n.unpin : l10n.pin,
+            ),
+            // Mehr-Optionen
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: _showMoreOptions,
+            ),
+          ],
+        ),
+        body: Container(
+          margin: isDarkMode ? const EdgeInsets.all(12) : EdgeInsets.zero,
+          decoration: isDarkMode
+              ? BoxDecoration(
+                  color: noteColor,
+                  borderRadius: BorderRadius.circular(16),
+                )
+              : null,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Titel
+                TextField(
+                  controller: _titleController,
+                  focusNode: _titleFocus,
+                  style: TextStyle(
+                    fontSize: 24 * fontScale,
+                    fontWeight: FontWeight.bold,
+                    color: noteTextColor,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: l10n.titleHint,
+                    hintStyle: TextStyle(
+                      color: noteHintColor,
+                      fontWeight: FontWeight.normal,
+                    ),
+                    border: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Inhalt
+                TextField(
+                  controller: _contentController,
+                  focusNode: _contentFocus,
+                  style: TextStyle(
+                    fontSize: 16 * fontScale,
+                    height: 1.6,
+                    color: noteTextColor,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: l10n.contentHint,
+                    hintStyle: TextStyle(
+                      color: noteHintColor,
+                    ),
+                    border: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: null,
+                  minLines: 10,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

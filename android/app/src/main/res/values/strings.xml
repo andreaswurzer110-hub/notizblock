@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Notizblock</string>
+    <string name="widget_name">Notiz Widget</string>
+    <string name="widget_description">Zeigt eine Notiz auf dem Startbildschirm an</string>
+    <string name="select_note">Notiz auswaehlen</string>
+    <string name="empty_note">Leere Notiz</string>
+    <string name="no_notes">Keine Notizen vorhanden</string>
+</resources>

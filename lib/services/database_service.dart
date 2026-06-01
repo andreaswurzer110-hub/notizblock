@@ -1,0 +1,319 @@
+﻿import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../models/note.dart';
+import 'widget_service.dart';
+
+class DatabaseService {
+  static Database? _database;
+  static String? _databasePath;
+  static const String _databaseName = 'notizblock.db';
+  static const int _databaseVersion = 2;
+
+  // Singleton Pattern
+  DatabaseService._privateConstructor();
+  static final DatabaseService instance = DatabaseService._privateConstructor();
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
+  }
+
+  Future<Database> _initDatabase() async {
+    // FFI für Desktop-Plattformen initialisieren
+    if (Platform.isWindows || Platform.isLinux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
+    final Directory documentsDirectory =
+        await getApplicationDocumentsDirectory();
+    final String path = join(documentsDirectory.path, _databaseName);
+    _databasePath = path;
+
+    return await openDatabase(
+      path,
+      version: _databaseVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
+  }
+
+  Future<void> _onCreate(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE notes (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        modifiedAt TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#FFFDE7',
+        isPinned INTEGER NOT NULL DEFAULT 0,
+        isArchived INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    // Index für schnellere Abfragen
+    await db.execute('CREATE INDEX idx_notes_modified ON notes(modifiedAt)');
+    await db.execute('CREATE INDEX idx_notes_pinned ON notes(isPinned)');
+
+    await _createDeletionsTable(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // v2: Tabelle für ausstehende Löschungen (Tombstones für den Sync)
+    if (oldVersion < 2) {
+      await _createDeletionsTable(db);
+    }
+  }
+
+  Future<void> _createDeletionsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS deletions (
+        id TEXT PRIMARY KEY,
+        deletedAt TEXT NOT NULL,
+        snapshot TEXT
+      )
+    ''');
+  }
+
+  // JSON-Datei für Widget aktualisieren
+  Future<void> _updateWidgetJsonFile() async {
+    if (!Platform.isAndroid) return;
+    
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'notes',
+        where: 'isArchived = ?',
+        whereArgs: [0],
+        orderBy: 'isPinned DESC, modifiedAt DESC',
+      );
+      final notes = List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+      final jsonList = notes.map((n) => n.toJson()).toList();
+      final jsonString = jsonEncode(jsonList);
+      
+      // In app_flutter Ordner speichern (wo Android es lesen kann)
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/notes.json');
+      await file.writeAsString(jsonString);
+
+      // Broadcast an den Widget-Provider, damit er die frische JSON sofort
+      // liest. Ohne diesen Aufruf aktualisiert sich das Homescreen-Widget erst
+      // beim nächsten System-Intervall (1 h) – auch bei Remote-Sync-Änderungen,
+      // die im Hauptmenü längst sichtbar sind. Zentral hier, weil ALLE
+      // DB-Schreibwege (auch Delta-Sync) durch diese Methode laufen.
+      await WidgetService.instance.updateWidget();
+
+      debugPrint('Widget JSON aktualisiert: ${notes.length} Notizen');
+    } catch (e) {
+      debugPrint('Fehler beim Aktualisieren der Widget-JSON: $e');
+    }
+  }
+
+  // CRUD Operationen
+
+  Future<List<Note>> getAllNotes({bool includeArchived = false}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: includeArchived ? null : 'isArchived = ?',
+      whereArgs: includeArchived ? null : [0],
+      orderBy: 'isPinned DESC, modifiedAt DESC',
+    );
+    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  Future<Note?> getNoteById(String id) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return Note.fromMap(maps.first);
+  }
+
+  Future<int> insertNote(Note note) async {
+    final db = await database;
+    final result = await db.insert(
+      'notes',
+      note.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await _updateWidgetJsonFile();
+    return result;
+  }
+
+  Future<int> updateNote(Note note) async {
+    final db = await database;
+    final result = await db.update(
+      'notes',
+      note.toMap(),
+      where: 'id = ?',
+      whereArgs: [note.id],
+    );
+    await _updateWidgetJsonFile();
+    return result;
+  }
+
+  Future<int> deleteNote(String id) async {
+    final db = await database;
+    // Für Sync/Historie: Löschung mit Snapshot des Inhalts vormerken (Tombstone).
+    final note = await getNoteById(id);
+    if (note != null) {
+      await _recordDeletion(db, note);
+    }
+    final result = await db.delete(
+      'notes',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    await _updateWidgetJsonFile();
+    return result;
+  }
+
+  Future<int> deleteAllNotes() async {
+    final db = await database;
+    final notes = await getAllNotes(includeArchived: true);
+    for (final note in notes) {
+      await _recordDeletion(db, note);
+    }
+    final result = await db.delete('notes');
+    await _updateWidgetJsonFile();
+    return result;
+  }
+
+  /// Löscht eine Notiz, OHNE einen Tombstone zu erzeugen. Für das Anwenden
+  /// von Löschungen, die per Sync von einem anderen Gerät kommen.
+  Future<void> applyRemoteDeletion(String id) async {
+    final db = await database;
+    await db.delete('notes', where: 'id = ?', whereArgs: [id]);
+    await _updateWidgetJsonFile();
+  }
+
+  Future<void> _recordDeletion(Database db, Note note) async {
+    await db.insert(
+      'deletions',
+      {
+        'id': note.id,
+        'deletedAt': DateTime.now().toIso8601String(),
+        'snapshot': jsonEncode(note.toJson()),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Ausstehende Löschungen (Tombstones), die noch zu Drive gepusht werden müssen.
+  Future<List<Map<String, dynamic>>> getPendingDeletions() async {
+    final db = await database;
+    return await db.query('deletions');
+  }
+
+  Future<void> clearDeletion(String id) async {
+    final db = await database;
+    await db.delete('deletions', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Suche
+  Future<List<Note>> searchNotes(String query) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: '(title LIKE ? OR content LIKE ?) AND isArchived = ?',
+      whereArgs: ['%$query%', '%$query%', 0],
+      orderBy: 'isPinned DESC, modifiedAt DESC',
+    );
+    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  // Für Google Drive Sync
+  Future<List<Note>> getNotesModifiedAfter(DateTime date) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: 'modifiedAt > ?',
+      whereArgs: [date.toIso8601String()],
+    );
+    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  // Batch-Operationen für Sync
+  Future<void> insertOrUpdateNotes(List<Note> notes) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final note in notes) {
+      batch.insert(
+        'notes',
+        note.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+    await _updateWidgetJsonFile();
+  }
+
+  // Datenbank schließen
+  Future<void> close() async {
+    final db = await database;
+    await db.close();
+    _database = null;
+  }
+
+  // Export für Backup
+  Future<List<Map<String, dynamic>>> exportAllNotes() async {
+    final db = await database;
+    return await db.query('notes');
+  }
+
+  // Import von Backup
+  Future<void> importNotes(List<Map<String, dynamic>> notesData) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final noteData in notesData) {
+      batch.insert(
+        'notes',
+        noteData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+    await _updateWidgetJsonFile();
+  }
+
+  // Widget-JSON manuell aktualisieren (z.B. beim App-Start)
+  Future<void> syncWidgetData() async {
+    await _updateWidgetJsonFile();
+  }
+
+  /// Letzter Änderungszeitpunkt der DB-Dateien. Dient der Hauptapp dazu,
+  /// Schreibvorgänge aus anderen Prozessen (Sticky-Note-Fenster) zu erkennen.
+  Future<DateTime?> getLastModified() async {
+    // Sicherstellen, dass der Pfad bekannt ist (DB ggf. initialisieren).
+    if (_databasePath == null) {
+      await database;
+    }
+    final path = _databasePath;
+    if (path == null) return null;
+
+    DateTime? latest;
+    for (final suffix in ['', '-wal', '-journal', '-shm']) {
+      final file = File('$path$suffix');
+      if (await file.exists()) {
+        final modified = (await file.stat()).modified;
+        if (latest == null || modified.isAfter(latest)) {
+          latest = modified;
+        }
+      }
+    }
+    return latest;
+  }
+}
+
