@@ -51,3 +51,6 @@ installer/output/
 # Google-OAuth-Secrets: NICHT einchecken. Vorlage liegt als .example bei.
 # Auf jedem Rechner lokal aus der Vorlage anlegen und ausfüllen.
 lib/services/google_drive_config.dart
+
+# Claude-Code-Berechtigungen: maschinenlokal, ändert sich pro Session.
+.claude/settings.local.json
