@@ -65,5 +65,6 @@
   "showMainWindow": "Hauptfenster beim Start öffnen",
   "showMainWindowSubtitle": "Standardmäßig öffnen sich nur die angehefteten Widgets",
   "fontSize": "Schriftgröße",
-  "fontSizeSample": "Beispieltext"
+  "fontSizeSample": "Beispieltext",
+  "undo": "Rückgängig"
 }

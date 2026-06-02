@@ -201,4 +201,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get fontSizeSample => 'Beispieltext';
+
+  @override
+  String get undo => 'Rückgängig';
 }

@@ -46,6 +46,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   final FocusNode _contentFocus = FocusNode();
   NotesProvider? _notesProvider;
 
+  // Lokale Rückgängig-Funktion: nur für die offene Notiz, nicht persistent.
+  // Checkpoints werden beim Tipp-Pausen gesetzt (eine Pause = ein Undo-Schritt).
+  final List<_EditorSnapshot> _undoStack = [];
+  late _EditorSnapshot _lastCheckpoint;
+  Timer? _undoCheckpointTimer;
+  bool _restoringSnapshot = false;
+
   bool get isNewNote => widget.note == null;
 
   @override
@@ -57,6 +64,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     _isPinned = widget.note?.isPinned ?? false;
     _lastShownModified = widget.note?.modifiedAt;
     _currentNote = widget.note;
+    _lastCheckpoint =
+        _EditorSnapshot(_titleController.text, _contentController.text);
 
     WidgetsBinding.instance.addObserver(this);
     _titleController.addListener(_onTextChanged);
@@ -115,6 +124,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       );
     }
     _applyingExternal = false;
+    // Undo-Basis an den externen Stand angleichen, damit Rückgängig nicht auf
+    // einen veralteten Vor-Sync-Stand zurückspringt.
+    _lastCheckpoint =
+        _EditorSnapshot(_titleController.text, _contentController.text);
     final colorChanged = note.color != _selectedColor && !_hasChanges;
     // Neu rendern, wenn sich Farbe ODER die angezeigte Änderungszeit ändert.
     if (colorChanged || note.modifiedAt != _lastShownModified) {
@@ -129,6 +142,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _saveDebounce?.cancel();
+    _undoCheckpointTimer?.cancel();
     _notesProvider?.removeListener(_onExternalNoteChange);
     _titleController.removeListener(_onTextChanged);
     _contentController.removeListener(_onTextChanged);
@@ -155,6 +169,60 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     _saveDebounce = Timer(const Duration(milliseconds: 1000), () {
       if (mounted) _saveNote();
     });
+    // Undo-Checkpoint nach kurzer Tipp-Pause setzen (nicht bei jedem Zeichen).
+    // Beim Wiederherstellen selbst keinen neuen Checkpoint anlegen.
+    if (!_restoringSnapshot) {
+      _undoCheckpointTimer?.cancel();
+      _undoCheckpointTimer =
+          Timer(const Duration(milliseconds: 600), _commitCheckpoint);
+    }
+  }
+
+  // Aktuellen Stand als Undo-Schritt ablegen (vorigen Checkpoint stapeln).
+  void _commitCheckpoint() {
+    final current =
+        _EditorSnapshot(_titleController.text, _contentController.text);
+    if (current == _lastCheckpoint) return;
+    _undoStack.add(_lastCheckpoint);
+    if (_undoStack.length > 50) _undoStack.removeAt(0);
+    _lastCheckpoint = current;
+    if (mounted) setState(() {}); // Undo-Button-Status aktualisieren
+  }
+
+  bool get _canUndo {
+    if (_undoStack.isNotEmpty) return true;
+    return _titleController.text != _lastCheckpoint.title ||
+        _contentController.text != _lastCheckpoint.content;
+  }
+
+  // Letzte Änderung rückgängig machen: zuerst noch nicht gestapelte Eingaben
+  // bis zum letzten Checkpoint, danach Schritt für Schritt den Stapel hinunter.
+  void _undo() {
+    _undoCheckpointTimer?.cancel();
+    final current =
+        _EditorSnapshot(_titleController.text, _contentController.text);
+    _EditorSnapshot? target;
+    if (current != _lastCheckpoint) {
+      target = _lastCheckpoint;
+    } else if (_undoStack.isNotEmpty) {
+      target = _undoStack.removeLast();
+      _lastCheckpoint = target;
+    }
+    if (target == null) return;
+
+    _restoringSnapshot = true;
+    _titleController.value = TextEditingValue(
+      text: target.title,
+      selection: TextSelection.collapsed(offset: target.title.length),
+    );
+    _contentController.value = TextEditingValue(
+      text: target.content,
+      selection: TextSelection.collapsed(offset: target.content.length),
+    );
+    _restoringSnapshot = false;
+    // Wiederhergestellten Stand persistieren (Save-Debounce lief über
+    // _onTextChanged bereits an).
+    setState(() => _hasChanges = true);
   }
 
   Color _parseColor(String hexColor) {
@@ -228,12 +296,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   }
 
   Future<void> _doSaveNote() async {
-    final title = _titleController.text.trim();
-    final content = _contentController.text.trim();
+    // Text ungetrimmt speichern, damit bewusst gesetzte Leerzeilen (auch oben)
+    // erhalten bleiben – wie beim Windows-Sticky. (Android löschte führende
+    // Leerzeilen früher durch das trim().) Für „leer?"/„geändert?" trotzdem
+    // getrimmt prüfen.
+    final title = _titleController.text;
+    final content = _contentController.text;
     final notesProvider = _notesProvider ?? context.read<NotesProvider>();
 
     // Leere Notiz: bestehende löschen, neue gar nicht erst anlegen.
-    if (title.isEmpty && content.isEmpty) {
+    if (title.trim().isEmpty && content.trim().isEmpty) {
       if (_currentNote != null) {
         await notesProvider.deleteNote(_currentNote!.id);
         _currentNote = null;
@@ -464,6 +536,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             onPressed: _handleBack,
           ),
           actions: [
+            // Rückgängig: letzte Änderung der offenen Notiz lokal zurücknehmen.
+            IconButton(
+              icon: const Icon(Icons.undo),
+              tooltip: l10n.undo,
+              onPressed: _canUndo ? _undo : null,
+            ),
             // Letzte Änderungs-/Sync-Zeit (nur bei bestehenden Notizen).
             if (!isNewNote)
               Center(
@@ -582,4 +660,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       ),
     );
   }
+}
+
+// Momentaufnahme von Titel/Inhalt für die lokale Rückgängig-Funktion.
+class _EditorSnapshot {
+  final String title;
+  final String content;
+  const _EditorSnapshot(this.title, this.content);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _EditorSnapshot &&
+      other.title == title &&
+      other.content == content;
+
+  @override
+  int get hashCode => Object.hash(title, content);
 }

@@ -201,4 +201,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fontSizeSample => 'Sample text';
+
+  @override
+  String get undo => 'Undo';
 }

@@ -457,6 +457,12 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Beispieltext'**
   String get fontSizeSample;
+
+  /// No description provided for @undo.
+  ///
+  /// In de, this message translates to:
+  /// **'Rückgängig'**
+  String get undo;
 }
 
 class _AppLocalizationsDelegate

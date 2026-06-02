@@ -33,6 +33,12 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Timer? _stickyAutoSyncTimer;
   Timer? _stickyPullTimer;
 
+  // Lokale Rückgängig-Funktion (nur Inhalt; Titel steckt in der Fenstertitelleiste).
+  final List<String> _undoStack = [];
+  String _lastCheckpoint = '';
+  Timer? _undoCheckpointTimer;
+  bool _restoringSnapshot = false;
+
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
@@ -106,6 +112,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         text: note.content,
         selection: TextSelection.collapsed(offset: note.content.length),
       );
+      // Undo-Basis an externen Stand angleichen (kein Rückspringen auf Vor-Sync).
+      _lastCheckpoint = note.content;
     }
     // Titel-Controller (nicht sichtbar) für korrektes Speichern aktuell halten.
     if (titleChanged) _titleController.text = note.title;
@@ -122,6 +130,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       if (_note != null) {
         _titleController.text = _note!.title;
         _contentController.text = _note!.content;
+        _lastCheckpoint = _note!.content;
         if (_isDesktop) {
           final title = _note!.title.isNotEmpty ? _note!.title : 'Notiz';
           await windowManager.setTitle(title);
@@ -162,6 +171,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _stickyAutoSyncTimer?.cancel();
     _stickyPullTimer?.cancel();
     _saveTimer?.cancel();
+    _undoCheckpointTimer?.cancel();
     _saveNote();
     _contentFocus.dispose();
     _titleController.dispose();
@@ -175,6 +185,52 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     // Nach dem Tippen automatisch syncen (entprellt).
     _stickyAutoSyncTimer?.cancel();
     _stickyAutoSyncTimer = Timer(const Duration(seconds: 2), _runStickyAutoSync);
+    // Undo-Checkpoint nach kurzer Tipp-Pause (nicht bei jedem Zeichen).
+    if (!_restoringSnapshot) {
+      _undoCheckpointTimer?.cancel();
+      _undoCheckpointTimer =
+          Timer(const Duration(milliseconds: 600), _commitCheckpoint);
+    }
+    // Undo-Button-Status aktualisieren.
+    if (mounted) setState(() {});
+  }
+
+  // Aktuellen Stand als Undo-Schritt ablegen (vorigen Checkpoint stapeln).
+  void _commitCheckpoint() {
+    final current = _contentController.text;
+    if (current == _lastCheckpoint) return;
+    _undoStack.add(_lastCheckpoint);
+    if (_undoStack.length > 50) _undoStack.removeAt(0);
+    _lastCheckpoint = current;
+    if (mounted) setState(() {});
+  }
+
+  bool get _canUndo =>
+      _undoStack.isNotEmpty || _contentController.text != _lastCheckpoint;
+
+  // Letzte Änderung rückgängig machen: zuerst noch nicht gestapelte Eingaben bis
+  // zum letzten Checkpoint, danach Schritt für Schritt den Stapel hinunter.
+  void _undo() {
+    _undoCheckpointTimer?.cancel();
+    final current = _contentController.text;
+    String? target;
+    if (current != _lastCheckpoint) {
+      target = _lastCheckpoint;
+    } else if (_undoStack.isNotEmpty) {
+      target = _undoStack.removeLast();
+      _lastCheckpoint = target;
+    }
+    if (target == null) return;
+
+    _restoringSnapshot = true;
+    _contentController.value = TextEditingValue(
+      text: target,
+      selection: TextSelection.collapsed(offset: target.length),
+    );
+    // Wiederhergestellten Stand speichern + syncen (onChanged feuert bei
+    // programmatischer Änderung nicht von selbst).
+    _onTextChanged();
+    _restoringSnapshot = false;
   }
 
   Future<void> _saveNote() async {
@@ -248,7 +304,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     }
 
     if (_note == null) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: Text('Notiz nicht gefunden'),
         ),
@@ -258,96 +314,97 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     final backgroundColor = _parseColor(_note!.color);
 
     // Der Titel steht in der Fenster-Titelleiste (window_manager.setTitle),
-    // daher hier nur der Notiz-Inhalt – keine doppelte Überschrift.
+    // daher hier nur Toolbar + Notiz-Inhalt – keine doppelte Überschrift.
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: Stack(
+      body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _contentController,
-              focusNode: _contentFocus,
-              style: TextStyle(
-                fontSize: 14 * _fontScale,
-                color: _textColor,
-                height: 1.5,
+          if (_isDesktop) _buildToolbar(),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+              child: TextField(
+                controller: _contentController,
+                focusNode: _contentFocus,
+                style: TextStyle(
+                  fontSize: 14 * _fontScale,
+                  color: _textColor,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Notiz schreiben...',
+                  hintStyle:
+                      TextStyle(color: _textColor.withValues(alpha: 0.35)),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                maxLines: null,
+                expands: true,
+                onChanged: (_) => _onTextChanged(),
               ),
-              decoration: InputDecoration(
-                hintText: 'Notiz schreiben...',
-                hintStyle: TextStyle(color: _textColor.withValues(alpha: 0.35)),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              maxLines: null,
-              expands: true,
-              onChanged: (_) => _onTextChanged(),
             ),
           ),
-          if (_isDesktop)
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  _buildHomeButton(),
-                  const SizedBox(width: 2),
-                  Text(
-                    DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _textColor.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  _buildSyncButton(),
-                ],
-              ),
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildHomeButton() {
-    return Opacity(
-      opacity: 0.45,
-      child: IconButton(
-        iconSize: 18,
-        padding: const EdgeInsets.all(6),
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(),
-        tooltip: 'Hauptmenü öffnen',
-        onPressed: _openMainApp,
-        icon: Icon(Icons.home_outlined,
-            size: 18, color: _textColor.withValues(alpha: 0.7)),
+  // Obere Leiste: Home, Rückgängig (links) – Zeit, Sync (rechts).
+  Widget _buildToolbar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+      child: Row(
+        children: [
+          _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
+          _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
+          const Spacer(),
+          Text(
+            DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
+            style: TextStyle(
+              fontSize: 13,
+              color: _textColor.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(width: 6),
+          _buildSyncButton(),
+        ],
       ),
     );
   }
 
+  // Einheitlicher Icon-Button für die Toolbar (etwas größer als zuvor).
+  Widget _toolButton(IconData icon, String tooltip, VoidCallback? onPressed) {
+    return IconButton(
+      iconSize: 22,
+      padding: const EdgeInsets.all(6),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon,
+          size: 22,
+          color: _textColor.withValues(alpha: onPressed == null ? 0.25 : 0.7)),
+    );
+  }
+
   Widget _buildSyncButton() {
-    return Opacity(
-      opacity: 0.45,
-      child: IconButton(
-        iconSize: 18,
-        padding: const EdgeInsets.all(6),
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(),
-        tooltip: 'Synchronisieren',
-        onPressed: _syncing ? null : _syncNow,
-        icon: _syncing
-            ? SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: _textColor.withValues(alpha: 0.7)),
-              )
-            : Icon(Icons.sync,
-                size: 18, color: _textColor.withValues(alpha: 0.7)),
-      ),
+    return IconButton(
+      iconSize: 22,
+      padding: const EdgeInsets.all(6),
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(),
+      tooltip: 'Synchronisieren',
+      onPressed: _syncing ? null : _syncNow,
+      icon: _syncing
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: _textColor.withValues(alpha: 0.7)),
+            )
+          : Icon(Icons.sync,
+              size: 22, color: _textColor.withValues(alpha: 0.7)),
     );
   }
 }
