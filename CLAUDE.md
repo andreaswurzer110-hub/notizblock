@@ -38,7 +38,7 @@ lib/
 ```
 
 **Note-Model:** id (uuid), title, content, createdAt, modifiedAt, color (Default `#FFFDE7`), isPinned, isArchived.
-**DatabaseService:** Singleton; auf Windows/Linux `sqfliteFfiInit()` + `databaseFactoryFfi`; Tabelle `notes` mit Indizes auf `modifiedAt` und `isPinned`. DB-Version aktuell 1 → Schema-Änderungen über `_onUpgrade` migrieren, nicht hart neu anlegen.
+**DatabaseService:** Singleton; auf Windows/Linux `sqfliteFfiInit()` + `databaseFactoryFfi`; Tabelle `notes` mit Indizes auf `modifiedAt` und `isPinned`. DB-Version aktuell 2 (`deletions`-Tabelle) → Schema-Änderungen über `_onUpgrade` migrieren, nicht hart neu anlegen. **DB-Speicherort:** Desktop (Windows/Linux) = `getApplicationSupportDirectory()` (`%APPDATA%\com.example\notizblock\` bzw. `~/.local/share/…`, neben `sticky_state/`); Android/iOS = `getApplicationDocumentsDirectory()` (dort liest das Home-Widget `notes.json`). Früher lag die DB auf Desktop im Dokumente-Ordner → einmalige Migration via `_migrateDbFromDocuments` (kopiert DB + WAL/SHM/Journal, falls am neuen Ort noch keine existiert).
 
 ## App-Icon
 
