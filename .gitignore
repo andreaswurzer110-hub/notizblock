@@ -54,3 +54,10 @@ lib/services/google_drive_config.dart
 
 # Claude-Code-Berechtigungen: maschinenlokal, ändert sich pro Session.
 .claude/settings.local.json
+
+# Lokale Notiz-Datenbank (Nutzerdaten) – nie einchecken. Wird ggf. zum
+# Inspizieren/Migrieren ins Projektroot kopiert.
+notizblock.db
+notizblock.db-wal
+notizblock.db-shm
+notizblock.db-journal

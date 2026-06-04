@@ -11,7 +11,7 @@
 set -euo pipefail
 
 APP_NAME="notizblock"
-PRETTY_NAME="Notizblock"
+PRETTY_NAME="Notizblock AW"
 INSTALL_DIR="$HOME/.local/opt/$APP_NAME"
 DESKTOP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"

@@ -9,7 +9,7 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
-  String get appTitle => 'Notizblock';
+  String get appTitle => 'Notizblock AW';
 
   @override
   String get newNote => 'Neue Notiz';

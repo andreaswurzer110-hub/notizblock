@@ -88,7 +88,7 @@ void main(List<String> args) async {
     }
 
     await windowManager.waitUntilReadyToShow(
-      const WindowOptions(title: 'Notizblock'),
+      const WindowOptions(title: 'Notizblock AW'),
       () async {
         await windowManager.show();
         await windowManager.focus();
@@ -239,7 +239,7 @@ class _NotizblockAppState extends State<NotizblockApp> {
         builder: (context, settings, child) {
           return MaterialApp(
             navigatorKey: _navigatorKey,
-            title: 'Notizblock',
+            title: 'Notizblock AW',
             debugShowCheckedModeBanner: false,
             locale: settings.locale,
             supportedLocales: SettingsProvider.supportedLocales,

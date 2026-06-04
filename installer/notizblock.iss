@@ -2,7 +2,7 @@
 ; Baut eine Setup.exe, die den Release-Build + Visual-C++-Runtime installiert.
 ; Per-User-Installation ohne Adminrechte (-> %LocalAppData%\Programs\Notizblock).
 
-#define MyAppName "Notizblock"
+#define MyAppName "Notizblock AW"
 ; Version per ISCC /DMyAppVersion=x.y.z überschreibbar (siehe build_installer.ps1).
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
@@ -18,7 +18,9 @@ AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
+; Install-Ordner bewusst literal "Notizblock" (nicht der Anzeigename mit
+; Leerzeichen) -> stabiler Pfad, passt zur bestehenden Installation.
+DefaultDirName={autopf}\Notizblock
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 ; Ohne Adminrechte installieren (per User). {autopf} wird dann zu

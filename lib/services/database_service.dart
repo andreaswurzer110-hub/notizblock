@@ -25,15 +25,27 @@ class DatabaseService {
   }
 
   Future<Database> _initDatabase() async {
+    final bool isDesktop = Platform.isWindows || Platform.isLinux;
+
     // FFI für Desktop-Plattformen initialisieren
-    if (Platform.isWindows || Platform.isLinux) {
+    if (isDesktop) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
 
-    final Directory documentsDirectory =
-        await getApplicationDocumentsDirectory();
-    final String path = join(documentsDirectory.path, _databaseName);
+    // Speicherort: Desktop -> App-Support (%APPDATA%\…\notizblock bzw.
+    // ~/.local/share/…), wo auch die Sticky-State-Dateien liegen. Android/iOS
+    // bleiben im Dokumente-Ordner, weil das Home-Widget die notes.json dort liest.
+    final Directory baseDir = isDesktop
+        ? await getApplicationSupportDirectory()
+        : await getApplicationDocumentsDirectory();
+    final String path = join(baseDir.path, _databaseName);
+
+    // Einmalige Migration: früher lag die DB auf Desktop im Dokumente-Ordner.
+    if (isDesktop) {
+      await _migrateDbFromDocuments(path);
+    }
+
     _databasePath = path;
 
     return await openDatabase(
@@ -42,6 +54,34 @@ class DatabaseService {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Verschiebt eine alte DB aus dem Dokumente-Ordner an den neuen Ort
+  /// (App-Support), falls dort noch keine existiert. Inkl. WAL/SHM/Journal,
+  /// damit keine ungeschriebenen Transaktionen verloren gehen. Idempotent und
+  /// fehlertolerant (mehrere Sticky-Prozesse können das parallel versuchen).
+  Future<void> _migrateDbFromDocuments(String newPath) async {
+    try {
+      if (await File(newPath).exists()) return; // schon am neuen Ort
+      final docs = await getApplicationDocumentsDirectory();
+      final oldPath = join(docs.path, _databaseName);
+      if (!await File(oldPath).exists()) return; // nichts zu migrieren
+
+      for (final suffix in const ['', '-wal', '-shm', '-journal']) {
+        final src = File('$oldPath$suffix');
+        if (await src.exists()) {
+          await src.copy('$newPath$suffix');
+          try {
+            await src.delete();
+          } catch (_) {
+            // Alte Datei in Benutzung -> Kopie reicht; Original bleibt liegen.
+          }
+        }
+      }
+      debugPrint('DB aus Dokumente nach App-Support migriert: $newPath');
+    } catch (e) {
+      debugPrint('DB-Migration übersprungen: $e');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {

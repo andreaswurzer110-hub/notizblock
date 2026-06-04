@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In de, this message translates to:
-  /// **'Notizblock'**
+  /// **'Notizblock AW'**
   String get appTitle;
 
   /// No description provided for @newNote.

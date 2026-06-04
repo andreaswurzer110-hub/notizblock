@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Notepad';
+  String get appTitle => 'Notizblock AW';
 
   @override
   String get newNote => 'New Note';
