@@ -463,6 +463,12 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Rückgängig'**
   String get undo;
+
+  /// No description provided for @redo.
+  ///
+  /// In de, this message translates to:
+  /// **'Wiederholen'**
+  String get redo;
 }
 
 class _AppLocalizationsDelegate

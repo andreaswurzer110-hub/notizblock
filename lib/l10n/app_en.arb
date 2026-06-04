@@ -66,5 +66,6 @@
   "showMainWindowSubtitle": "By default only the pinned widgets open",
   "fontSize": "Font size",
   "fontSizeSample": "Sample text",
-  "undo": "Undo"
+  "undo": "Undo",
+  "redo": "Redo"
 }

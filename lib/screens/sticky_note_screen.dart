@@ -35,6 +35,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
 
   // Lokale Rückgängig-Funktion (nur Inhalt; Titel steckt in der Fenstertitelleiste).
   final List<String> _undoStack = [];
+  // Wiederholen-Stapel: rückgängig gemachte Stände, um sie erneut anzuwenden.
+  final List<String> _redoStack = [];
   String _lastCheckpoint = '';
   Timer? _undoCheckpointTimer;
   bool _restoringSnapshot = false;
@@ -187,6 +189,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _stickyAutoSyncTimer = Timer(const Duration(seconds: 2), _runStickyAutoSync);
     // Undo-Checkpoint nach kurzer Tipp-Pause (nicht bei jedem Zeichen).
     if (!_restoringSnapshot) {
+      // Echte Eingabe verwirft die Wiederholen-Historie.
+      if (_redoStack.isNotEmpty) _redoStack.clear();
       _undoCheckpointTimer?.cancel();
       _undoCheckpointTimer =
           Timer(const Duration(milliseconds: 600), _commitCheckpoint);
@@ -208,27 +212,45 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   bool get _canUndo =>
       _undoStack.isNotEmpty || _contentController.text != _lastCheckpoint;
 
+  bool get _canRedo => _redoStack.isNotEmpty;
+
   // Letzte Änderung rückgängig machen: zuerst noch nicht gestapelte Eingaben bis
   // zum letzten Checkpoint, danach Schritt für Schritt den Stapel hinunter.
+  // Der jeweils verlassene Stand wandert auf den Wiederholen-Stapel.
   void _undo() {
     _undoCheckpointTimer?.cancel();
     final current = _contentController.text;
     String? target;
     if (current != _lastCheckpoint) {
       target = _lastCheckpoint;
+      _redoStack.add(current);
     } else if (_undoStack.isNotEmpty) {
       target = _undoStack.removeLast();
+      _redoStack.add(_lastCheckpoint);
       _lastCheckpoint = target;
     }
     if (target == null) return;
+    _applySnapshot(target);
+  }
 
+  // Rückgängig gemachte Änderung wiederherstellen (Gegenstück zu _undo).
+  void _redo() {
+    _undoCheckpointTimer?.cancel();
+    if (_redoStack.isEmpty) return;
+    final target = _redoStack.removeLast();
+    _undoStack.add(_lastCheckpoint);
+    _lastCheckpoint = target;
+    _applySnapshot(target);
+  }
+
+  // Stand in das Inhaltsfeld schreiben und speichern + syncen (onChanged feuert
+  // bei programmatischer Änderung nicht von selbst).
+  void _applySnapshot(String target) {
     _restoringSnapshot = true;
     _contentController.value = TextEditingValue(
       text: target,
       selection: TextSelection.collapsed(offset: target.length),
     );
-    // Wiederhergestellten Stand speichern + syncen (onChanged feuert bei
-    // programmatischer Änderung nicht von selbst).
     _onTextChanged();
     _restoringSnapshot = false;
   }
@@ -358,6 +380,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         children: [
           _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
           _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
+          _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
           const Spacer(),
           Text(
             DateFormat('d.M. HH:mm').format(_note!.modifiedAt),

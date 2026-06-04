@@ -49,6 +49,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   // Lokale Rückgängig-Funktion: nur für die offene Notiz, nicht persistent.
   // Checkpoints werden beim Tipp-Pausen gesetzt (eine Pause = ein Undo-Schritt).
   final List<_EditorSnapshot> _undoStack = [];
+  // Wiederholen-Stapel: rückgängig gemachte Stände, um sie erneut anzuwenden.
+  final List<_EditorSnapshot> _redoStack = [];
   late _EditorSnapshot _lastCheckpoint;
   Timer? _undoCheckpointTimer;
   bool _restoringSnapshot = false;
@@ -172,6 +174,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     // Undo-Checkpoint nach kurzer Tipp-Pause setzen (nicht bei jedem Zeichen).
     // Beim Wiederherstellen selbst keinen neuen Checkpoint anlegen.
     if (!_restoringSnapshot) {
+      // Echte Eingabe verwirft die Wiederholen-Historie.
+      if (_redoStack.isNotEmpty) _redoStack.clear();
       _undoCheckpointTimer?.cancel();
       _undoCheckpointTimer =
           Timer(const Duration(milliseconds: 600), _commitCheckpoint);
@@ -195,8 +199,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
         _contentController.text != _lastCheckpoint.content;
   }
 
+  bool get _canRedo => _redoStack.isNotEmpty;
+
   // Letzte Änderung rückgängig machen: zuerst noch nicht gestapelte Eingaben
   // bis zum letzten Checkpoint, danach Schritt für Schritt den Stapel hinunter.
+  // Der jeweils verlassene Stand wandert auf den Wiederholen-Stapel.
   void _undo() {
     _undoCheckpointTimer?.cancel();
     final current =
@@ -204,12 +211,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     _EditorSnapshot? target;
     if (current != _lastCheckpoint) {
       target = _lastCheckpoint;
+      _redoStack.add(current);
     } else if (_undoStack.isNotEmpty) {
       target = _undoStack.removeLast();
+      _redoStack.add(_lastCheckpoint);
       _lastCheckpoint = target;
     }
     if (target == null) return;
+    _applySnapshot(target);
+  }
 
+  // Rückgängig gemachte Änderung wiederherstellen (Gegenstück zu _undo).
+  void _redo() {
+    _undoCheckpointTimer?.cancel();
+    if (_redoStack.isEmpty) return;
+    final target = _redoStack.removeLast();
+    _undoStack.add(_lastCheckpoint);
+    _lastCheckpoint = target;
+    _applySnapshot(target);
+  }
+
+  // Wiederhergestellten/zurückgenommenen Stand in die Felder schreiben und
+  // persistieren (Save-Debounce lief über _onTextChanged bereits an).
+  void _applySnapshot(_EditorSnapshot target) {
     _restoringSnapshot = true;
     _titleController.value = TextEditingValue(
       text: target.title,
@@ -220,8 +244,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       selection: TextSelection.collapsed(offset: target.content.length),
     );
     _restoringSnapshot = false;
-    // Wiederhergestellten Stand persistieren (Save-Debounce lief über
-    // _onTextChanged bereits an).
     setState(() => _hasChanges = true);
   }
 
@@ -412,6 +434,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Anheften (aus der oberen Leiste hierher verschoben)
+                ListTile(
+                  leading: Icon(
+                    _isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                  ),
+                  title: Text(_isPinned ? l10n.unpin : l10n.pin),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _togglePin();
+                  },
+                ),
+
                 // Farbe
                 ListTile(
                   leading: Container(
@@ -542,6 +576,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               tooltip: l10n.undo,
               onPressed: _canUndo ? _undo : null,
             ),
+            // Wiederholen: zurückgenommene Änderung erneut anwenden.
+            IconButton(
+              icon: const Icon(Icons.redo),
+              tooltip: l10n.redo,
+              onPressed: _canRedo ? _redo : null,
+            ),
             // Letzte Änderungs-/Sync-Zeit (nur bei bestehenden Notizen).
             if (!isNewNote)
               Center(
@@ -576,15 +616,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                 tooltip: l10n.syncNow,
                 onPressed: _syncing ? null : _syncNow,
               ),
-            // Pin-Button
-            IconButton(
-              icon: Icon(
-                _isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-              ),
-              onPressed: _togglePin,
-              tooltip: _isPinned ? l10n.unpin : l10n.pin,
-            ),
-            // Mehr-Optionen
+            // Mehr-Optionen (inkl. Anheften – spart oben Platz, v.a. auf Android)
             IconButton(
               icon: const Icon(Icons.more_vert),
               onPressed: _showMoreOptions,

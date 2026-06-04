@@ -66,5 +66,6 @@
   "showMainWindowSubtitle": "Standardmäßig öffnen sich nur die angehefteten Widgets",
   "fontSize": "Schriftgröße",
   "fontSizeSample": "Beispieltext",
-  "undo": "Rückgängig"
+  "undo": "Rückgängig",
+  "redo": "Wiederholen"
 }

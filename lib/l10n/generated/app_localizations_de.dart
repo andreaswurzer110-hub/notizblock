@@ -204,4 +204,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get undo => 'Rückgängig';
+
+  @override
+  String get redo => 'Wiederholen';
 }
