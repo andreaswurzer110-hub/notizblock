@@ -17,6 +17,7 @@ import 'services/sticky_note_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_editor_screen.dart';
 import 'screens/sticky_note_screen.dart';
+import 'screens/settings_screen.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -51,9 +52,11 @@ void main(List<String> args) async {
   }
 
   // Autostart-Modus (Verknüpfung mit --widgets) bzw. erzwungenes Hauptfenster
-  // (Home-Button eines Widgets startet die App mit --show-main).
+  // (Home-Button eines Widgets startet die App mit --show-main; der
+  // Einstellungen-Button eines Sticky-Fensters mit --show-settings).
   final isAutostart = args.contains('--widgets');
-  final forceMainWindow = args.contains('--show-main');
+  final openSettings = args.contains('--show-settings');
+  final forceMainWindow = args.contains('--show-main') || openSettings;
 
   if (_isDesktop) {
     await windowManager.ensureInitialized();
@@ -115,7 +118,7 @@ void main(List<String> args) async {
     } catch (_) {}
   }
 
-  runApp(NotizblockApp(initialNote: initialNote));
+  runApp(NotizblockApp(initialNote: initialNote, openSettings: openSettings));
 }
 
 /// Fenster eines Sticky-Note-Prozesses einrichten: gespeicherte Bounds
@@ -177,8 +180,11 @@ class NotizblockApp extends StatefulWidget {
   // Ist sie gesetzt, wird der Editor direkt als erste Seite gebaut (kein
   // Platzhalter, kein nachträglicher Push -> kein Flackern).
   final Note? initialNote;
+  // true, wenn die App vom Einstellungen-Button eines Sticky-Fensters
+  // (--show-settings) gestartet wurde -> nach dem Start direkt Einstellungen.
+  final bool openSettings;
 
-  const NotizblockApp({super.key, this.initialNote});
+  const NotizblockApp({super.key, this.initialNote, this.openSettings = false});
 
   @override
   State<NotizblockApp> createState() => _NotizblockAppState();
@@ -195,6 +201,16 @@ class _NotizblockAppState extends State<NotizblockApp> {
     // MainActivity per onNewIntent ein 'openNote' über diesen Channel.
     if (Platform.isAndroid) {
       _setupDeepLinkListener();
+    }
+
+    // Vom Sticky-Einstellungen-Button gestartet -> Einstellungen über die
+    // Notizliste legen (einmal Zurück führt zur Liste, nicht zum leeren Stack).
+    if (widget.openSettings) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        );
+      });
     }
   }
 

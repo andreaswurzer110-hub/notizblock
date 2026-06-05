@@ -8,6 +8,7 @@ import '../providers/settings_provider.dart';
 import '../services/google_drive_service.dart';
 import '../widgets/color_picker.dart';
 import 'home_screen.dart';
+import 'settings_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
 
@@ -461,6 +462,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   onTap: () {
                     Navigator.pop(context);
                     _showColorPicker();
+                  },
+                ),
+
+                // Einstellungen direkt aus dem Editor öffnen
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: Text(l10n.settings),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    );
                   },
                 ),
 

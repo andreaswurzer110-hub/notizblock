@@ -85,8 +85,9 @@ class NoteWidgetProvider : AppWidgetProvider() {
                     // angepasst – sonst auf dunklen Farben unsichtbar.
                     views.setTextColor(R.id.widget_time,
                         if (dark) Color.parseColor("#B3FFFFFF") else Color.parseColor("#8A000000"))
-                    // Menü-Symbol (☰) ebenfalls anpassen.
-                    views.setTextColor(R.id.widget_menu,
+                    // Haus-Symbol (ImageView) per Color-Filter an die Helligkeit
+                    // anpassen (setColorFilter ist @RemotableViewMethod).
+                    views.setInt(R.id.widget_menu, "setColorFilter",
                         if (dark) Color.parseColor("#CCFFFFFF") else Color.parseColor("#99000000"))
                 }
             }

@@ -284,6 +284,23 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     }
   }
 
+  // Öffnet die Einstellungen in der Hauptapp (eigener Prozess, --show-settings).
+  // Bewusst NICHT im Sticky-Prozess anzeigen: ein Sticky-Prozess darf keine
+  // Settings-Prefs schreiben (würde mit veraltetem prefs-Snapshot Werte der
+  // Hauptapp überschreiben – siehe CLAUDE.md).
+  Future<void> _openSettings() async {
+    if (!_isDesktop) return;
+    try {
+      await Process.start(
+        Platform.resolvedExecutable,
+        const ['--show-settings'],
+        mode: ProcessStartMode.detached,
+      );
+    } catch (e) {
+      debugPrint('Einstellungen öffnen fehlgeschlagen: $e');
+    }
+  }
+
   // Manueller Sync direkt aus dem Sticky-Fenster (z.B. wenn das Hauptfenster zu ist).
   Future<void> _syncNow() async {
     setState(() => _syncing = true);
@@ -391,6 +408,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
           ),
           const SizedBox(width: 6),
           _buildSyncButton(),
+          // Einstellungen ganz rechts (öffnet die Hauptapp-Einstellungen).
+          _toolButton(Icons.settings, 'Einstellungen', _openSettings),
         ],
       ),
     );
