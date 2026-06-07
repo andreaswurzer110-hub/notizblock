@@ -598,17 +598,38 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               onPressed: _canRedo ? _redo : null,
             ),
             // Letzte Änderungs-/Sync-Zeit (nur bei bestehenden Notizen).
+            // Bei angemeldetem Drive ist die Zeit zugleich Sync-Auslöser
+            // (gleiche Funktion wie der Sync-Button rechts).
             if (!isNewNote)
               Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Text(
-                    DateFormat('d.M. HH:mm', 'de').format(_currentModifiedAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: foregroundColor.withValues(alpha: 0.6),
-                    ),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final timeText = Text(
+                      DateFormat('d.M. HH:mm', 'de').format(_currentModifiedAt),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: foregroundColor.withValues(alpha: 0.6),
+                      ),
+                    );
+                    if (!GoogleDriveService.instance.isSignedIn) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: timeText,
+                      );
+                    }
+                    return Tooltip(
+                      message: l10n.syncNow,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: _syncing ? null : _syncNow,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 8),
+                          child: timeText,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             // Aus Widget geöffnet: Button zur Hauptansicht (Notizliste)

@@ -1,9 +1,11 @@
 ﻿import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'dart:ui' show DartPluginRegistrant;
+import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
 import 'database_service.dart';
+import 'google_drive_service.dart';
 
 class WidgetService {
   static const String appGroupId = 'group.com.notizblock.app';
@@ -139,17 +141,43 @@ class WidgetService {
   }
 }
 
-// Hintergrund-Callback für Widget-Interaktionen
+// Hintergrund-Callback für Widget-Interaktionen.
+// Läuft in einem eigenen Isolate (auch bei geschlossener App). Der home_widget-
+// Dispatcher ruft vorher WidgetsFlutterBinding.ensureInitialized() auf.
 @pragma('vm:entry-point')
 Future<void> widgetBackgroundCallback(Uri? uri) async {
-  if (uri == null) return;
+  if (uri == null || uri.scheme != 'notizblock') return;
 
-  if (uri.scheme == 'notizblock' && uri.host == 'open_note') {
-    final noteId = uri.queryParameters['id'];
-    if (noteId != null) {
-      // Notiz-ID für das Öffnen speichern
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pending_note_id', noteId);
-    }
+  switch (uri.host) {
+    case 'open_note':
+      final noteId = uri.queryParameters['id'];
+      if (noteId != null) {
+        // Notiz-ID für das Öffnen speichern
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_note_id', noteId);
+      }
+      break;
+
+    // Klick auf die Zeit-Anzeige im Widget: jetzt von Drive synchronisieren.
+    // Bewusst NICHT an den Auto-Sync-Schalter gekoppelt – es ist eine explizite
+    // Nutzeraktion. Bei Änderungen schreibt synchronize() notes.json neu und
+    // feuert über DatabaseService den Widget-Refresh-Broadcast.
+    case 'sync_now':
+      try {
+        WidgetsFlutterBinding.ensureInitialized();
+        // Im home_widget-Hintergrund-Isolate sind sonst KEINE Plugins registriert
+        // (der Dispatcher macht nur ensureInitialized, kein PluginRegistrant) →
+        // sqflite/shared_preferences/google_sign_in würden sonst fehlschlagen.
+        DartPluginRegistrant.ensureInitialized();
+        final signedIn = await GoogleDriveService.instance.signInSilently();
+        if (signedIn) {
+          await GoogleDriveService.instance.synchronize();
+        }
+        // Auch ohne Datenänderung das Widget neu zeichnen (sichtbares Feedback).
+        await WidgetService.instance.updateWidget();
+      } catch (e) {
+        debugPrint('Widget-Sync fehlgeschlagen: $e');
+      }
+      break;
   }
 }

@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.os.Build
 import android.widget.RemoteViews
 import android.net.Uri
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import org.json.JSONObject
 import java.io.File
 
@@ -115,6 +116,17 @@ class NoteWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_menu, menuPendingIntent)
+
+            // Zeit-Anzeige = "Jetzt synchronisieren"-Button. Löst über home_widget
+            // einen Hintergrund-Callback (Dart: widgetBackgroundCallback) aus, der
+            // ohne App-Öffnen von Drive synct. Receiver/Service sind im
+            // AndroidManifest registriert; der Callback-Handle wird beim App-Start
+            // via WidgetService.initialize() persistiert.
+            val syncPendingIntent = HomeWidgetBackgroundIntent.getBroadcast(
+                context,
+                Uri.parse("notizblock://sync_now")
+            )
+            views.setOnClickPendingIntent(R.id.widget_time, syncPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

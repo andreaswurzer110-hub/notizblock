@@ -111,6 +111,39 @@ class GoogleDriveService {
     _userName = null;
   }
 
+  // Erkennt Auth-/Token-Fehler: abgelaufenes Refresh-Token (im OAuth-"Testing"-
+  // Status laufen Desktop-Refresh-Tokens nach 7 Tagen ab), widerrufener Zugriff
+  // oder 401. Solche Fehler heilen nicht von selbst – der Nutzer muss sich neu
+  // anmelden. Der stille Desktop-Login baut den Client offline aus gespeicherten
+  // Credentials (ohne Token-Prüfung); erst der erste echte Request scheitert.
+  bool _isAuthError(Object e) {
+    if (e is drive.DetailedApiRequestError && e.status == 401) return true;
+    final s = e.toString().toLowerCase();
+    return s.contains('invalid_grant') ||
+        s.contains('invalid_token') ||
+        s.contains('invalid_rapt');
+  }
+
+  // Tote Credentials verwerfen und Login-Status zurücksetzen, damit die UI sauber
+  // zum Neu-Anmelden auffordert statt denselben kryptischen Fehler zu wiederholen.
+  Future<void> _handleAuthFailure() async {
+    debugPrint('Auth-Fehler erkannt – Anmeldung wird zurückgesetzt.');
+    if (_isDesktop) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_credentialsKey);
+    } else {
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      _mobileUser = null;
+    }
+    _authClient?.close();
+    _authClient = null;
+    _driveApi = null;
+    _userEmail = null;
+    _userName = null;
+  }
+
   // --- Mobil (Android/iOS) via google_sign_in ---
   Future<bool> _mobileSignIn({required bool silent}) async {
     _mobileUser = silent
@@ -224,8 +257,10 @@ class GoogleDriveService {
       final createdFolder = await _driveApi!.files.create(folder);
       return createdFolder.id;
     } catch (e) {
+      // Echten Fehler durchreichen (z.B. abgelaufenes Token), statt ihn als
+      // nichtssagendes null/"Ordner konnte nicht erstellt werden" zu maskieren.
       debugPrint('Fehler beim Ordner erstellen: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -269,6 +304,7 @@ class GoogleDriveService {
       return true;
     } catch (e) {
       debugPrint('Backup Fehler: $e');
+      if (_isAuthError(e)) await _handleAuthFailure();
       return false;
     }
   }
@@ -304,6 +340,7 @@ class GoogleDriveService {
       return true;
     } catch (e) {
       debugPrint('Wiederherstellung Fehler: $e');
+      if (_isAuthError(e)) await _handleAuthFailure();
       return false;
     }
   }
@@ -478,6 +515,12 @@ class GoogleDriveService {
       );
     } catch (e) {
       debugPrint('Sync Fehler: $e');
+      if (_isAuthError(e)) {
+        await _handleAuthFailure();
+        return SyncResult(
+            success: false,
+            message: 'Anmeldung abgelaufen – bitte in den Einstellungen neu anmelden');
+      }
       return SyncResult(
           success: false, message: 'Synchronisierung fehlgeschlagen: $e');
     }
@@ -505,7 +548,7 @@ class GoogleDriveService {
       return created.id;
     } catch (e) {
       debugPrint('Unterordner "$name" Fehler: $e');
-      return null;
+      rethrow;
     }
   }
 

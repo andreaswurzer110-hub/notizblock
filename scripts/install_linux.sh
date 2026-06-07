@@ -11,6 +11,9 @@
 set -euo pipefail
 
 APP_NAME="notizblock"
+# Muss exakt der GTK application-id entsprechen (linux/CMakeLists.txt: APPLICATION_ID).
+# Davon hängt die Taskleisten-Gruppierung ab (siehe .desktop-Block unten).
+APP_ID="at.aw.notizblock"
 PRETTY_NAME="Notizblock AW"
 INSTALL_DIR="$HOME/.local/opt/$APP_NAME"
 DESKTOP_DIR="$HOME/.local/share/applications"
@@ -49,7 +52,15 @@ fi
 
 echo "==> Startmenü-Eintrag schreiben"
 mkdir -p "$DESKTOP_DIR"
-cat > "$DESKTOP_DIR/$APP_NAME.desktop" <<EOF
+# WICHTIG für die Taskleisten-Gruppierung: Die .desktop-Datei MUSS nach der
+# GTK application-id benannt sein ($APP_ID.desktop). Jedes Fenster (Hauptfenster
+# UND jeder Sticky-Prozess) trägt _GTK_APPLICATION_ID=$APP_ID; GNOME/Zorin sucht
+# dazu "$APP_ID.desktop" und gruppiert alle so zugeordneten Fenster unter EINEM
+# Eintrag. Hieß die Datei "notizblock.desktop", fand GNOME keine Zuordnung und
+# zeigte jedes Fenster einzeln in der Taskleiste (Bug). StartupWMClass zusätzlich
+# als X11-Fallback auf die App-ID (= res_name aus g_set_prgname).
+rm -f "$DESKTOP_DIR/$APP_NAME.desktop"  # alten/abweichenden Eintrag aufräumen
+cat > "$DESKTOP_DIR/$APP_ID.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=$PRETTY_NAME
@@ -58,9 +69,9 @@ Exec="$INSTALL_DIR/$APP_NAME" %U
 Icon=$APP_NAME
 Terminal=false
 Categories=Utility;TextEditor;
-StartupWMClass=$APP_NAME
+StartupWMClass=$APP_ID
 EOF
-chmod +x "$DESKTOP_DIR/$APP_NAME.desktop"
+chmod +x "$DESKTOP_DIR/$APP_ID.desktop"
 
 echo "==> Caches aktualisieren"
 update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true

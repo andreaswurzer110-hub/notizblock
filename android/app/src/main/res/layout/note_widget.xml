@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="12dp"
+    android:padding="8dp"
     android:background="@drawable/widget_background">
 
     <LinearLayout
@@ -24,20 +24,29 @@
             android:maxLines="2"
             android:ellipsize="end" />
 
+        <!-- Zeit-Anzeige dient zugleich als "Jetzt synchronisieren"-Button
+             (Klick -> Hintergrund-Sync, siehe NoteWidgetProvider). Rahmen +
+             Innenabstand grenzen den Tap-Bereich vom Haus-Button ab. -->
         <TextView
             android:id="@+id/widget_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="6dp"
+            android:background="@drawable/widget_sync_button"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
             android:textSize="11sp"
             android:textColor="#888888"
-            android:paddingStart="6dp"
-            android:singleLine="true" />
+            android:singleLine="true"
+            android:contentDescription="@string/widget_sync" />
 
         <ImageView
             android:id="@+id/widget_menu"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:layout_marginStart="8dp"
             android:src="@drawable/ic_home"
             android:scaleType="fitCenter"
             android:contentDescription="@string/widget_home" />

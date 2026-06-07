@@ -7,4 +7,5 @@
     <string name="empty_note">Leere Notiz</string>
     <string name="no_notes">Keine Notizen vorhanden</string>
     <string name="widget_home">Hauptmenue oeffnen</string>
+    <string name="widget_sync">Jetzt synchronisieren</string>
 </resources>

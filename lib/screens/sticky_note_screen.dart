@@ -399,14 +399,25 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
           _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
           _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
           const Spacer(),
-          Text(
-            DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
-            style: TextStyle(
-              fontSize: 13,
-              color: _textColor.withValues(alpha: 0.6),
+          // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
+          Tooltip(
+            message: 'Synchronisieren',
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: _syncing ? null : _syncNow,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Text(
+                  DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _textColor.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 2),
           _buildSyncButton(),
           // Einstellungen ganz rechts (öffnet die Hauptapp-Einstellungen).
           _toolButton(Icons.settings, 'Einstellungen', _openSettings),
