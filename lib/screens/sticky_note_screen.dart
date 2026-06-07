@@ -32,6 +32,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Timer? _pollTimer;
   Timer? _stickyAutoSyncTimer;
   Timer? _stickyPullTimer;
+  Timer? _boundsSaveTimer;
+  // Zuletzt gespeicherte Fenster-Lage – um nur bei echter Änderung zu schreiben.
+  Rect? _lastSavedBounds;
 
   // Lokale Rückgängig-Funktion (nur Inhalt; Titel steckt in der Fenstertitelleiste).
   final List<String> _undoStack = [];
@@ -62,6 +65,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       _stickyPullTimer = Timer.periodic(
         const Duration(seconds: 15),
         (_) => _runStickyAutoSync(),
+      );
+      // Fenster-Lage periodisch sichern. Wichtig v.a. auf Linux: dort feuern die
+      // onWindowMoved/onWindowResized/onWindowClose-Events nicht zuverlässig, und
+      // beim Reboot wird der Prozess hart beendet (kein sauberes Close) → ohne
+      // dieses Polling würde die zuletzt eingestellte Größe/Position nie gemerkt.
+      _boundsSaveTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => _saveBounds(),
       );
     }
     _loadNote();
@@ -144,11 +155,22 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     setState(() => _isLoading = false);
   }
 
-  // Fensterposition/-größe merken
+  // Fensterposition/-größe merken. Wird sowohl von den Fenster-Events als auch
+  // vom periodischen Timer aufgerufen → nur bei echter Änderung schreiben.
   Future<void> _saveBounds() async {
     if (!_isDesktop) return;
     try {
       final bounds = await windowManager.getBounds();
+      if (bounds.width <= 0 || bounds.height <= 0) return; // unsinnige Werte
+      final last = _lastSavedBounds;
+      if (last != null &&
+          (last.left - bounds.left).abs() < 1 &&
+          (last.top - bounds.top).abs() < 1 &&
+          (last.width - bounds.width).abs() < 1 &&
+          (last.height - bounds.height).abs() < 1) {
+        return; // unverändert
+      }
+      _lastSavedBounds = bounds;
       await StickyNoteService.instance.saveBounds(widget.noteId, bounds);
     } catch (e) {
       debugPrint('Fenster-Bounds speichern fehlgeschlagen: $e');
@@ -172,6 +194,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _pollTimer?.cancel();
     _stickyAutoSyncTimer?.cancel();
     _stickyPullTimer?.cancel();
+    _boundsSaveTimer?.cancel();
     _saveTimer?.cancel();
     _undoCheckpointTimer?.cancel();
     _saveNote();
