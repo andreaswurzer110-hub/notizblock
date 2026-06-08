@@ -1,7 +1,9 @@
-﻿import 'dart:io';
+﻿import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' show DartPluginRegistrant;
 import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
 import 'database_service.dart';
@@ -33,12 +35,30 @@ class WidgetService {
     if (!Platform.isAndroid) return;
 
     try {
+      // Login-Status mitschreiben, bevor das Widget neu zeichnet, damit der
+      // Provider Zeit/Datum durchstreichen kann, wenn nicht angemeldet.
+      await _writeDriveSignInState();
       await HomeWidget.updateWidget(
         androidName: androidWidgetName,
         qualifiedAndroidName: androidWidgetQualifiedName,
       );
     } catch (e) {
       debugPrint('Widget Update Fehler: $e');
+    }
+  }
+
+  // Drive-Login-Status neben notes.json ablegen (app_flutter/drive_state.json).
+  // Der NoteWidgetProvider liest die Datei und streicht Zeit/Datum durch, wenn
+  // nicht angemeldet – so fällt ein versehentliches Abmelden auf.
+  Future<void> _writeDriveSignInState() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/drive_state.json');
+      await file.writeAsString(
+        jsonEncode({'signedIn': GoogleDriveService.instance.isSignedIn}),
+      );
+    } catch (e) {
+      debugPrint('drive_state.json schreiben fehlgeschlagen: $e');
     }
   }
 

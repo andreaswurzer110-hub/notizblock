@@ -469,6 +469,12 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Wiederholen'**
   String get redo;
+
+  /// No description provided for @notSignedIn.
+  ///
+  /// In de, this message translates to:
+  /// **'Nicht bei Google Drive angemeldet'**
+  String get notSignedIn;
 }
 
 class _AppLocalizationsDelegate

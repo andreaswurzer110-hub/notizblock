@@ -67,5 +67,6 @@
   "fontSize": "Font size",
   "fontSizeSample": "Sample text",
   "undo": "Undo",
-  "redo": "Redo"
+  "redo": "Redo",
+  "notSignedIn": "Not signed in to Google Drive"
 }

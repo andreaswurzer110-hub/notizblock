@@ -1,7 +1,7 @@
 name: notizblock
 description: Eine schlichte Notizblock-App mit Widgets und Google Drive Sync
 publish_to: 'none'
-version: 1.19.2+21
+version: 1.20.0+22
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

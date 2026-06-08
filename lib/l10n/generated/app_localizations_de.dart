@@ -207,4 +207,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get redo => 'Wiederholen';
+
+  @override
+  String get notSignedIn => 'Nicht bei Google Drive angemeldet';
 }

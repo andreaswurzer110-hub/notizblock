@@ -27,6 +27,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Note? _note;
   bool _isLoading = true;
   bool _syncing = false;
+  // Drive-Login-Status; bei false werden Sync-Button und Zeit durchgestrichen.
+  // Wird im 1-s-Poll aktualisiert (der stille Login läuft async beim Start).
+  bool _isSignedIn = false;
   double _fontScale = 1.0;
   Timer? _saveTimer;
   Timer? _pollTimer;
@@ -52,6 +55,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     super.initState();
     _titleController = TextEditingController();
     _contentController = TextEditingController();
+    _isSignedIn = GoogleDriveService.instance.isSignedIn;
     if (_isDesktop) {
       windowManager.addListener(this);
       // Eigene PID hinterlegen, damit die Hauptapp dieses Widget nicht doppelt öffnet.
@@ -104,6 +108,11 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Future<void> _checkExternalUpdate() async {
     if (_isLoading) return;
     _loadFontScale(); // Schriftgröße-Änderung aus der Hauptapp live übernehmen
+    // Login-Status live nachziehen (Durchstreichen von Sync-Button/Zeit).
+    final signedIn = GoogleDriveService.instance.isSignedIn;
+    if (mounted && signedIn != _isSignedIn) {
+      setState(() => _isSignedIn = signedIn);
+    }
     final note = await DatabaseService.instance.getNoteById(widget.noteId);
     if (!mounted) return;
 
@@ -324,6 +333,17 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     }
   }
 
+  // Hinweis, wenn nicht bei Drive angemeldet (Sync-Button/Zeit durchgestrichen).
+  void _showNotSignedIn() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Nicht bei Google Drive angemeldet'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
   // Manueller Sync direkt aus dem Sticky-Fenster (z.B. wenn das Hauptfenster zu ist).
   Future<void> _syncNow() async {
     setState(() => _syncing = true);
@@ -423,11 +443,15 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
           _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
           const Spacer(),
           // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
+          // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.
           Tooltip(
-            message: 'Synchronisieren',
+            message:
+                _isSignedIn ? 'Synchronisieren' : 'Nicht bei Google Drive angemeldet',
             child: InkWell(
               borderRadius: BorderRadius.circular(6),
-              onTap: _syncing ? null : _syncNow,
+              onTap: _syncing
+                  ? null
+                  : (_isSignedIn ? _syncNow : _showNotSignedIn),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 child: Text(
@@ -435,6 +459,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                   style: TextStyle(
                     fontSize: 13,
                     color: _textColor.withValues(alpha: 0.6),
+                    decoration:
+                        _isSignedIn ? null : TextDecoration.lineThrough,
                   ),
                 ),
               ),
@@ -470,8 +496,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       padding: const EdgeInsets.all(6),
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints(),
-      tooltip: 'Synchronisieren',
-      onPressed: _syncing ? null : _syncNow,
+      tooltip:
+          _isSignedIn ? 'Synchronisieren' : 'Nicht bei Google Drive angemeldet',
+      onPressed: _syncing ? null : (_isSignedIn ? _syncNow : _showNotSignedIn),
       icon: _syncing
           ? SizedBox(
               width: 20,
@@ -479,7 +506,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               child: CircularProgressIndicator(
                   strokeWidth: 2, color: _textColor.withValues(alpha: 0.7)),
             )
-          : Icon(Icons.sync,
+          // Nicht angemeldet -> durchgestrichenes Icon (sync_disabled).
+          : Icon(_isSignedIn ? Icons.sync : Icons.sync_disabled,
               size: 22, color: _textColor.withValues(alpha: 0.7)),
     );
   }

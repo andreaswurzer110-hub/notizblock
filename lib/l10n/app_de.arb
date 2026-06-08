@@ -67,5 +67,6 @@
   "fontSize": "Schriftgröße",
   "fontSizeSample": "Beispieltext",
   "undo": "Rückgängig",
-  "redo": "Wiederholen"
+  "redo": "Wiederholen",
+  "notSignedIn": "Nicht bei Google Drive angemeldet"
 }

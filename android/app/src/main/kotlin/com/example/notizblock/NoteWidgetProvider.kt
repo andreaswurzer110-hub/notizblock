@@ -8,6 +8,9 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Build
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.StrikethroughSpan
 import android.widget.RemoteViews
 import android.net.Uri
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
@@ -55,8 +58,20 @@ class NoteWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_title,
                         if (title.isNotEmpty()) title else context.getString(R.string.empty_note))
                     views.setTextViewText(R.id.widget_content, content)
-                    views.setTextViewText(R.id.widget_time,
-                        formatTime(note.optString("modifiedAt", "")))
+                    // Zeit/Datum durchstreichen, wenn nicht bei Drive angemeldet
+                    // (Login-Status aus drive_state.json) – macht den abgemeldeten
+                    // Zustand sichtbar, da der Sync-Klick sonst kein Feedback gibt.
+                    val timeStr = formatTime(note.optString("modifiedAt", ""))
+                    if (isDriveSignedIn(context)) {
+                        views.setTextViewText(R.id.widget_time, timeStr)
+                    } else {
+                        val struck = SpannableString(timeStr)
+                        struck.setSpan(
+                            StrikethroughSpan(), 0, timeStr.length,
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        views.setTextViewText(R.id.widget_time, struck)
+                    }
 
                     // Notizfarbe auf den Hintergrund übernehmen
                     val bgColor = parseColor(note.optString("color", "#FFFDE7"))
@@ -142,6 +157,19 @@ class NoteWidgetProvider : AppWidgetProvider() {
                 "$day.$month. $time"
             } catch (e: Exception) {
                 ""
+            }
+        }
+
+        // Liest den Drive-Login-Status aus app_flutter/drive_state.json (von
+        // WidgetService._writeDriveSignInState geschrieben). Fehlt die Datei
+        // (z.B. frische Installation), gilt "nicht angemeldet".
+        private fun isDriveSignedIn(context: Context): Boolean {
+            return try {
+                val f = File(context.filesDir.parentFile, "app_flutter/drive_state.json")
+                if (f.exists()) JSONObject(f.readText()).optBoolean("signedIn", false)
+                else false
+            } catch (e: Exception) {
+                false
             }
         }
 

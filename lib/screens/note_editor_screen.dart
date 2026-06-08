@@ -290,6 +290,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     );
   }
 
+  // Hinweis, wenn nicht bei Drive angemeldet (Sync-Button/Zeit sind dann
+  // durchgestrichen). Macht den abgemeldeten Zustand sichtbar.
+  void _showNotSignedIn() {
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.notSignedIn),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // Manueller Sync aus dem Editor (Absicherung).
   Future<void> _syncNow() async {
     setState(() => _syncing = true);
@@ -604,24 +617,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               Center(
                 child: Builder(
                   builder: (context) {
+                    final signedIn = GoogleDriveService.instance.isSignedIn;
+                    // Zeit/Datum durchgestrichen, wenn nicht angemeldet – damit
+                    // der abgemeldete Zustand sofort auffällt.
                     final timeText = Text(
                       DateFormat('d.M. HH:mm', 'de').format(_currentModifiedAt),
                       style: TextStyle(
                         fontSize: 12,
                         color: foregroundColor.withValues(alpha: 0.6),
+                        decoration:
+                            signedIn ? null : TextDecoration.lineThrough,
                       ),
                     );
-                    if (!GoogleDriveService.instance.isSignedIn) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: timeText,
-                      );
-                    }
                     return Tooltip(
-                      message: l10n.syncNow,
+                      message: signedIn ? l10n.syncNow : l10n.notSignedIn,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(6),
-                        onTap: _syncing ? null : _syncNow,
+                        onTap: _syncing
+                            ? null
+                            : (signedIn ? _syncNow : _showNotSignedIn),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 8),
@@ -639,19 +653,27 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                 tooltip: l10n.appTitle,
                 onPressed: _goToMainMenu,
               ),
-            // Manueller Sync (Absicherung), wenn bei Drive angemeldet
-            if (GoogleDriveService.instance.isSignedIn)
-              IconButton(
-                icon: _syncing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                tooltip: l10n.syncNow,
-                onPressed: _syncing ? null : _syncNow,
-              ),
+            // Manueller Sync (Absicherung). Bleibt immer sichtbar; nicht
+            // angemeldet -> durchgestrichenes Icon (sync_disabled) + Hinweis.
+            IconButton(
+              icon: _syncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(GoogleDriveService.instance.isSignedIn
+                      ? Icons.sync
+                      : Icons.sync_disabled),
+              tooltip: GoogleDriveService.instance.isSignedIn
+                  ? l10n.syncNow
+                  : l10n.notSignedIn,
+              onPressed: _syncing
+                  ? null
+                  : (GoogleDriveService.instance.isSignedIn
+                      ? _syncNow
+                      : _showNotSignedIn),
+            ),
             // Mehr-Optionen (inkl. Anheften – spart oben Platz, v.a. auf Android)
             IconButton(
               icon: const Icon(Icons.more_vert),

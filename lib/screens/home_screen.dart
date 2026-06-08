@@ -100,6 +100,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Hinweis, wenn nicht bei Drive angemeldet (Sync-Button ist dann
+  // durchgestrichen). Macht den abgemeldeten Zustand sichtbar.
+  void _showNotSignedIn() {
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.notSignedIn),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   // Notiz als Desktop-Widget anheften/lösen
   Future<void> _toggleWidget(Note note) async {
     final isWidget = await StickyNoteService.instance.isWidget(note.id);
@@ -329,18 +342,28 @@ class _HomeScreenState extends State<HomeScreen> {
             IconButton(icon: const Icon(Icons.close), onPressed: _stopSearch)
           else ...[
             IconButton(icon: const Icon(Icons.search), onPressed: _startSearch),
-            if (GoogleDriveService.instance.isSignedIn)
-              IconButton(
-                icon: _isSyncing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                tooltip: l10n.syncNow,
-                onPressed: _isSyncing ? null : _syncNow,
-              ),
+            // Sync-Button bleibt immer sichtbar. Nicht angemeldet ->
+            // durchgestrichenes Icon (sync_disabled) + Hinweis statt Sync, damit
+            // ein versehentliches Abmelden auffällt.
+            IconButton(
+              icon: _isSyncing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(GoogleDriveService.instance.isSignedIn
+                      ? Icons.sync
+                      : Icons.sync_disabled),
+              tooltip: GoogleDriveService.instance.isSignedIn
+                  ? l10n.syncNow
+                  : l10n.notSignedIn,
+              onPressed: _isSyncing
+                  ? null
+                  : (GoogleDriveService.instance.isSignedIn
+                      ? _syncNow
+                      : _showNotSignedIn),
+            ),
             IconButton(
               icon: Icon(settings.isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
               onPressed: () => settings.toggleViewMode(),
