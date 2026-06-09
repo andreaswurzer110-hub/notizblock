@@ -91,6 +91,12 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   Future<void> _runAutoSync() async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool(SettingsProvider.autoSyncKey) ?? false)) return;
+    // Sicherheitsnetz: Ging die Anmeldung verloren (z.B. App lange im Hintergrund),
+    // still neu anmelden, bevor synchronisiert wird – sonst bliebe der Status bis
+    // zum nächsten App-Start auf "abgemeldet".
+    if (!GoogleDriveService.instance.isSignedIn) {
+      await GoogleDriveService.instance.signInSilently();
+    }
     final result = await GoogleDriveService.instance.synchronize();
     if (result.success) {
       await loadNotes(silent: true);

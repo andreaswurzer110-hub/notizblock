@@ -11,16 +11,22 @@ import '../models/note.dart';
 import 'database_service.dart';
 import 'google_drive_config.dart';
 
-/// HTTP-Client, der feste Auth-Header anhängt (für google_sign_in auf Mobil).
+/// HTTP-Client für google_sign_in (Mobil), der die Auth-Header PRO REQUEST frisch
+/// aus dem aktuell angemeldeten Konto holt – NICHT einmal beim Login einfriert.
+/// Grund: das Google-Access-Token lebt nur ~1 h. Ein eingefrorener Header lieferte
+/// danach 401 und die App loggte sich fälschlich aus (war real ein Bug). So zieht
+/// auch ein zwischenzeitlicher clearAuthCache()-Refresh sofort beim nächsten Request.
 class GoogleAuthClient extends http.BaseClient {
-  final Map<String, String> _headers;
+  final GoogleSignIn _signIn;
   final http.Client _client = http.Client();
 
-  GoogleAuthClient(this._headers);
+  GoogleAuthClient(this._signIn);
 
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    return _client.send(request..headers.addAll(_headers));
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final headers = await _signIn.currentUser?.authHeaders;
+    if (headers != null) request.headers.addAll(headers);
+    return _client.send(request);
   }
 }
 
@@ -144,6 +150,25 @@ class GoogleDriveService {
     _userName = null;
   }
 
+  // Mobil: abgelaufenes Access-Token (~1 h) still erneuern, statt den Nutzer
+  // sichtbar auszuloggen. google_sign_in cached das Token lokal; laut Plugin-Doku
+  // bei 401 clearAuthCache() aufrufen – danach holt GoogleAuthClient beim nächsten
+  // Request automatisch ein frisches Token. Gibt true zurück, wenn wieder ein
+  // gültiges Konto verbunden ist (dann lohnt ein erneuter Versuch).
+  Future<bool> _refreshMobileToken() async {
+    if (_isDesktop) return false;
+    try {
+      // Konto evtl. nach langem Hintergrund verloren -> still neu verbinden.
+      _mobileUser ??= await _googleSignIn.signInSilently();
+      if (_mobileUser == null) return false;
+      await _mobileUser!.clearAuthCache();
+      return true;
+    } catch (e) {
+      debugPrint('Token-Refresh fehlgeschlagen: $e');
+      return false;
+    }
+  }
+
   // --- Mobil (Android/iOS) via google_sign_in ---
   Future<bool> _mobileSignIn({required bool silent}) async {
     _mobileUser = silent
@@ -151,8 +176,9 @@ class GoogleDriveService {
         : await _googleSignIn.signIn();
     if (_mobileUser == null) return false;
 
-    final authHeaders = await _mobileUser!.authHeaders;
-    _authClient = GoogleAuthClient(authHeaders);
+    // Client holt die Header pro Request frisch (siehe GoogleAuthClient), daher
+    // hier nur die GoogleSignIn-Instanz übergeben statt eines Header-Schnappschusses.
+    _authClient = GoogleAuthClient(_googleSignIn);
     _userEmail = _mobileUser!.email;
     _userName = _mobileUser!.displayName ?? _mobileUser!.email;
     _driveApi = drive.DriveApi(_authClient!);
@@ -265,7 +291,7 @@ class GoogleDriveService {
   }
 
   // Voll-Backup: alle Notizen als per-Notiz-Dateien + eine Gesamt-JSON.
-  Future<bool> createBackup() async {
+  Future<bool> createBackup({bool allowAuthRetry = true}) async {
     if (_driveApi == null) {
       debugPrint('Nicht angemeldet');
       return false;
@@ -304,13 +330,18 @@ class GoogleDriveService {
       return true;
     } catch (e) {
       debugPrint('Backup Fehler: $e');
-      if (_isAuthError(e)) await _handleAuthFailure();
+      if (_isAuthError(e)) {
+        if (allowAuthRetry && !_isDesktop && await _refreshMobileToken()) {
+          return createBackup(allowAuthRetry: false);
+        }
+        await _handleAuthFailure();
+      }
       return false;
     }
   }
 
   // Voll-Wiederherstellung: alle per-Notiz-Dateien (und ggf. Alt-Backup) laden.
-  Future<bool> restoreBackup() async {
+  Future<bool> restoreBackup({bool allowAuthRetry = true}) async {
     if (_driveApi == null) {
       debugPrint('Nicht angemeldet');
       return false;
@@ -340,7 +371,12 @@ class GoogleDriveService {
       return true;
     } catch (e) {
       debugPrint('Wiederherstellung Fehler: $e');
-      if (_isAuthError(e)) await _handleAuthFailure();
+      if (_isAuthError(e)) {
+        if (allowAuthRetry && !_isDesktop && await _refreshMobileToken()) {
+          return restoreBackup(allowAuthRetry: false);
+        }
+        await _handleAuthFailure();
+      }
       return false;
     }
   }
@@ -364,7 +400,7 @@ class GoogleDriveService {
     }
   }
 
-  Future<SyncResult> _doSynchronize() async {
+  Future<SyncResult> _doSynchronize({bool allowAuthRetry = true}) async {
     try {
       final rootId = await _getOrCreateBackupFolder();
       if (rootId == null) {
@@ -516,6 +552,11 @@ class GoogleDriveService {
     } catch (e) {
       debugPrint('Sync Fehler: $e');
       if (_isAuthError(e)) {
+        // Mobil: meist nur ein abgelaufenes ~1-h-Access-Token. Still erneuern und
+        // EINMAL neu versuchen, statt den Nutzer sichtbar auszuloggen.
+        if (allowAuthRetry && !_isDesktop && await _refreshMobileToken()) {
+          return _doSynchronize(allowAuthRetry: false);
+        }
         await _handleAuthFailure();
         return SyncResult(
             success: false,
