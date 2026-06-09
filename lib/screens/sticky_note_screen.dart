@@ -432,13 +432,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     );
   }
 
-  // Obere Leiste: Home, Rückgängig (links) – Zeit, Sync (rechts).
+  // Obere Leiste: Rückgängig/Wiederholen (links) – Zeit, Sync, Einstellungen,
+  // Hauptmenü (rechts). Das Haus-Symbol bewusst ganz rechts, damit die Leiste
+  // einheitlich rechtsbündig zu den Aktions-Buttons der übrigen Ansichten ist.
   Widget _buildToolbar() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
       child: Row(
         children: [
-          _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
           _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
           _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
           const Spacer(),
@@ -468,8 +469,10 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
           ),
           const SizedBox(width: 2),
           _buildSyncButton(),
-          // Einstellungen ganz rechts (öffnet die Hauptapp-Einstellungen).
+          // Einstellungen (öffnet die Hauptapp-Einstellungen).
           _toolButton(Icons.settings, 'Einstellungen', _openSettings),
+          // Hauptmenü ganz rechts (öffnet die Hauptapp-Notizliste).
+          _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
         ],
       ),
     );

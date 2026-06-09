@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../models/note.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/google_drive_service.dart';
+import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -57,6 +59,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   bool _restoringSnapshot = false;
 
   bool get isNewNote => widget.note == null;
+
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   void initState() {
@@ -401,6 +406,43 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     });
   }
 
+  // Notiz als Desktop-Widget anheften/lösen (nur Desktop). Beim Anheften öffnet
+  // sich direkt das Sticky-Fenster, beim Lösen wird ein offenes geschlossen.
+  Future<void> _toggleWidget() async {
+    final note = _currentNote ?? widget.note;
+    if (note == null) return;
+    // Aktuellen Stand sichern, damit ein frisch geöffnetes Sticky-Fenster den
+    // neuesten Inhalt zeigt.
+    if (_hasChanges) await _saveNote();
+    final current = _currentNote ?? note;
+    final isWidget = await StickyNoteService.instance.isWidget(current.id);
+    await StickyNoteService.instance.setWidget(current.id, !isWidget);
+    if (!isWidget) {
+      await StickyNoteService.instance.openStickyNote(current);
+    } else {
+      await StickyNoteService.instance.closeStickyNote(current.id);
+    }
+  }
+
+  // Notiz archivieren und den Editor schließen (sie verschwindet aus der Liste).
+  Future<void> _archiveNote() async {
+    // Anstehenden Auto-Save abbrechen, sonst könnte er nach dem Archivieren den
+    // (im Speicher noch un-archivierten) Stand zurückschreiben.
+    _saveDebounce?.cancel();
+    final note = _currentNote ?? widget.note;
+    if (note == null) return;
+    if (_hasChanges) await _saveNote();
+    final id = (_currentNote ?? note).id;
+    await (_notesProvider ?? context.read<NotesProvider>()).archiveNote(id);
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+    } else {
+      await SystemNavigator.pop();
+    }
+  }
+
   void _confirmDelete() {
     final l10n = AppLocalizations.of(context)!;
 
@@ -433,8 +475,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     );
   }
 
-  void _showMoreOptions() {
+  Future<void> _showMoreOptions() async {
     final l10n = AppLocalizations.of(context)!;
+    // Widget-Status (nur Desktop) vorab ermitteln, um „anheften/lösen" korrekt
+    // zu beschriften. showModalBottomSheet baut synchron -> vorher awaiten.
+    final noteId = _currentNote?.id ?? widget.note?.id;
+    var isWidgetPinned = false;
+    if (_isDesktop && !isNewNote && noteId != null) {
+      isWidgetPinned = await StickyNoteService.instance.isWidget(noteId);
+    }
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -459,6 +509,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     _togglePin();
                   },
                 ),
+
+                // Als Widget anheften/lösen (nur Desktop, nur bestehende Notiz)
+                if (_isDesktop && !isNewNote)
+                  ListTile(
+                    leading: Icon(
+                      isWidgetPinned ? Icons.widgets : Icons.widgets_outlined,
+                    ),
+                    title: Text(
+                        isWidgetPinned ? l10n.unpinWidget : l10n.pinAsWidget),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _toggleWidget();
+                    },
+                  ),
 
                 // Farbe
                 ListTile(
@@ -491,6 +555,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     );
                   },
                 ),
+
+                // Archivieren (nur bestehende Notiz)
+                if (!isNewNote)
+                  ListTile(
+                    leading: const Icon(Icons.archive_outlined),
+                    title: Text(l10n.archive),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _archiveNote();
+                    },
+                  ),
 
                 // Löschen
                 if (!isNewNote)
