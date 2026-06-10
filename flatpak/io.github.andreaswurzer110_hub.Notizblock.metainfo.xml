@@ -12,7 +12,6 @@
   <summary xml:lang="en">Simple notes with sticky windows and Drive sync</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
-  <!-- TODO: tatsächliche Lizenz der App eintragen (SPDX) und LICENSE-Datei ins Repo legen. -->
   <project_license>MIT</project_license>
 
   <developer id="io.github.andreaswurzer110_hub">

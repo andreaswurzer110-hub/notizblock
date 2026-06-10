@@ -64,3 +64,8 @@ notizblock.db
 notizblock.db-wal
 notizblock.db-shm
 notizblock.db-journal
+
+# Flatpak: Build-Artefakte und Cache. Generated-Sources + Screenshots bleiben im Repo.
+flatpak/.flatpak-builder/
+flatpak/build/
+flatpak/build-dir/
