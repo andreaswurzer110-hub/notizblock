@@ -111,10 +111,12 @@ flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest \
 
 ## Schritt 6 – Updates ausliefern
 
-Pro Release: neuen `<release>`-Eintrag in der `.metainfo.xml` ergänzen, Tag im
-App-Repo setzen, im **Flathub-Repo** das Manifest (Tag/Commit + neue Source-JSONs)
-aktualisieren und pushen → Flathub baut automatisch. Optional den external-data-
-checker/Buildbot einrichten.
+**Automatisiert über CI – siehe [`RELEASING.md`](RELEASING.md).** Kurzfassung:
+Version + `<release>` in der MetaInfo bumpen, Tag `vX.Y.Z` pushen → die
+GitHub-Actions-Pipeline `.github/workflows/flathub-update.yml` regeneriert die
+Offline-Sources, baut testweise und pusht Manifest + `generated/` ins Flathub-Repo
+→ Flathubs Buildbot veröffentlicht. Damit von Windows aus auslösbar, kein
+Linux-Host nötig (außer bei größeren GUI-Änderungen zum Durchklicken).
 
 ## Offene Punkte (vor dem PR erledigen)
 
