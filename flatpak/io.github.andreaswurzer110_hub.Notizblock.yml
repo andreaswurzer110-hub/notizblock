@@ -8,7 +8,7 @@
 
 id: io.github.andreaswurzer110_hub.Notizblock
 runtime: org.gnome.Platform
-runtime-version: '48'
+runtime-version: '49'
 sdk: org.gnome.Sdk
 command: notizblock
 finish-args:
@@ -49,9 +49,9 @@ modules:
         /app/share/metainfo/io.github.andreaswurzer110_hub.Notizblock.metainfo.xml
     sources:
       - type: git
-        url: file:///home/andi/notizblock
+        url: https://github.com/andreaswurzer110-hub/notizblock.git
         tag: v1.25.0
-        commit: 6fb91950298f8fcfdc383c3f2de53118492e560f
+        commit: a95e03df5ec817e33667fe5aec6d646e82921f37
       - generated/sources/pubspec.json
     modules:
       - generated/modules/flutter-sdk-3.44.0.json
