@@ -68,12 +68,15 @@ jobs:
 
       - name: Werkzeuge (python, git, yq)
         run: |
-          dnf install -y python3 git >/dev/null
+          dnf install -y python3 python3-pip git >/dev/null
           curl -fsSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/bin/yq
           chmod +x /usr/bin/yq
 
       - name: flatpak-flutter holen (gepinnt)
-        run: git clone --depth 1 --branch "${FF_REF}" https://github.com/TheAppgineer/flatpak-flutter.git /opt/flatpak-flutter
+        run: |
+          git clone --depth 1 --branch "${FF_REF}" https://github.com/TheAppgineer/flatpak-flutter.git /opt/flatpak-flutter
+          # Python-Abhängigkeiten des Tools installieren, falls vorhanden.
+          [ -f /opt/flatpak-flutter/requirements.txt ] && pip3 install -r /opt/flatpak-flutter/requirements.txt || true
 
       - name: Quell-Manifest auf GitHub-URL + Release-Tag setzen
         working-directory: flatpak
