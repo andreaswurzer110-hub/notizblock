@@ -264,22 +264,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteTypeAutopoolSubtitle => 'Table (device list)';
 
   @override
-  String get autopoolColSize => 'Size & Type';
+  String get autopoolColName => 'Name';
 
   @override
-  String get autopoolColModel => 'Model & CPU';
-
-  @override
-  String get autopoolColInventory => 'Inventory no. & Office';
+  String get autopoolColOfficeVersion => 'Dept & ver.';
 
   @override
   String get autopoolColLocation => 'Location';
 
   @override
-  String get autopoolColSerial => 'Serial number';
+  String get autopoolColInventory => 'Inventory no.';
 
   @override
-  String get autopoolColWindows => 'Windows version';
+  String get autopoolColSerial => 'Serial number';
 
   @override
   String get autopoolColDate => 'Date';

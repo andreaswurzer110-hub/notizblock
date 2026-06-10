@@ -180,7 +180,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         _titleController.text = _note!.title;
         _contentController.text = _note!.content;
         _autopoolJson = _note!.autopoolData;
-        _lastCheckpoint = _note!.content;
+        _lastCheckpoint =
+            _note!.isAutopool ? _note!.autopoolData : _note!.content;
         if (_isDesktop) {
           final title = _note!.title.isNotEmpty ? _note!.title : 'Notiz';
           await windowManager.setTitle(title);
@@ -259,9 +260,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (mounted) setState(() {});
   }
 
+  // Aktueller Stand für Undo: bei Autopool die Tabellen-JSON, sonst der Text.
+  String get _currentSnapshot => _note?.isAutopool == true
+      ? (_autopoolKey.currentState?.currentJson ?? _autopoolJson)
+      : _contentController.text;
+
   // Aktuellen Stand als Undo-Schritt ablegen (vorigen Checkpoint stapeln).
   void _commitCheckpoint() {
-    final current = _contentController.text;
+    final current = _currentSnapshot;
     if (current == _lastCheckpoint) return;
     _undoStack.add(_lastCheckpoint);
     if (_undoStack.length > 50) _undoStack.removeAt(0);
@@ -270,7 +276,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   }
 
   bool get _canUndo =>
-      _undoStack.isNotEmpty || _contentController.text != _lastCheckpoint;
+      _undoStack.isNotEmpty || _currentSnapshot != _lastCheckpoint;
 
   bool get _canRedo => _redoStack.isNotEmpty;
 
@@ -279,7 +285,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Der jeweils verlassene Stand wandert auf den Wiederholen-Stapel.
   void _undo() {
     _undoCheckpointTimer?.cancel();
-    final current = _contentController.text;
+    final current = _currentSnapshot;
     String? target;
     if (current != _lastCheckpoint) {
       target = _lastCheckpoint;
@@ -307,6 +313,20 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // bei programmatischer Änderung nicht von selbst).
   void _applySnapshot(String target) {
     _restoringSnapshot = true;
+    if (_note?.isAutopool == true) {
+      // Autopool: Tabellenstand setzen (setData feuert kein onChanged) und
+      // Speichern + Sync selbst anstoßen.
+      _autopoolJson = target;
+      _autopoolKey.currentState?.setData(target);
+      _saveTimer?.cancel();
+      _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
+      _stickyAutoSyncTimer?.cancel();
+      _stickyAutoSyncTimer =
+          Timer(const Duration(seconds: 2), _runStickyAutoSync);
+      _restoringSnapshot = false;
+      if (mounted) setState(() {});
+      return;
+    }
     _contentController.value = TextEditingValue(
       text: target,
       selection: TextSelection.collapsed(offset: target.length),
@@ -341,7 +361,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _note = updatedNote;
   }
 
-  // Tabellenänderung (Autopool): entprellt speichern + syncen (kein Undo-Stack).
+  // Tabellenänderung (Autopool): entprellt speichern + syncen + Undo-Checkpoint.
   void _onAutopoolChanged(String json) {
     _autopoolJson = json;
     _saveTimer?.cancel();
@@ -349,6 +369,13 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _stickyAutoSyncTimer?.cancel();
     _stickyAutoSyncTimer =
         Timer(const Duration(seconds: 2), _runStickyAutoSync);
+    if (!_restoringSnapshot) {
+      if (_redoStack.isNotEmpty) _redoStack.clear();
+      _undoCheckpointTimer?.cancel();
+      _undoCheckpointTimer =
+          Timer(const Duration(milliseconds: 600), _commitCheckpoint);
+    }
+    if (mounted) setState(() {});
   }
 
   // Öffnet die Hauptapp (Notizliste) als eigenen Prozess. `--show-main` erzwingt
@@ -502,11 +529,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
       child: Row(
         children: [
-          // Rückgängig/Wiederholen nur für Textnotizen (Autopool hat keinen Stack).
-          if (_note?.isAutopool != true) ...[
-            _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
-            _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
-          ],
+          // Rückgängig/Wiederholen (für Text und Autopool-Tabelle).
+          _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
+          _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
           const Spacer(),
           // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
           // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.

@@ -265,22 +265,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noteTypeAutopoolSubtitle => 'Tabelle (Geräteliste)';
 
   @override
-  String get autopoolColSize => 'Größe & Art';
+  String get autopoolColName => 'Bezeichnung';
 
   @override
-  String get autopoolColModel => 'Model & CPU';
-
-  @override
-  String get autopoolColInventory => 'Inventarnummer & Dienststelle';
+  String get autopoolColOfficeVersion => 'DS & Version';
 
   @override
   String get autopoolColLocation => 'Ort';
 
   @override
-  String get autopoolColSerial => 'Seriennummer';
+  String get autopoolColInventory => 'Inventarnummer';
 
   @override
-  String get autopoolColWindows => 'Windows Version';
+  String get autopoolColSerial => 'Seriennummer';
 
   @override
   String get autopoolColDate => 'Datum';

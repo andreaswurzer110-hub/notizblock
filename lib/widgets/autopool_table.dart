@@ -5,8 +5,8 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 /// Editierbare Autopool-Tabelle (7 Spalten je Zeile). Wird sowohl im Vollbild-
 /// Editor als auch im Windows-Sticky-Fenster verwendet.
 ///
-/// - Desktop/breit: alle 7 Felder in einer Zeile.
-/// - Handy/schmal: zweizeilig (Felder 1–4 oben, 5–7 unten).
+/// - Desktop/breit: alle 6 Felder in einer Zeile.
+/// - Handy/schmal: drei Zeilen à zwei Felder pro Gerät (lesbarer als 6 quer).
 /// - Zeilen per ↑/↓ an der Seite umsortierbar, abwechselnd eingefärbt (Zebra).
 /// - Zeile markierbar (Text durchgestrichen) zum Vormerken; Markierung wieder
 ///   entfernbar oder Zeile löschen.
@@ -34,14 +34,22 @@ class AutopoolTable extends StatefulWidget {
 }
 
 class AutopoolTableState extends State<AutopoolTable> {
-  // Relative Spaltenbreiten (breite Ansicht). Inventar etwas breiter, Ort/Datum
-  // schmaler.
-  static const List<int> _flex = [3, 3, 4, 2, 3, 3, 2];
+  // Relative Spaltenbreiten (breite Ansicht). Bezeichnung/Dienststelle breiter,
+  // Ort/Datum schmaler.
+  static const List<int> _flex = [4, 4, 2, 3, 3, 2];
   static const double _narrowBreakpoint = 620;
-  // Schmal: erste Zeile bekommt die Spalten 0–3 (inkl. Ort), zweite 4–6.
-  static const int _narrowSplit = 4;
-  static const double _arrowWidth = 34;
-  static const double _actionWidth = 40;
+  // Schmal (Handy): pro Gerät drei Zeilen à zwei Felder.
+  static const List<List<int>> _narrowGroups = [
+    [0, 1],
+    [2, 3],
+    [4, 5],
+  ];
+  // Buttons (Verschieben/Markieren/Löschen) auf Desktop größer, auf Handy
+  // kompakt. `_narrow` wird im build() aus der verfügbaren Breite gesetzt.
+  bool _narrow = false;
+  double get _arrowWidth => _narrow ? 24 : 40;
+  double get _actionWidth => _narrow ? 28 : 46;
+  double get _iconSize => _narrow ? 18.0 : 24.0;
 
   final List<List<TextEditingController>> _rows = [];
   final List<List<FocusNode>> _focus = [];
@@ -151,12 +159,11 @@ class AutopoolTableState extends State<AutopoolTable> {
   }
 
   List<String> _columns(AppLocalizations l) => [
-        l.autopoolColSize,
-        l.autopoolColModel,
-        l.autopoolColInventory,
+        l.autopoolColName,
+        l.autopoolColOfficeVersion,
         l.autopoolColLocation,
+        l.autopoolColInventory,
         l.autopoolColSerial,
-        l.autopoolColWindows,
         l.autopoolColDate,
       ];
 
@@ -168,6 +175,7 @@ class AutopoolTableState extends State<AutopoolTable> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final narrow = constraints.maxWidth < _narrowBreakpoint;
+        _narrow = narrow;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -207,28 +215,24 @@ class AutopoolTableState extends State<AutopoolTable> {
     if (narrow) {
       return Column(
         children: [
-          Row(children: [
-            const SizedBox(width: _arrowWidth),
-            for (var c = 0; c < _narrowSplit; c++) Expanded(child: label(c)),
-            const SizedBox(width: _actionWidth),
-          ]),
-          const SizedBox(height: 4),
-          Row(children: [
-            const SizedBox(width: _arrowWidth),
-            for (var c = _narrowSplit; c < kAutopoolColCount; c++)
-              Expanded(child: label(c)),
-            const SizedBox(width: _actionWidth),
-          ]),
+          for (var g = 0; g < _narrowGroups.length; g++) ...[
+            if (g > 0) const SizedBox(height: 4),
+            Row(children: [
+              SizedBox(width: _arrowWidth),
+              for (final c in _narrowGroups[g]) Expanded(child: label(c)),
+              SizedBox(width: _actionWidth),
+            ]),
+          ],
         ],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        const SizedBox(width: _arrowWidth),
+        SizedBox(width: _arrowWidth),
         for (var c = 0; c < kAutopoolColCount; c++)
           Expanded(flex: _flex[c], child: label(c)),
-        const SizedBox(width: _actionWidth),
+        SizedBox(width: _actionWidth),
       ],
     );
   }
@@ -243,21 +247,16 @@ class AutopoolTableState extends State<AutopoolTable> {
     if (narrow) {
       cells = Column(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var c = 0; c < _narrowSplit; c++)
-                Expanded(child: _cell(index, c, cols[c])),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var c = _narrowSplit; c < kAutopoolColCount; c++)
-                Expanded(child: _cell(index, c, cols[c])),
-            ],
-          ),
+          for (var g = 0; g < _narrowGroups.length; g++) ...[
+            if (g > 0) const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final c in _narrowGroups[g])
+                  Expanded(child: _cell(index, c, cols[c])),
+              ],
+            ),
+          ],
         ],
       );
     } else {
@@ -272,11 +271,11 @@ class AutopoolTableState extends State<AutopoolTable> {
 
     return Container(
       key: ObjectKey(_rows[index]),
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
         color: zebra,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -344,15 +343,15 @@ class AutopoolTableState extends State<AutopoolTable> {
   Widget _iconBtn(IconData icon, String tooltip, VoidCallback? onPressed,
       {Color? color}) {
     return IconButton(
-      iconSize: 20,
-      padding: const EdgeInsets.all(2),
+      iconSize: _iconSize,
+      padding: EdgeInsets.all(_narrow ? 1 : 3),
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints(),
       tooltip: tooltip,
       onPressed: onPressed,
       icon: Icon(
         icon,
-        size: 20,
+        size: _iconSize,
         color: color ??
             widget.textColor
                 .withValues(alpha: onPressed == null ? 0.2 : 0.6),
@@ -368,7 +367,7 @@ class AutopoolTableState extends State<AutopoolTable> {
           BorderSide(color: widget.textColor.withValues(alpha: 0.25)),
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       child: TextField(
         controller: _rows[row][col],
         focusNode: _focus[row][col],
@@ -384,13 +383,16 @@ class AutopoolTableState extends State<AutopoolTable> {
         ),
         decoration: InputDecoration(
           isDense: true,
+          // Keine Füllfarbe: die Zelle zeigt die Notiz-/Zebra-Farbe, nur der
+          // Rahmen umgibt sie. Sonst dunkle Theme-Füllung über der Notizfarbe.
+          filled: false,
           hintText: label,
           hintStyle: TextStyle(
             color: widget.textColor.withValues(alpha: 0.35),
             fontSize: 11 * widget.fontScale,
           ),
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           border: border,
           enabledBorder: border,
           focusedBorder: OutlineInputBorder(

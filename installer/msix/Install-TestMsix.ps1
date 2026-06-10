@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 # Projektwurzel = zwei Ebenen ueber diesem Skript (installer\msix\..\..)
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $cer  = Join-Path $root 'certs\notizblock_test.cer'
-$msix = Join-Path $root 'build\msix\Notizblock-1.24.0.msix'
+$msix = Join-Path $root 'build\msix\Notizblock-1.25.0.msix'
 
 if (-not (Test-Path $msix)) { throw "MSIX fehlt: $msix  (zuerst: dart run msix:create)" }
 
@@ -29,12 +29,24 @@ try {
   Write-Host "Falls die Installation gleich an fehlendem Vertrauen scheitert: einmalig als Administrator ausfuehren." -ForegroundColor DarkYellow
 }
 
-# (2) Vorhandene Installation entfernen (idempotent).
-Get-AppxPackage -Name 'AW.NotizblockAW' -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
-
-# (3) Frisch installieren.
-Write-Host "Installiere Paket ..." -ForegroundColor Cyan
-Add-AppxPackage -Path $msix
+# (2) IN-PLACE-Update bevorzugen (KEIN vorheriges Remove): nur so bleibt der
+# Taskleisten-/Startmenue-Pin erhalten. Voraussetzung: hoehere Version als die
+# installierte (Revision .x in pubspec hochzaehlen). Faellt das fehl, mit
+# -ForceUpdateFromAnyVersion versuchen; erst als letzter Ausweg Remove+Add
+# (verliert den Pin).
+Write-Host "Installiere Paket (In-Place-Update) ..." -ForegroundColor Cyan
+try {
+  Add-AppxPackage -Path $msix -ForceApplicationShutdown -ErrorAction Stop
+} catch {
+  Write-Host "  In-Place fehlgeschlagen, versuche -ForceUpdateFromAnyVersion ..." -ForegroundColor DarkYellow
+  try {
+    Add-AppxPackage -Path $msix -ForceUpdateFromAnyVersion -ForceApplicationShutdown -ErrorAction Stop
+  } catch {
+    Write-Host "  Auch das schlug fehl -> Remove+Add (Pin geht verloren)." -ForegroundColor DarkYellow
+    Get-AppxPackage -Name 'AW.NotizblockAW' -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
+    Add-AppxPackage -Path $msix
+  }
+}
 
 $pkg = Get-AppxPackage -Name 'AW.NotizblockAW'
 Write-Host "`nFERTIG:" -ForegroundColor Green

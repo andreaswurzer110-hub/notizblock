@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-/// Anzahl der Spalten einer Autopool-Zeile (Größe&Art, Model&CPU,
-/// Inventarnummer&Dienststelle, Ort, Seriennummer, Windows-Version, Datum).
-const int kAutopoolColCount = 7;
+/// Anzahl der Spalten einer Autopool-Zeile (Bezeichnung, Dienststelle&Version,
+/// Ort, Inventarnummer, Seriennummer, Datum).
+const int kAutopoolColCount = 6;
 
 /// Eine Zeile der Autopool-Tabelle: die Text-Zellen + ein Markierungs-Flag.
 /// `marked` streicht den Text der Zeile im Editor durch (z.B. „voraussichtlich
@@ -67,16 +67,25 @@ class AutopoolData {
 
   String toJsonString() => jsonEncode([for (final r in rows) r.toJson()]);
 
-  /// Lesbare Textfassung: nicht-leere Zellen je Zeile mit " | " verbunden,
-  /// Zeilen mit Zeilenumbruch. Komplett leere Zeilen werden ausgelassen.
+  /// Lesbare Textfassung (für Liste/Suche/Widget/Sticky-Anzeige). Pro Gerät wird
+  /// die gleiche Gruppierung wie im Editor genutzt (je zwei Spalten eine Zeile),
+  /// Geräte durch eine Leerzeile getrennt – so erkennt man im Widget direkt, wie
+  /// viele Geräte es sind und was zusammengehört (statt einer durchlaufenden Zeile).
   String toDisplayText() {
-    return rows
-        .where((r) => r.cells.any((c) => c.trim().isNotEmpty))
-        .map((r) => r.cells
-            .map((c) => c.trim())
-            .where((c) => c.isNotEmpty)
-            .join('  |  '))
-        .join('\n');
+    final devices = <String>[];
+    for (final r in rows) {
+      if (r.cells.every((c) => c.trim().isEmpty)) continue;
+      final lines = <String>[];
+      for (var i = 0; i < kAutopoolColCount; i += 2) {
+        final pair = [
+          r.cells[i].trim(),
+          if (i + 1 < kAutopoolColCount) r.cells[i + 1].trim(),
+        ].where((c) => c.isNotEmpty).join(' · ');
+        if (pair.isNotEmpty) lines.add(pair);
+      }
+      if (lines.isNotEmpty) devices.add(lines.join('\n'));
+    }
+    return devices.join('\n\n');
   }
 
   bool get isEmpty =>

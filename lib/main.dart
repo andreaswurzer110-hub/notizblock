@@ -170,6 +170,13 @@ class StickyNoteApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true, brightness: Brightness.light),
+      // WICHTIG: Lokalisierung auch im Sticky-Fenster bereitstellen. Sonst ist
+      // AppLocalizations.of(context) null und Widgets, die l10n nutzen (z.B. die
+      // Autopool-Tabelle), stürzen beim Aufbau ab -> im Release nur ein graues
+      // Feld. Sprache fest Deutsch (passt zu den hartkodierten Sticky-Texten).
+      locale: const Locale('de'),
+      supportedLocales: SettingsProvider.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: StickyNoteScreen(noteId: noteId),
     );
   }

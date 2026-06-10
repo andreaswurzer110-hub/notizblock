@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../models/note.dart';
 import '../models/autopool.dart';
 import '../providers/notes_provider.dart';
@@ -39,14 +40,19 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
   late TextEditingController _titleController;
   late String _selectedColor;
   late String _autopoolJson;
-  bool _isPinned;
+  bool _isPinned = false;
   bool _hasChanges = false;
   bool _syncing = false;
   Timer? _saveDebounce;
   Note? _currentNote;
   Future<void>? _saveChain;
 
-  _AutopoolEditorScreenState() : _isPinned = false;
+  // Lokale Rückgängig-/Wiederholen-Funktion über die Tabelle (JSON-Snapshots).
+  final List<String> _undoStack = [];
+  final List<String> _redoStack = [];
+  String _lastCheckpoint = '';
+  Timer? _undoCheckpointTimer;
+  bool _restoringSnapshot = false;
 
   bool get isNewNote => widget.note == null;
 
@@ -62,6 +68,10 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     _autopoolJson = widget.note?.autopoolData ?? '';
     _currentNote = widget.note;
     _titleController.addListener(_onChanged);
+    // Undo-Basis am tatsächlichen Anfangsstand der Tabelle ausrichten.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _lastCheckpoint = _tableKey.currentState?.currentJson ?? _autopoolJson;
+    });
   }
 
   @override
@@ -75,6 +85,7 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    _undoCheckpointTimer?.cancel();
     _titleController.removeListener(_onChanged);
     _titleController.dispose();
     super.dispose();
@@ -91,6 +102,67 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
   void _onTableChanged(String json) {
     _autopoolJson = json;
     _onChanged();
+    // Undo-Checkpoint nach kurzer Pause (nicht bei jedem Zeichen).
+    if (!_restoringSnapshot) {
+      if (_redoStack.isNotEmpty) setState(_redoStack.clear);
+      _undoCheckpointTimer?.cancel();
+      _undoCheckpointTimer =
+          Timer(const Duration(milliseconds: 600), _commitCheckpoint);
+    }
+  }
+
+  void _commitCheckpoint() {
+    final current = _tableKey.currentState?.currentJson ?? _autopoolJson;
+    if (current == _lastCheckpoint) return;
+    _undoStack.add(_lastCheckpoint);
+    if (_undoStack.length > 50) _undoStack.removeAt(0);
+    _lastCheckpoint = current;
+    if (mounted) setState(() {});
+  }
+
+  bool get _canUndo {
+    if (_undoStack.isNotEmpty) return true;
+    final current = _tableKey.currentState?.currentJson ?? _autopoolJson;
+    return current != _lastCheckpoint;
+  }
+
+  bool get _canRedo => _redoStack.isNotEmpty;
+
+  void _undo() {
+    _undoCheckpointTimer?.cancel();
+    final current = _tableKey.currentState?.currentJson ?? _autopoolJson;
+    String? target;
+    if (current != _lastCheckpoint) {
+      target = _lastCheckpoint;
+      _redoStack.add(current);
+    } else if (_undoStack.isNotEmpty) {
+      target = _undoStack.removeLast();
+      _redoStack.add(_lastCheckpoint);
+      _lastCheckpoint = target;
+    }
+    if (target == null) return;
+    _applySnapshot(target);
+  }
+
+  void _redo() {
+    _undoCheckpointTimer?.cancel();
+    if (_redoStack.isEmpty) return;
+    final target = _redoStack.removeLast();
+    _undoStack.add(_lastCheckpoint);
+    _lastCheckpoint = target;
+    _applySnapshot(target);
+  }
+
+  void _applySnapshot(String target) {
+    _restoringSnapshot = true;
+    _autopoolJson = target;
+    _tableKey.currentState?.setData(target);
+    _restoringSnapshot = false;
+    setState(() => _hasChanges = true);
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(const Duration(milliseconds: 1000), () {
+      if (mounted) _saveNote();
+    });
   }
 
   Color _parseColor(String hexColor) {
@@ -212,7 +284,6 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     _saveDebounce?.cancel();
     final note = _currentNote ?? widget.note;
     if (note == null) return;
-    // Provider vor dem await greifen (kein context über async gap).
     final notesProvider = context.read<NotesProvider>();
     if (_hasChanges) await _saveNote();
     final id = (_currentNote ?? note).id;
@@ -378,6 +449,16 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     );
   }
 
+  // Aktuellste bekannte Änderungszeit (Provider-Stand bevorzugt).
+  DateTime _currentModifiedAt() {
+    final id = _currentNote?.id ?? widget.note?.id;
+    if (id != null) {
+      final current = context.read<NotesProvider>().getNoteById(id);
+      if (current != null) return current.modifiedAt;
+    }
+    return _currentNote?.modifiedAt ?? widget.note?.modifiedAt ?? DateTime.now();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -408,6 +489,7 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
           backgroundColor: appBarColor,
           foregroundColor: foregroundColor,
           elevation: 0,
+          titleSpacing: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: _handleBack,
@@ -415,6 +497,49 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
           title: Text(l10n.autopool,
               style: TextStyle(fontSize: 16, color: foregroundColor)),
           actions: [
+            // Rückgängig / Wiederholen über die Tabelle.
+            IconButton(
+              icon: const Icon(Icons.undo),
+              tooltip: l10n.undo,
+              onPressed: _canUndo ? _undo : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.redo),
+              tooltip: l10n.redo,
+              onPressed: _canRedo ? _redo : null,
+            ),
+            // Letzte Änderungs-/Sync-Zeit (tippbar = synchronisieren).
+            if (!isNewNote)
+              Center(
+                child: Builder(
+                  builder: (context) {
+                    final timeText = Text(
+                      DateFormat('d.M. HH:mm', 'de')
+                          .format(_currentModifiedAt()),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: foregroundColor.withValues(alpha: 0.6),
+                        decoration:
+                            signedIn ? null : TextDecoration.lineThrough,
+                      ),
+                    );
+                    return Tooltip(
+                      message: signedIn ? l10n.syncNow : l10n.notSignedIn,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: _syncing
+                            ? null
+                            : (signedIn ? _syncNow : _showNotSignedIn),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 8),
+                          child: timeText,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             if (widget.openedFromWidget)
               IconButton(
                 icon: const Icon(Icons.home_outlined),
@@ -440,40 +565,52 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
             ),
           ],
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _titleController,
-                style: TextStyle(
-                  fontSize: 22 * fontScale,
-                  fontWeight: FontWeight.bold,
-                  color: noteTextColor,
-                ),
-                decoration: InputDecoration(
-                  hintText: l10n.titleHint,
-                  hintStyle: TextStyle(
-                    color: noteTextColor.withValues(alpha: 0.4),
-                    fontWeight: FontWeight.normal,
+        // Im Dark Mode den Notizbereich mit der Notizfarbe hinterlegen, sonst
+        // stünde dunkler Text auf dunklem Grund (war als „grauer Schleier" sichtbar).
+        body: Container(
+          margin: isDarkMode ? const EdgeInsets.all(8) : EdgeInsets.zero,
+          decoration: isDarkMode
+              ? BoxDecoration(
+                  color: noteColor,
+                  borderRadius: BorderRadius.circular(16),
+                )
+              : null,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _titleController,
+                  style: TextStyle(
+                    fontSize: 22 * fontScale,
+                    fontWeight: FontWeight.bold,
+                    color: noteTextColor,
                   ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                  decoration: InputDecoration(
+                    hintText: l10n.titleHint,
+                    hintStyle: TextStyle(
+                      color: noteTextColor.withValues(alpha: 0.4),
+                      fontWeight: FontWeight.normal,
+                    ),
+                    border: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
                 ),
-                maxLines: null,
-                textCapitalization: TextCapitalization.sentences,
-              ),
-              const SizedBox(height: 12),
-              AutopoolTable(
-                key: _tableKey,
-                initialData: _autopoolJson,
-                onChanged: _onTableChanged,
-                textColor: noteTextColor,
-                fontScale: fontScale,
-              ),
-            ],
+                const SizedBox(height: 8),
+                AutopoolTable(
+                  key: _tableKey,
+                  initialData: _autopoolJson,
+                  onChanged: _onTableChanged,
+                  textColor: noteTextColor,
+                  fontScale: fontScale,
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -572,23 +572,17 @@ abstract class AppLocalizations {
   /// **'Tabelle (Geräteliste)'**
   String get noteTypeAutopoolSubtitle;
 
-  /// No description provided for @autopoolColSize.
+  /// No description provided for @autopoolColName.
   ///
   /// In de, this message translates to:
-  /// **'Größe & Art'**
-  String get autopoolColSize;
+  /// **'Bezeichnung'**
+  String get autopoolColName;
 
-  /// No description provided for @autopoolColModel.
+  /// No description provided for @autopoolColOfficeVersion.
   ///
   /// In de, this message translates to:
-  /// **'Model & CPU'**
-  String get autopoolColModel;
-
-  /// No description provided for @autopoolColInventory.
-  ///
-  /// In de, this message translates to:
-  /// **'Inventarnummer & Dienststelle'**
-  String get autopoolColInventory;
+  /// **'DS & Version'**
+  String get autopoolColOfficeVersion;
 
   /// No description provided for @autopoolColLocation.
   ///
@@ -596,17 +590,17 @@ abstract class AppLocalizations {
   /// **'Ort'**
   String get autopoolColLocation;
 
+  /// No description provided for @autopoolColInventory.
+  ///
+  /// In de, this message translates to:
+  /// **'Inventarnummer'**
+  String get autopoolColInventory;
+
   /// No description provided for @autopoolColSerial.
   ///
   /// In de, this message translates to:
   /// **'Seriennummer'**
   String get autopoolColSerial;
-
-  /// No description provided for @autopoolColWindows.
-  ///
-  /// In de, this message translates to:
-  /// **'Windows Version'**
-  String get autopoolColWindows;
 
   /// No description provided for @autopoolColDate.
   ///
