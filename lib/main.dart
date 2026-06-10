@@ -16,6 +16,7 @@ import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_editor_screen.dart';
+import 'screens/autopool_editor_screen.dart';
 import 'screens/sticky_note_screen.dart';
 import 'screens/settings_screen.dart';
 
@@ -234,8 +235,9 @@ class _NotizblockAppState extends State<NotizblockApp> {
       // nahtlosen Wechsel.
       _navigatorKey.currentState!.pushAndRemoveUntil(
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) =>
-              NoteEditorScreen(note: note, openedFromWidget: true),
+          pageBuilder: (_, __, ___) => note.isAutopool
+              ? AutopoolEditorScreen(note: note, openedFromWidget: true)
+              : NoteEditorScreen(note: note, openedFromWidget: true),
           transitionDuration: Duration.zero,
           reverseTransitionDuration: Duration.zero,
         ),
@@ -271,8 +273,11 @@ class _NotizblockAppState extends State<NotizblockApp> {
             // Kaltstart per Widget: Editor ist direkt die erste Seite (kein
             // Flackern). Sonst normale Notizliste.
             home: widget.initialNote != null
-                ? NoteEditorScreen(
-                    note: widget.initialNote!, openedFromWidget: true)
+                ? (widget.initialNote!.isAutopool
+                    ? AutopoolEditorScreen(
+                        note: widget.initialNote!, openedFromWidget: true)
+                    : NoteEditorScreen(
+                        note: widget.initialNote!, openedFromWidget: true))
                 : const HomeScreen(),
           );
         },

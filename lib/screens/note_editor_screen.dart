@@ -11,6 +11,7 @@ import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
+import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
 
@@ -566,6 +567,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                       _archiveNote();
                     },
                   ),
+
+                // Archiv & Wiederherstellen (Liste der archivierten/gelöschten)
+                ListTile(
+                  leading: const Icon(Icons.unarchive_outlined),
+                  title: Text(l10n.archiveAndRestore),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ArchiveScreen(),
+                      ),
+                    );
+                  },
+                ),
 
                 // Löschen
                 if (!isNewNote)

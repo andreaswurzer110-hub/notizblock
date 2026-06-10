@@ -148,12 +148,16 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     required String title,
     required String content,
     String color = '#FFFDE7',
+    String type = 'text',
+    String autopoolData = '',
   }) async {
     try {
       final note = Note(
         title: title,
         content: content,
         color: color,
+        type: type,
+        autopoolData: autopoolData,
       );
 
       await DatabaseService.instance.insertNote(note);
@@ -261,6 +265,61 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     } catch (e) {
       _error = e.toString();
       debugPrint('Fehler beim Archivieren: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Archivierte Notizen laden (für den Archiv-Bildschirm). Liegen nicht in der
+  // sichtbaren Liste, daher direkt aus der DB.
+  Future<List<Note>> getArchivedNotes() =>
+      DatabaseService.instance.getArchivedNotes();
+
+  // Archivierte Notiz wiederherstellen: isArchived zurücksetzen, frischer
+  // modifiedAt-Stempel (damit die Änderung synct) und zurück in die Liste.
+  Future<bool> unarchiveNote(String id) async {
+    try {
+      final note = await DatabaseService.instance.getNoteById(id);
+      if (note == null) return false;
+      final updated =
+          note.copyWith(isArchived: false, modifiedAt: DateTime.now());
+      await DatabaseService.instance.updateNote(updated);
+
+      _notes.removeWhere((n) => n.id == id);
+      _notes.insert(0, updated);
+      _sortNotes();
+      if (_searchQuery.isNotEmpty) _filterNotes();
+
+      notifyListeners();
+      await WidgetService.instance.updateWidget();
+      await _afterLocalWrite();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Fehler beim Wiederherstellen (Archiv): $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Gelöschte Notiz wiederherstellen (Stand stammt aus dem Drive-Verlauf):
+  // lokal neu anlegen, eventuellen lokalen Tombstone löschen und auf Drive den
+  // Tombstone entfernen + frischen Stand hochladen, damit der nächste Sync sie
+  // nicht erneut löscht. Frischer modifiedAt > deletedAt = gewinnt last-write-wins.
+  Future<bool> restoreDeletedNote(Note snapshot) async {
+    try {
+      final restored =
+          snapshot.copyWith(isArchived: false, modifiedAt: DateTime.now());
+      await DatabaseService.instance.insertOrUpdateNotes([restored]);
+      await DatabaseService.instance.clearDeletion(restored.id);
+      await GoogleDriveService.instance.restoreDeletedNoteRemote(restored);
+
+      await loadNotes(silent: true);
+      _scheduleAutoSync();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Fehler beim Wiederherstellen (gelöscht): $e');
       notifyListeners();
       return false;
     }

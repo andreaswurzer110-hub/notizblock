@@ -12,7 +12,7 @@ class DatabaseService {
   static Database? _database;
   static String? _databasePath;
   static const String _databaseName = 'notizblock.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   // Singleton Pattern
   DatabaseService._privateConstructor();
@@ -94,7 +94,9 @@ class DatabaseService {
         modifiedAt TEXT NOT NULL,
         color TEXT NOT NULL DEFAULT '#FFFDE7',
         isPinned INTEGER NOT NULL DEFAULT 0,
-        isArchived INTEGER NOT NULL DEFAULT 0
+        isArchived INTEGER NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'text',
+        autopoolData TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -109,6 +111,13 @@ class DatabaseService {
     // v2: Tabelle für ausstehende Löschungen (Tombstones für den Sync)
     if (oldVersion < 2) {
       await _createDeletionsTable(db);
+    }
+    // v3: Autopool-Tabellen-Notizen (Notiz-Typ + strukturierte Tabellendaten)
+    if (oldVersion < 3) {
+      await db.execute(
+          "ALTER TABLE notes ADD COLUMN type TEXT NOT NULL DEFAULT 'text'");
+      await db.execute(
+          "ALTER TABLE notes ADD COLUMN autopoolData TEXT NOT NULL DEFAULT ''");
     }
   }
 
@@ -165,6 +174,18 @@ class DatabaseService {
       where: includeArchived ? null : 'isArchived = ?',
       whereArgs: includeArchived ? null : [0],
       orderBy: 'isPinned DESC, modifiedAt DESC',
+    );
+    return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
+  }
+
+  /// Nur die archivierten Notizen (für den Archiv-Bildschirm).
+  Future<List<Note>> getArchivedNotes() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'notes',
+      where: 'isArchived = ?',
+      whereArgs: [1],
+      orderBy: 'modifiedAt DESC',
     );
     return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
   }

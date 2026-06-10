@@ -1,7 +1,7 @@
 name: notizblock
 description: Eine schlichte Notizblock-App mit Widgets und Google Drive Sync
 publish_to: 'none'
-version: 1.23.0+23
+version: 1.24.0+24
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -50,6 +50,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.1
   flutter_launcher_icons: ^0.14.0
+  msix: ^3.16.13
 
 flutter_launcher_icons:
   android: true
@@ -65,3 +66,33 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   generate: true
+
+# Microsoft-Store-/Sideload-Paket (Windows). Bauen: dart run msix:create
+# TEST-Konfiguration: selbstsigniertes Zertifikat aus certs\ – `publisher` MUSS
+# exakt dem Zertifikat-Subject (CN=Andreas Wurzer) entsprechen, sonst weigert
+# sich Windows zu installieren.
+# Für die echte Store-Veröffentlichung: den certificate_*-Block entfernen, mit
+# `dart run msix:create --store` bauen (der Store signiert selbst) und Identität
+# auf die Partner-Center-Werte setzen:
+#   identity_name:          AndreasWurzer.NotizblockAW
+#   publisher:              CN=8931876D-7B1F-44B7-8CE7-B81EAAF9533B
+#   publisher_display_name: Andreas Wurzer
+#   (Store-ID 9N8MGP7GQV4L, PFN AndreasWurzer.NotizblockAW_cpc57phzf9bfg)
+msix_config:
+  display_name: Notizblock AW
+  publisher_display_name: Andreas Wurzer
+  identity_name: AW.NotizblockAW
+  publisher: CN=Andreas Wurzer
+  msix_version: 1.24.0.0
+  logo_path: assets/icon/icon_full.png
+  capabilities: internetClient
+  architecture: x64
+  certificate_path: certs/notizblock_test.pfx
+  certificate_password: notizblock
+  install_certificate: false
+  output_path: build/msix
+  output_name: Notizblock-1.24.0
+  # Bewusst KEINE startup_task hier: der Autostart läuft über eine Startup-Ordner-
+  # Verknüpfung (AutostartService, AppsFolder-Aktivierung), weil paketbasierte
+  # StartupTasks auf manchen Systemen nicht im Task-Manager/in den Einstellungen
+  # auftauchen und sich dort nicht umschalten lassen.

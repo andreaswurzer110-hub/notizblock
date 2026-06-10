@@ -210,4 +210,93 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get notSignedIn => 'Nicht bei Google Drive angemeldet';
+
+  @override
+  String get archiveAndRestore => 'Archiv & Wiederherstellen';
+
+  @override
+  String get archivedTab => 'Archiviert';
+
+  @override
+  String get deletedTab => 'Gelöscht';
+
+  @override
+  String get noArchivedNotes => 'Keine archivierten Notizen';
+
+  @override
+  String get noDeletedNotes => 'Keine gelöschten Notizen';
+
+  @override
+  String get deletedSignInHint =>
+      'Bei Google Drive anmelden, um gelöschte Notizen anzuzeigen';
+
+  @override
+  String get deletedLoadFailed =>
+      'Gelöschte Notizen konnten nicht geladen werden';
+
+  @override
+  String get noteRestored => 'Notiz wiederhergestellt';
+
+  @override
+  String deletedOn(String date) {
+    return 'Gelöscht: $date';
+  }
+
+  @override
+  String get deletePermanently => 'Endgültig löschen';
+
+  @override
+  String get deletePermanentlyConfirm =>
+      'Diese Notiz endgültig löschen? Das kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get autopool => 'Autopool';
+
+  @override
+  String get createNoteTitle => 'Was möchtest du erstellen?';
+
+  @override
+  String get noteTypeNote => 'Notiz';
+
+  @override
+  String get noteTypeNoteSubtitle => 'Einfache Textnotiz';
+
+  @override
+  String get noteTypeAutopoolSubtitle => 'Tabelle (Geräteliste)';
+
+  @override
+  String get autopoolColSize => 'Größe & Art';
+
+  @override
+  String get autopoolColModel => 'Model & CPU';
+
+  @override
+  String get autopoolColInventory => 'Inventarnummer & Dienststelle';
+
+  @override
+  String get autopoolColLocation => 'Ort';
+
+  @override
+  String get autopoolColSerial => 'Seriennummer';
+
+  @override
+  String get autopoolColWindows => 'Windows Version';
+
+  @override
+  String get autopoolColDate => 'Datum';
+
+  @override
+  String get autopoolAddRow => 'Zeile hinzufügen';
+
+  @override
+  String get autopoolDeleteRow => 'Zeile löschen';
+
+  @override
+  String get autopoolMarkRow => 'Markieren / Markierung entfernen';
+
+  @override
+  String get moveUp => 'Nach oben';
+
+  @override
+  String get moveDown => 'Nach unten';
 }

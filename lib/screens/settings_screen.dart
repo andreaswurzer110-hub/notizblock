@@ -6,6 +6,7 @@ import '../services/google_drive_service.dart';
 import '../services/autostart_service.dart';
 import '../providers/notes_provider.dart';
 import '../widgets/color_picker.dart';
+import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -146,6 +147,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Icon(Icons.text_increase, size: 28),
               ],
+            ),
+          ),
+
+          const Divider(),
+
+          // Archiv & Wiederherstellen (archivierte + gelöschte Notizen)
+          ListTile(
+            leading: const Icon(Icons.unarchive_outlined),
+            title: Text(l10n.archiveAndRestore),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ArchiveScreen()),
             ),
           ),
 

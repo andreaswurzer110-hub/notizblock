@@ -55,6 +55,9 @@ lib/services/google_drive_config.dart
 # Claude-Code-Berechtigungen: maschinenlokal, ändert sich pro Session.
 .claude/settings.local.json
 
+# MSIX-Test-Signaturzertifikat (enthält privaten Schlüssel) – nicht einchecken.
+certs/
+
 # Lokale Notiz-Datenbank (Nutzerdaten) – nie einchecken. Wird ggf. zum
 # Inspizieren/Migrieren ins Projektroot kopiert.
 notizblock.db

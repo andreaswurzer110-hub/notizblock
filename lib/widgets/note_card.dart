@@ -49,8 +49,8 @@ class NoteCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Indikatoren: angeheftet und/oder als Widget angeheftet
-              if (note.isPinned || isWidget) ...[
+              // Indikatoren: angeheftet, als Widget angeheftet und/oder Autopool
+              if (note.isPinned || isWidget || note.isAutopool) ...[
                 Wrap(
                   spacing: 12,
                   children: [
@@ -58,6 +58,8 @@ class NoteCard extends StatelessWidget {
                       _badge(Icons.push_pin, 'Angeheftet', subtitleColor),
                     if (isWidget)
                       _badge(Icons.widgets, 'Widget', subtitleColor),
+                    if (note.isAutopool)
+                      _badge(Icons.table_chart, 'Autopool', subtitleColor),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -188,7 +190,7 @@ class NoteListTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        leading: (note.isPinned || isWidget)
+        leading: (note.isPinned || isWidget || note.isAutopool)
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -196,6 +198,8 @@ class NoteListTile extends StatelessWidget {
                   if (note.isPinned) Icon(Icons.push_pin, size: 20, color: textColor),
                   if (isWidget)
                     Icon(Icons.widgets, size: 20, color: subtitleColor),
+                  if (note.isAutopool)
+                    Icon(Icons.table_chart, size: 20, color: subtitleColor),
                 ],
               )
             : null,

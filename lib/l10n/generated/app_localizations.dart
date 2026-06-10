@@ -475,6 +475,174 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Nicht bei Google Drive angemeldet'**
   String get notSignedIn;
+
+  /// No description provided for @archiveAndRestore.
+  ///
+  /// In de, this message translates to:
+  /// **'Archiv & Wiederherstellen'**
+  String get archiveAndRestore;
+
+  /// No description provided for @archivedTab.
+  ///
+  /// In de, this message translates to:
+  /// **'Archiviert'**
+  String get archivedTab;
+
+  /// No description provided for @deletedTab.
+  ///
+  /// In de, this message translates to:
+  /// **'Gelöscht'**
+  String get deletedTab;
+
+  /// No description provided for @noArchivedNotes.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine archivierten Notizen'**
+  String get noArchivedNotes;
+
+  /// No description provided for @noDeletedNotes.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine gelöschten Notizen'**
+  String get noDeletedNotes;
+
+  /// No description provided for @deletedSignInHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Bei Google Drive anmelden, um gelöschte Notizen anzuzeigen'**
+  String get deletedSignInHint;
+
+  /// No description provided for @deletedLoadFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Gelöschte Notizen konnten nicht geladen werden'**
+  String get deletedLoadFailed;
+
+  /// No description provided for @noteRestored.
+  ///
+  /// In de, this message translates to:
+  /// **'Notiz wiederhergestellt'**
+  String get noteRestored;
+
+  /// No description provided for @deletedOn.
+  ///
+  /// In de, this message translates to:
+  /// **'Gelöscht: {date}'**
+  String deletedOn(String date);
+
+  /// No description provided for @deletePermanently.
+  ///
+  /// In de, this message translates to:
+  /// **'Endgültig löschen'**
+  String get deletePermanently;
+
+  /// No description provided for @deletePermanentlyConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Diese Notiz endgültig löschen? Das kann nicht rückgängig gemacht werden.'**
+  String get deletePermanentlyConfirm;
+
+  /// No description provided for @autopool.
+  ///
+  /// In de, this message translates to:
+  /// **'Autopool'**
+  String get autopool;
+
+  /// No description provided for @createNoteTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Was möchtest du erstellen?'**
+  String get createNoteTitle;
+
+  /// No description provided for @noteTypeNote.
+  ///
+  /// In de, this message translates to:
+  /// **'Notiz'**
+  String get noteTypeNote;
+
+  /// No description provided for @noteTypeNoteSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Einfache Textnotiz'**
+  String get noteTypeNoteSubtitle;
+
+  /// No description provided for @noteTypeAutopoolSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Tabelle (Geräteliste)'**
+  String get noteTypeAutopoolSubtitle;
+
+  /// No description provided for @autopoolColSize.
+  ///
+  /// In de, this message translates to:
+  /// **'Größe & Art'**
+  String get autopoolColSize;
+
+  /// No description provided for @autopoolColModel.
+  ///
+  /// In de, this message translates to:
+  /// **'Model & CPU'**
+  String get autopoolColModel;
+
+  /// No description provided for @autopoolColInventory.
+  ///
+  /// In de, this message translates to:
+  /// **'Inventarnummer & Dienststelle'**
+  String get autopoolColInventory;
+
+  /// No description provided for @autopoolColLocation.
+  ///
+  /// In de, this message translates to:
+  /// **'Ort'**
+  String get autopoolColLocation;
+
+  /// No description provided for @autopoolColSerial.
+  ///
+  /// In de, this message translates to:
+  /// **'Seriennummer'**
+  String get autopoolColSerial;
+
+  /// No description provided for @autopoolColWindows.
+  ///
+  /// In de, this message translates to:
+  /// **'Windows Version'**
+  String get autopoolColWindows;
+
+  /// No description provided for @autopoolColDate.
+  ///
+  /// In de, this message translates to:
+  /// **'Datum'**
+  String get autopoolColDate;
+
+  /// No description provided for @autopoolAddRow.
+  ///
+  /// In de, this message translates to:
+  /// **'Zeile hinzufügen'**
+  String get autopoolAddRow;
+
+  /// No description provided for @autopoolDeleteRow.
+  ///
+  /// In de, this message translates to:
+  /// **'Zeile löschen'**
+  String get autopoolDeleteRow;
+
+  /// No description provided for @autopoolMarkRow.
+  ///
+  /// In de, this message translates to:
+  /// **'Markieren / Markierung entfernen'**
+  String get autopoolMarkRow;
+
+  /// No description provided for @moveUp.
+  ///
+  /// In de, this message translates to:
+  /// **'Nach oben'**
+  String get moveUp;
+
+  /// No description provided for @moveDown.
+  ///
+  /// In de, this message translates to:
+  /// **'Nach unten'**
+  String get moveDown;
 }
 
 class _AppLocalizationsDelegate

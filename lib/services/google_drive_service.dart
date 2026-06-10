@@ -567,6 +567,98 @@ class GoogleDriveService {
     }
   }
 
+  // ---- Gelöschte Notizen (Papierkorb) ----
+
+  /// Aktuell gelöschte Notizen geräteübergreifend aus dem Drive-Verlauf.
+  /// Quelle: Tombstones (= momentan gelöscht) + neuester history-Snapshot je
+  /// Notiz (= Inhalt). Nur innerhalb der 30-Tage-Aufbewahrung verfügbar; danach
+  /// sind Tombstone und Historie weg. Wirft bei Fehlern (UI zeigt Hinweis).
+  Future<List<DeletedNote>> getDeletedNotes({bool allowAuthRetry = true}) async {
+    if (_driveApi == null) return [];
+    try {
+      final rootId = await _getOrCreateBackupFolder();
+      if (rootId == null) return [];
+      final tombFolderId =
+          await _getOrCreateSubfolder(rootId, _tombstonesFolderName);
+      final historyFolderId =
+          await _getOrCreateSubfolder(rootId, _historyFolderName);
+      if (tombFolderId == null || historyFolderId == null) return [];
+
+      // Aktuell gelöschte IDs aus den Tombstone-Dateinamen (<id>.json).
+      final tombs = await _listFiles(tombFolderId);
+      final deletedIds = <String>{};
+      for (final t in tombs) {
+        final name = t.name ?? '';
+        if (name.endsWith('.json')) {
+          deletedIds.add(name.substring(0, name.length - 5));
+        }
+      }
+      if (deletedIds.isEmpty) return [];
+
+      // Neuesten history-Snapshot je gelöschter Notiz finden. Der Zeitstempel
+      // steckt im Namen (<id>__<ts>__<titel>…) -> String-Sortierung reicht.
+      final histFiles = await _listFiles(historyFolderId);
+      final latestById = <String, drive.File>{};
+      for (final f in histFiles) {
+        final id = (f.name ?? '').split('__').first;
+        if (!deletedIds.contains(id)) continue;
+        final cur = latestById[id];
+        if (cur == null || (f.name ?? '').compareTo(cur.name ?? '') > 0) {
+          latestById[id] = f;
+        }
+      }
+
+      final result = <DeletedNote>[];
+      for (final id in deletedIds) {
+        final f = latestById[id];
+        if (f == null) continue; // Inhalt nicht mehr vorhanden (Historie weg)
+        final content = await _downloadFile(f.id!);
+        if (content == null) continue;
+        try {
+          final note =
+              Note.fromJson(jsonDecode(content) as Map<String, dynamic>);
+          // Lösch-Zeitpunkt ≈ Upload-Zeit des Snapshots.
+          final deletedAt = f.modifiedTime ?? note.modifiedAt;
+          result.add(DeletedNote(note: note, deletedAt: deletedAt));
+        } catch (_) {}
+      }
+      result.sort((a, b) => b.deletedAt.compareTo(a.deletedAt));
+      return result;
+    } catch (e) {
+      debugPrint('Gelöschte Notizen laden Fehler: $e');
+      if (_isAuthError(e)) {
+        if (allowAuthRetry && !_isDesktop && await _refreshMobileToken()) {
+          return getDeletedNotes(allowAuthRetry: false);
+        }
+        await _handleAuthFailure();
+      }
+      rethrow;
+    }
+  }
+
+  /// Wiederherstellen auf Drive: Tombstone entfernen und den (frischen) Stand
+  /// als notes/<id>.json hochladen, damit der nächste Sync die Notiz nicht
+  /// erneut löscht. Der lokale DB-Eintrag wird vom Provider angelegt.
+  Future<bool> restoreDeletedNoteRemote(Note note) async {
+    if (_driveApi == null) return false;
+    try {
+      final rootId = await _getOrCreateBackupFolder();
+      if (rootId == null) return false;
+      final notesFolderId =
+          await _getOrCreateSubfolder(rootId, _notesFolderName);
+      final tombFolderId =
+          await _getOrCreateSubfolder(rootId, _tombstonesFolderName);
+      if (notesFolderId == null || tombFolderId == null) return false;
+      await _deleteFileByName(tombFolderId, '${note.id}.json');
+      await _putFile(
+          notesFolderId, '${note.id}.json', jsonEncode(note.toJson()));
+      return true;
+    } catch (e) {
+      debugPrint('Wiederherstellen (Drive) Fehler: $e');
+      return false;
+    }
+  }
+
   // ---- Drive-Helfer ----
 
   Future<String?> _getOrCreateSubfolder(String parentId, String name) async {
@@ -820,4 +912,13 @@ class SyncResult {
     this.uploadedCount = 0,
     this.downloadedCount = 0,
   });
+}
+
+/// Eine gelöschte Notiz aus dem Drive-Verlauf: letzter bekannter Stand + wann
+/// sie gelöscht wurde.
+class DeletedNote {
+  final Note note;
+  final DateTime deletedAt;
+
+  DeletedNote({required this.note, required this.deletedAt});
 }

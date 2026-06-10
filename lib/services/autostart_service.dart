@@ -4,13 +4,20 @@ import 'package:path/path.dart' as p;
 
 /// Registriert die App im Desktop-Autostart (Windows + Linux).
 ///
-/// - **Windows:** Verknüpfung (.lnk) im Autostart-Ordner
-///   (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`) statt HKCU-Run-Key
-///   (der wird auf manchen Systemen ignoriert).
+/// - **Windows (klassisch/Win32):** Verknüpfung (.lnk) im Autostart-Ordner
+///   (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`), Ziel = die Exe
+///   mit `--widgets`.
+/// - **Windows (MSIX/Store):** ebenfalls eine .lnk im Autostart-Ordner, aber sie
+///   darf NICHT die Exe unter `…\WindowsApps\…` als Ziel haben (ACL-geschützt;
+///   Windows ignoriert solche Startup-Verknüpfungen). Stattdessen wird die App
+///   über ihre AppUserModelID via `explorer.exe shell:AppsFolder\<PFN>!<AppId>`
+///   aktiviert. Bewusst KEINE `windows.startupTask`: die taucht auf manchen
+///   Systemen weder im Task-Manager noch in den Einstellungen auf und lässt sich
+///   dann nicht umschalten – der Startup-Ordner dagegen funktioniert dort.
 /// - **Linux:** `.desktop`-Datei in `~/.config/autostart/` (XDG-Autostart).
 ///
-/// Gestartet wird jeweils mit `--widgets`, damit beim Systemstart nur die
-/// angehefteten Widget-Notizen erscheinen und das Hauptfenster verborgen bleibt.
+/// In allen Fällen ist der Autostart rein über das An-/Abwählen der .lnk (bzw.
+/// .desktop) steuerbar – unabhängig von etwaiger Betriebssystem-UI.
 class AutostartService {
   static final AutostartService instance = AutostartService._();
   AutostartService._();
@@ -18,12 +25,22 @@ class AutostartService {
   static const String _shortcutName = 'Notizblock.lnk';
   static const String _desktopFileName = 'notizblock.desktop';
 
+  // Application-Id der Paket-App – MUSS `<Application Id="…">` im MSIX-Manifest
+  // entsprechen (die der msix-Build aus der Exe `notizblock.exe` ableitet).
+  // Zusammen mit dem PackageFamilyName ergibt das die AppUserModelID.
+  static const String _appUserModelAppId = 'notizblock';
+
   // Alter Windows-Registry-Eintrag (Altlast) – beim Umschalten mit aufgeräumt.
   static const String _legacyRunKey =
       r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
   static const String _legacyValueName = 'Notizblock';
 
   bool get _supported => Platform.isWindows || Platform.isLinux;
+
+  // MSIX-/Store-Variante? Dann liegt die Exe im geschützten WindowsApps-Ordner.
+  bool get _isPackaged =>
+      Platform.isWindows &&
+      Platform.resolvedExecutable.toLowerCase().contains(r'\windowsapps\');
 
   // --- Pfade ---
 
@@ -42,7 +59,8 @@ class AutostartService {
 
   // --- API ---
 
-  /// Ist der Autostart aktiv?
+  /// Ist der Autostart aktiv? (Existiert die .lnk/.desktop – gilt für Win32 wie
+  /// MSIX gleichermaßen, da beide den Startup-Ordner nutzen.)
   Future<bool> isEnabled() async {
     if (!_supported) return false;
     final path = Platform.isWindows ? _shortcutPath : _desktopFilePath;
@@ -110,25 +128,74 @@ X-GNOME-Autostart-enabled=true
   Future<void> _enableWindows() async {
     final path = _shortcutPath;
     if (path == null) return;
-    final exe = Platform.resolvedExecutable;
-    final workDir = File(exe).parent.path;
-    // Verknüpfung via WScript.Shell anlegen (kein Admin nötig).
+
+    String target;
+    String args;
+    String workDir;
+    if (_isPackaged) {
+      // Paket-App über die AppUserModelID via Explorer starten (NICHT die Exe
+      // unter …\WindowsApps\… als Ziel – die ignoriert Windows beim Autostart).
+      // Ohne Argumente: main() öffnet beim Logon nur die angehefteten Widgets
+      // (kein Hauptfenster), identisch zum --widgets-Verhalten.
+      final pfn = _packageFamilyName();
+      if (pfn == null) {
+        debugPrint('Autostart: PackageFamilyName nicht ermittelbar.');
+        return;
+      }
+      final windir = Platform.environment['WINDIR'] ?? r'C:\Windows';
+      target = p.join(windir, 'explorer.exe');
+      args = 'shell:AppsFolder\\$pfn!$_appUserModelAppId';
+      workDir = windir;
+    } else {
+      final exe = Platform.resolvedExecutable;
+      target = exe;
+      args = '--widgets';
+      workDir = File(exe).parent.path;
+    }
+
+    await _writeShortcut(path, target, args, workDir);
+    await _removeLegacyRegistryEntry();
+  }
+
+  // Legt die Autostart-Verknüpfung via WScript.Shell an (kein Admin nötig).
+  Future<void> _writeShortcut(
+      String path, String target, String args, String workDir) async {
     final ps = StringBuffer()
       ..writeln(r'$ws = New-Object -ComObject WScript.Shell')
       ..writeln('\$s = \$ws.CreateShortcut(${_psQuote(path)})')
-      ..writeln('\$s.TargetPath = ${_psQuote(exe)}')
-      ..writeln("\$s.Arguments = '--widgets'")
+      ..writeln('\$s.TargetPath = ${_psQuote(target)}')
+      ..writeln('\$s.Arguments = ${_psQuote(args)}')
       ..writeln('\$s.WorkingDirectory = ${_psQuote(workDir)}')
       ..writeln('\$s.Save()');
     try {
-      await Process.run(
+      final r = await Process.run(
         'powershell',
         ['-NoProfile', '-NonInteractive', '-Command', ps.toString()],
       );
+      if (r.exitCode != 0) {
+        debugPrint('Autostart-Verknüpfung anlegen fehlgeschlagen: ${r.stderr}');
+      }
     } catch (e) {
-      debugPrint('Autostart aktivieren fehlgeschlagen: $e');
+      debugPrint('Autostart-Verknüpfung anlegen fehlgeschlagen: $e');
     }
-    await _removeLegacyRegistryEntry();
+  }
+
+  /// Leitet den PackageFamilyName aus dem Installationspfad ab:
+  /// `…\WindowsApps\<Name>_<Version>_<Arch>__<PublisherId>\notizblock.exe`
+  /// → PFN = `<Name>_<PublisherId>`. Funktioniert für Test- wie Store-Paket
+  /// (kein Hardcoding der je nach Signatur unterschiedlichen PublisherId nötig).
+  String? _packageFamilyName() {
+    final parts = Platform.resolvedExecutable.split(Platform.pathSeparator);
+    final idx = parts.indexWhere((s) => s.toLowerCase() == 'windowsapps');
+    if (idx < 0 || idx + 1 >= parts.length) return null;
+    final fullName = parts[idx + 1];
+    final firstUs = fullName.indexOf('_');
+    final doubleUs = fullName.indexOf('__');
+    if (firstUs < 0 || doubleUs < 0) return null;
+    final name = fullName.substring(0, firstUs);
+    final publisherId = fullName.substring(doubleUs + 2);
+    if (name.isEmpty || publisherId.isEmpty) return null;
+    return '${name}_$publisherId';
   }
 
   // Besteht noch ein alter Run-Key-Eintrag, entfernen (Best effort).

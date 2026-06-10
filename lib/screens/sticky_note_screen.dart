@@ -5,10 +5,12 @@ import 'package:window_manager/window_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
+import '../models/autopool.dart';
 import '../services/database_service.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/autopool_table.dart';
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -24,6 +26,11 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   final FocusNode _contentFocus = FocusNode();
+  // Autopool-Tabelle (nur bei type=='autopool'). Über den Key liest/setzt das
+  // Fenster den Tabellenstand (z.B. externe Sync-Änderungen einspielen).
+  final GlobalKey<AutopoolTableState> _autopoolKey =
+      GlobalKey<AutopoolTableState>();
+  String _autopoolJson = '';
   Note? _note;
   bool _isLoading = true;
   bool _syncing = false;
@@ -123,6 +130,26 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       return;
     }
 
+    // Autopool: Tabellendaten extern übernehmen (nur wenn nicht gerade getippt),
+    // plus Farbe/Titel. content ist abgeleitet -> nicht vergleichen.
+    if (note.isAutopool) {
+      final dataChanged = note.autopoolData != _note?.autopoolData;
+      final colorChanged = note.color != _note?.color;
+      final titleChanged = note.title != _note?.title;
+      if (!dataChanged && !colorChanged && !titleChanged) return;
+      if (dataChanged && !(_autopoolKey.currentState?.hasFocus ?? false)) {
+        _autopoolJson = note.autopoolData;
+        _autopoolKey.currentState?.setData(note.autopoolData);
+      }
+      if (titleChanged) _titleController.text = note.title;
+      setState(() => _note = note);
+      if (_isDesktop) {
+        await windowManager
+            .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+      }
+      return;
+    }
+
     final contentChanged = note.content != _contentController.text;
     final colorChanged = note.color != _note?.color;
     final titleChanged = note.title != _note?.title;
@@ -152,6 +179,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       if (_note != null) {
         _titleController.text = _note!.title;
         _contentController.text = _note!.content;
+        _autopoolJson = _note!.autopoolData;
         _lastCheckpoint = _note!.content;
         if (_isDesktop) {
           final title = _note!.title.isNotEmpty ? _note!.title : 'Notiz';
@@ -290,6 +318,19 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Future<void> _saveNote() async {
     if (_note == null) return;
     final newTitle = _titleController.text;
+    // Autopool: Quelle ist die Tabelle (JSON); content wird daraus als lesbarer
+    // Text erzeugt. Ohne echte Änderung NICHT speichern (kein modifiedAt-Bump).
+    if (_note!.isAutopool) {
+      final json = _autopoolKey.currentState?.currentJson ?? _autopoolJson;
+      _autopoolJson = json;
+      if (newTitle == _note!.title && json == _note!.autopoolData) return;
+      final content = AutopoolData.fromJsonString(json).toDisplayText();
+      final updated = _note!
+          .copyWith(title: newTitle, content: content, autopoolData: json);
+      await DatabaseService.instance.updateNote(updated);
+      _note = updated;
+      return;
+    }
     final newContent = _contentController.text;
     // Ohne echte Änderung NICHT speichern – sonst würde modifiedAt unnötig auf
     // "jetzt" gesetzt (verfälscht die Änderungszeit und gewinnt fälschlich beim
@@ -298,6 +339,16 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     final updatedNote = _note!.copyWith(title: newTitle, content: newContent);
     await DatabaseService.instance.updateNote(updatedNote);
     _note = updatedNote;
+  }
+
+  // Tabellenänderung (Autopool): entprellt speichern + syncen (kein Undo-Stack).
+  void _onAutopoolChanged(String json) {
+    _autopoolJson = json;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
+    _stickyAutoSyncTimer?.cancel();
+    _stickyAutoSyncTimer =
+        Timer(const Duration(seconds: 2), _runStickyAutoSync);
   }
 
   // Öffnet die Hauptapp (Notizliste) als eigenen Prozess. `--show-main` erzwingt
@@ -403,29 +454,40 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         children: [
           if (_isDesktop) _buildToolbar(),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              child: TextField(
-                controller: _contentController,
-                focusNode: _contentFocus,
-                style: TextStyle(
-                  fontSize: 14 * _fontScale,
-                  color: _textColor,
-                  height: 1.5,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Notiz schreiben...',
-                  hintStyle:
-                      TextStyle(color: _textColor.withValues(alpha: 0.35)),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                maxLines: null,
-                expands: true,
-                onChanged: (_) => _onTextChanged(),
-              ),
-            ),
+            child: _note!.isAutopool
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                    child: AutopoolTable(
+                      key: _autopoolKey,
+                      initialData: _autopoolJson,
+                      onChanged: _onAutopoolChanged,
+                      textColor: _textColor,
+                      fontScale: _fontScale,
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                    child: TextField(
+                      controller: _contentController,
+                      focusNode: _contentFocus,
+                      style: TextStyle(
+                        fontSize: 14 * _fontScale,
+                        color: _textColor,
+                        height: 1.5,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Notiz schreiben...',
+                        hintStyle: TextStyle(
+                            color: _textColor.withValues(alpha: 0.35)),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      maxLines: null,
+                      expands: true,
+                      onChanged: (_) => _onTextChanged(),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -440,8 +502,11 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
       child: Row(
         children: [
-          _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
-          _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
+          // Rückgängig/Wiederholen nur für Textnotizen (Autopool hat keinen Stack).
+          if (_note?.isAutopool != true) ...[
+            _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
+            _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
+          ],
           const Spacer(),
           // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
           // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.

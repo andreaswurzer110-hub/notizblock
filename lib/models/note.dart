@@ -9,6 +9,11 @@ class Note {
   String color;
   bool isPinned;
   bool isArchived;
+  // Notiz-Typ: 'text' (Standard) oder 'autopool' (Tabellen-Notiz). Bei 'autopool'
+  // steht die strukturierte Tabelle in `autopoolData` (JSON); `content` enthält
+  // zusätzlich eine lesbare Textfassung (für Liste/Suche/Widget/Sticky-Anzeige).
+  final String type;
+  String autopoolData;
 
   Note({
     String? id,
@@ -19,9 +24,13 @@ class Note {
     this.color = '#FFFDE7', // Standard: Hellgelb (Post-it Farbe)
     this.isPinned = false,
     this.isArchived = false,
+    this.type = 'text',
+    this.autopoolData = '',
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         modifiedAt = modifiedAt ?? DateTime.now();
+
+  bool get isAutopool => type == 'autopool';
 
   // Kopie mit Änderungen erstellen
   Note copyWith({
@@ -31,6 +40,8 @@ class Note {
     String? color,
     bool? isPinned,
     bool? isArchived,
+    String? type,
+    String? autopoolData,
   }) {
     return Note(
       id: id,
@@ -41,6 +52,8 @@ class Note {
       color: color ?? this.color,
       isPinned: isPinned ?? this.isPinned,
       isArchived: isArchived ?? this.isArchived,
+      type: type ?? this.type,
+      autopoolData: autopoolData ?? this.autopoolData,
     );
   }
 
@@ -55,6 +68,8 @@ class Note {
       'color': color,
       'isPinned': isPinned ? 1 : 0,
       'isArchived': isArchived ? 1 : 0,
+      'type': type,
+      'autopoolData': autopoolData,
     };
   }
 
@@ -69,6 +84,8 @@ class Note {
       color: map['color'] as String,
       isPinned: (map['isPinned'] as int) == 1,
       isArchived: (map['isArchived'] as int) == 1,
+      type: (map['type'] as String?) ?? 'text',
+      autopoolData: (map['autopoolData'] as String?) ?? '',
     );
   }
 
@@ -83,6 +100,8 @@ class Note {
       'color': color,
       'isPinned': isPinned,
       'isArchived': isArchived,
+      'type': type,
+      'autopoolData': autopoolData,
     };
   }
 
@@ -96,6 +115,8 @@ class Note {
       color: json['color'] as String,
       isPinned: json['isPinned'] as bool,
       isArchived: json['isArchived'] as bool,
+      type: (json['type'] as String?) ?? 'text',
+      autopoolData: (json['autopoolData'] as String?) ?? '',
     );
   }
 

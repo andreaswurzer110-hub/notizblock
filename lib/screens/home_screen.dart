@@ -10,7 +10,9 @@ import '../widgets/color_picker.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import 'note_editor_screen.dart';
+import 'autopool_editor_screen.dart';
 import 'settings_screen.dart';
+import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -64,13 +66,72 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openNote(Note note) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => NoteEditorScreen(note: note)),
+      MaterialPageRoute(
+        builder: (context) => note.isAutopool
+            ? AutopoolEditorScreen(note: note)
+            : NoteEditorScreen(note: note),
+      ),
     );
   }
 
-  void _createNote() {
+  void _openArchive() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const NoteEditorScreen()),
+      MaterialPageRoute(builder: (context) => const ArchiveScreen()),
+    );
+  }
+
+  // Beim + zuerst den Notiz-Typ wählen: normale Notiz oder Autopool-Tabelle.
+  void _createNote() {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.createNoteTitle,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.notes),
+                title: Text(l10n.noteTypeNote),
+                subtitle: Text(l10n.noteTypeNoteSubtitle),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const NoteEditorScreen()));
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.table_chart_outlined),
+                title: Text(l10n.autopool),
+                subtitle: Text(l10n.noteTypeAutopoolSubtitle),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AutopoolEditorScreen()));
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -181,6 +242,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'archiveRestore',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.unarchive_outlined),
+            title: Text(l10n.archiveAndRestore),
+          ),
+        ),
+        PopupMenuItem(
           value: 'delete',
           child: ListTile(
             dense: true,
@@ -210,6 +280,9 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case 'archive':
         context.read<NotesProvider>().archiveNote(note.id);
+        break;
+      case 'archiveRestore':
+        _openArchive();
         break;
       case 'delete':
         _confirmDelete(note);
@@ -281,6 +354,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     context.read<NotesProvider>().archiveNote(note.id);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.unarchive_outlined),
+                  title: Text(l10n.archiveAndRestore),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openArchive();
                   },
                 ),
                 ListTile(

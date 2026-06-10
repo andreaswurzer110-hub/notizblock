@@ -210,4 +210,92 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notSignedIn => 'Not signed in to Google Drive';
+
+  @override
+  String get archiveAndRestore => 'Archive & Restore';
+
+  @override
+  String get archivedTab => 'Archived';
+
+  @override
+  String get deletedTab => 'Deleted';
+
+  @override
+  String get noArchivedNotes => 'No archived notes';
+
+  @override
+  String get noDeletedNotes => 'No deleted notes';
+
+  @override
+  String get deletedSignInHint =>
+      'Sign in to Google Drive to view deleted notes';
+
+  @override
+  String get deletedLoadFailed => 'Could not load deleted notes';
+
+  @override
+  String get noteRestored => 'Note restored';
+
+  @override
+  String deletedOn(String date) {
+    return 'Deleted: $date';
+  }
+
+  @override
+  String get deletePermanently => 'Delete permanently';
+
+  @override
+  String get deletePermanentlyConfirm =>
+      'Permanently delete this note? This cannot be undone.';
+
+  @override
+  String get autopool => 'Autopool';
+
+  @override
+  String get createNoteTitle => 'What would you like to create?';
+
+  @override
+  String get noteTypeNote => 'Note';
+
+  @override
+  String get noteTypeNoteSubtitle => 'Simple text note';
+
+  @override
+  String get noteTypeAutopoolSubtitle => 'Table (device list)';
+
+  @override
+  String get autopoolColSize => 'Size & Type';
+
+  @override
+  String get autopoolColModel => 'Model & CPU';
+
+  @override
+  String get autopoolColInventory => 'Inventory no. & Office';
+
+  @override
+  String get autopoolColLocation => 'Location';
+
+  @override
+  String get autopoolColSerial => 'Serial number';
+
+  @override
+  String get autopoolColWindows => 'Windows version';
+
+  @override
+  String get autopoolColDate => 'Date';
+
+  @override
+  String get autopoolAddRow => 'Add row';
+
+  @override
+  String get autopoolDeleteRow => 'Delete row';
+
+  @override
+  String get autopoolMarkRow => 'Mark / unmark row';
+
+  @override
+  String get moveUp => 'Move up';
+
+  @override
+  String get moveDown => 'Move down';
 }
