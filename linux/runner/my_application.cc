@@ -54,9 +54,11 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
-  // Themed Icon-Name (= App-ID). Wird aufgelöst, sobald das Icon im
-  // hicolor-Theme installiert ist (siehe scripts/install_linux.sh).
-  gtk_window_set_icon_name(window, "notizblock");
+  // Themed Icon-Name (= App-ID). Wird aufgelöst, sobald das Icon unter diesem
+  // Namen im hicolor-Theme installiert ist (manuell: scripts/install_linux.sh
+  // legt $APP_ID.png; Flatpak: <app-id>.png). MUSS = APPLICATION_ID sein, sonst
+  // findet GTK das Icon nicht (Flatpak-Icon ist nach der App-ID benannt).
+  gtk_window_set_icon_name(window, APPLICATION_ID);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

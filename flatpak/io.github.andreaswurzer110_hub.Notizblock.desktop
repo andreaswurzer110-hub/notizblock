@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Notizblock AW
+Comment=Plattformübergreifende Notizblock-App
+Comment[en]=Cross-platform notepad app
+Exec=notizblock %U
+Icon=io.github.andreaswurzer110_hub.Notizblock
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=Notes;Notizen;Notizblock;Sticky;
+StartupWMClass=io.github.andreaswurzer110_hub.Notizblock

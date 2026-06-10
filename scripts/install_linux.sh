@@ -44,8 +44,12 @@ cp -r "$BUNDLE"/. "$INSTALL_DIR/"
 
 echo "==> Icon installieren"
 mkdir -p "$ICON_DIR"
+# Icon MUSS nach der App-ID benannt sein (= APPLICATION_ID, was der Runner per
+# gtk_window_set_icon_name als Themed-Name setzt), sonst findet GTK das Fenster-
+# Icon nicht. Alten, abweichend benannten Eintrag aufräumen.
+rm -f "$ICON_DIR/$APP_NAME.png"
 if [ -f "assets/icon/icon_full.png" ]; then
-  cp "assets/icon/icon_full.png" "$ICON_DIR/$APP_NAME.png"
+  cp "assets/icon/icon_full.png" "$ICON_DIR/$APP_ID.png"
 else
   echo "  (assets/icon/icon_full.png nicht gefunden – Icon übersprungen)"
 fi
@@ -66,7 +70,7 @@ Type=Application
 Name=$PRETTY_NAME
 Comment=Plattformübergreifende Notizblock-App
 Exec="$INSTALL_DIR/$APP_NAME" %U
-Icon=$APP_NAME
+Icon=$APP_ID
 Terminal=false
 Categories=Utility;TextEditor;
 StartupWMClass=$APP_ID

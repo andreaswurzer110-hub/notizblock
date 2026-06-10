@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream-Metadaten für den Flathub-Store-Eintrag.
+     Validieren: appstreamcli validate io.github.andreaswurzer110_hub.Notizblock.metainfo.xml
+     OFFENE TODOs vor dem Flathub-PR:
+       * project_license unten an die tatsächliche Lizenz anpassen + LICENSE ins Repo.
+       * Mindestens ein erreichbares Screenshot-PNG hinterlegen (siehe <screenshots>). -->
+<component type="desktop-application">
+  <id>io.github.andreaswurzer110_hub.Notizblock</id>
+
+  <name>Notizblock AW</name>
+  <summary>Schlichte Notizen mit Sticky-Fenstern und Drive-Sync</summary>
+  <summary xml:lang="en">Simple notes with sticky windows and Drive sync</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <!-- TODO: tatsächliche Lizenz der App eintragen (SPDX) und LICENSE-Datei ins Repo legen. -->
+  <project_license>MIT</project_license>
+
+  <developer id="io.github.andreaswurzer110_hub">
+    <name>Andreas Wurzer</name>
+  </developer>
+
+  <description>
+    <p>
+      Notizblock ist eine schlichte, plattformübergreifende App für reine
+      Text-Notizen – ohne Markdown, Bilder oder Checklisten. Der Fokus liegt
+      auf schnellem Festhalten und Wiederfinden.
+    </p>
+    <p>Funktionen:</p>
+    <ul>
+      <li>Reine Text-Notizen mit Farben und Anheften</li>
+      <li>Sticky-Note-Fenster auf dem Desktop (frei platzierbar)</li>
+      <li>Google-Drive-Sync für den Abgleich zwischen Geräten (Android, Windows, Linux)</li>
+      <li>Archivieren und Wiederherstellen</li>
+      <li>Mehrsprachig, Deutsch als Standard</li>
+    </ul>
+    <p xml:lang="en">
+      Notizblock is a simple cross-platform app for plain text notes — no
+      Markdown, images or checklists. It focuses on quickly capturing and
+      finding notes.
+    </p>
+    <ul xml:lang="en">
+      <li>Plain text notes with colors and pinning</li>
+      <li>Sticky note windows on the desktop</li>
+      <li>Google Drive sync across devices (Android, Windows, Linux)</li>
+      <li>Archive and restore</li>
+      <li>Multilingual, German by default</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.andreaswurzer110_hub.Notizblock.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Notizübersicht</caption>
+      <caption xml:lang="en">Notes overview</caption>
+      <!-- TODO: echtes PNG hinterlegen und URL prüfen (muss öffentlich erreichbar sein). -->
+      <image>https://raw.githubusercontent.com/andreaswurzer110-hub/notizblock/main/flatpak/screenshots/overview.png</image>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/andreaswurzer110-hub/notizblock</url>
+  <url type="bugtracker">https://github.com/andreaswurzer110-hub/notizblock/issues</url>
+  <url type="vcs-browser">https://github.com/andreaswurzer110-hub/notizblock</url>
+
+  <content_rating type="oars-1.1" />
+
+  <branding>
+    <color type="primary">#1E88E5</color>
+  </branding>
+
+  <releases>
+    <release version="1.25.0" date="2026-06-10">
+      <description>
+        <p>Autopool-Feintuning, Sticky-Undo/Redo, In-Place-MSIX.</p>
+      </description>
+    </release>
+  </releases>
+</component>

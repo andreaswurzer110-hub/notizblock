@@ -7,7 +7,17 @@ project(runner LANGUAGES CXX)
 set(BINARY_NAME "notizblock")
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
-set(APPLICATION_ID "at.aw.notizblock")
+#
+# Default = at.aw.notizblock (Windows / manuelle Linux-Installation via
+# scripts/install_linux.sh). Der Flatpak-Build setzt stattdessen
+# NOTIZBLOCK_APP_ID=io.github.andreaswurzer110_hub.Notizblock in der Env, damit
+# GTK application-id, Fenster-Icon (gtk_window_set_icon_name) und die
+# Taskleisten-Gruppierung zur Flathub-App-ID passen.
+if(DEFINED ENV{NOTIZBLOCK_APP_ID})
+  set(APPLICATION_ID "$ENV{NOTIZBLOCK_APP_ID}")
+else()
+  set(APPLICATION_ID "at.aw.notizblock")
+endif()
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

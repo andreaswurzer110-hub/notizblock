@@ -1,0 +1,88 @@
+# Flatpak-Manifest für Notizblock (Flathub).
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# WICHTIG: Dieses Manifest baut NICHT out-of-the-box.
+# Flathub baut OHNE Netz → Flutter-SDK und alle pub-Pakete müssen vorab als
+# Sources mit sha256 "gevendort" werden. Das erledigt das Tool `flatpak-flutter`
+# auf einem Linux-Host EINMALIG; es erzeugt die referenzierten Dateien
+# `flutter-sdk.json` und `pubspec-sources.json` (und ggf. ein angepasstes
+# Manifest). Komplette Anleitung: flatpak/README.md.
+# Bauen/Testen geht ausschließlich auf Linux (siehe CLAUDE.md).
+# ─────────────────────────────────────────────────────────────────────────────
+
+id: io.github.andreaswurzer110_hub.Notizblock
+runtime: org.gnome.Platform
+# Vor dem PR auf die aktuelle stabile GNOME-Runtime setzen (flathub-Standard).
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: notizblock
+
+finish-args:
+  # Drive-Sync + OAuth-Loopback-Server (127.0.0.1) → Host-Netz.
+  - --share=network
+  # Sticky-Fenster brauchen absolute Fensterpositionen → X11/XWayland.
+  # (Die App erzwingt GDK_BACKEND=x11; siehe CLAUDE.md "Wayland-Caveat".)
+  - --socket=x11
+  - --share=ipc
+  # GPU-Rendering (Flutter/GTK).
+  - --device=dri
+  # Portale (Browser via OpenURI, Autostart via Background) sind in Flatpak
+  # standardmäßig erreichbar → kein zusätzliches --talk-name nötig.
+
+cleanup:
+  - '*.a'
+  - '*.la'
+  - /include
+  - /lib/pkgconfig
+
+modules:
+  # 1) Flutter-SDK (offline). Die konkreten Sources erzeugt `flatpak-flutter`.
+  - name: flutter-sdk
+    buildsystem: simple
+    build-commands:
+      - install -d "${FLUTTER_ROOT:-/run/build/flutter-sdk/flutter}"
+      # Platzhalter – flatpak-flutter füllt diesen Schritt/diese Sources.
+    sources:
+      # TODO: von flatpak-flutter generiert.
+      - flutter-sdk.json
+
+  # 2) Die App.
+  - name: notizblock
+    buildsystem: simple
+    build-options:
+      env:
+        # Setzt GTK application-id, Fenster-Icon und Taskleisten-Gruppierung auf
+        # die Flathub-App-ID (linux/CMakeLists.txt liest NOTIZBLOCK_APP_ID).
+        NOTIZBLOCK_APP_ID: io.github.andreaswurzer110_hub.Notizblock
+        # Offline-pub-cache (von flatpak-flutter befüllt).
+        PUB_CACHE: /run/build/notizblock/.pub-cache
+    build-commands:
+      # Dedizierten, bewusst öffentlichen Linux-OAuth-Client einspielen
+      # (im App-Repo gitignored unter lib/services, hier aus flatpak/).
+      - cp flatpak/google_drive_config.dart lib/services/google_drive_config.dart
+      # Flutter offline bauen (PATH zum gevendorten SDK setzt flatpak-flutter).
+      - flutter config --no-analytics --no-cli-animations
+      - flutter pub get --offline
+      - flutter build linux --release --verbose
+      # Bundle nach /app; Wrapper-Symlink in den PATH ($ORIGIN/lib bleibt korrekt,
+      # da der Symlink auf die echte Binärdatei mit ihren lib/-Geschwistern zeigt).
+      - mkdir -p /app/notizblock
+      - cp -r build/linux/*/release/bundle/. /app/notizblock/
+      - mkdir -p /app/bin
+      - ln -s /app/notizblock/notizblock /app/bin/notizblock
+      # Desktop-Eintrag, Icon (nach App-ID benannt) und AppStream-Metadaten.
+      - install -Dm644 flatpak/io.github.andreaswurzer110_hub.Notizblock.desktop
+        /app/share/applications/io.github.andreaswurzer110_hub.Notizblock.desktop
+      - install -Dm644 assets/icon/icon_full.png
+        /app/share/icons/hicolor/256x256/apps/io.github.andreaswurzer110_hub.Notizblock.png
+      - install -Dm644 flatpak/io.github.andreaswurzer110_hub.Notizblock.metainfo.xml
+        /app/share/metainfo/io.github.andreaswurzer110_hub.Notizblock.metainfo.xml
+    sources:
+      - type: git
+        url: https://github.com/andreaswurzer110-hub/notizblock.git
+        # TODO: existierenden Release-Tag setzen (Flathub verlangt einen festen
+        # Commit/Tag, keinen Branch). Tag vorher pushen: git tag v1.25.0 && git push --tags
+        tag: v1.25.0
+        # commit: <sha>   # alternativ/zusätzlich für reproduzierbaren Build
+      # TODO: von flatpak-flutter generierte pub-Paket-Sources.
+      - pubspec-sources.json

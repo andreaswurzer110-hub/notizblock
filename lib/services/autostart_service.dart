@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:dbus/dbus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -14,10 +16,17 @@ import 'package:path/path.dart' as p;
 ///   aktiviert. Bewusst KEINE `windows.startupTask`: die taucht auf manchen
 ///   Systemen weder im Task-Manager noch in den Einstellungen auf und lässt sich
 ///   dann nicht umschalten – der Startup-Ordner dagegen funktioniert dort.
-/// - **Linux:** `.desktop`-Datei in `~/.config/autostart/` (XDG-Autostart).
+/// - **Linux (klassisch):** `.desktop`-Datei in `~/.config/autostart/`
+///   (XDG-Autostart).
+/// - **Linux (Flatpak):** Der Sandbox darf NICHT in `~/.config/autostart`
+///   schreiben → Autostart läuft über das XDG-`Background`-Portal
+///   (`org.freedesktop.portal.Background.RequestBackground`). Das Portal legt
+///   host-seitig die Autostart-`.desktop` an/entfernt sie; den UI-Zustand
+///   spiegelt eine Marker-Datei im Sandbox-Config-Dir (das Portal bietet keine
+///   Abfrage-API).
 ///
-/// In allen Fällen ist der Autostart rein über das An-/Abwählen der .lnk (bzw.
-/// .desktop) steuerbar – unabhängig von etwaiger Betriebssystem-UI.
+/// In allen Nicht-Flatpak-Fällen ist der Autostart rein über das An-/Abwählen
+/// der .lnk (bzw. .desktop) steuerbar – unabhängig von etwaiger Betriebssystem-UI.
 class AutostartService {
   static final AutostartService instance = AutostartService._();
   AutostartService._();
@@ -42,6 +51,22 @@ class AutostartService {
       Platform.isWindows &&
       Platform.resolvedExecutable.toLowerCase().contains(r'\windowsapps\');
 
+  // Läuft die App als Flatpak? Dann ist der Host-Autostart-Ordner nicht
+  // beschreibbar → Autostart muss übers XDG-Background-Portal laufen.
+  bool get _isFlatpak =>
+      Platform.isLinux && Platform.environment.containsKey('FLATPAK_ID');
+
+  // Marker-Datei im Sandbox-Config-Dir, die den zuletzt bestätigten Autostart-
+  // Zustand widerspiegelt (das Portal hat keine Abfrage-API).
+  String? get _flatpakAutostartMarker {
+    final cfg = Platform.environment['XDG_CONFIG_HOME'] ??
+        (Platform.environment['HOME'] != null
+            ? p.join(Platform.environment['HOME']!, '.config')
+            : null);
+    if (cfg == null) return null;
+    return p.join(cfg, 'notizblock_autostart.enabled');
+  }
+
   // --- Pfade ---
 
   String? get _shortcutPath {
@@ -63,6 +88,11 @@ class AutostartService {
   /// MSIX gleichermaßen, da beide den Startup-Ordner nutzen.)
   Future<bool> isEnabled() async {
     if (!_supported) return false;
+    if (_isFlatpak) {
+      final marker = _flatpakAutostartMarker;
+      if (marker == null) return false;
+      return File(marker).exists();
+    }
     final path = Platform.isWindows ? _shortcutPath : _desktopFilePath;
     if (path == null) return false;
     return File(path).exists();
@@ -79,13 +109,21 @@ class AutostartService {
 
   Future<void> _enable() async {
     if (Platform.isLinux) {
-      await _enableLinux();
+      if (_isFlatpak) {
+        await _enableLinuxFlatpak();
+      } else {
+        await _enableLinux();
+      }
     } else {
       await _enableWindows();
     }
   }
 
   Future<void> _disable() async {
+    if (_isFlatpak) {
+      await _disableLinuxFlatpak();
+      return;
+    }
     final path = Platform.isWindows ? _shortcutPath : _desktopFilePath;
     if (path != null) {
       try {
@@ -120,6 +158,95 @@ X-GNOME-Autostart-enabled=true
       await file.writeAsString(content);
     } catch (e) {
       debugPrint('Autostart aktivieren (Linux) fehlgeschlagen: $e');
+    }
+  }
+
+  // --- Linux (Flatpak) ---
+
+  Future<void> _enableLinuxFlatpak() async {
+    final ok = await _requestBackgroundPortal(autostart: true);
+    final marker = _flatpakAutostartMarker;
+    if (ok && marker != null) {
+      try {
+        await File(marker).create(recursive: true);
+      } catch (e) {
+        debugPrint('Autostart-Marker schreiben fehlgeschlagen: $e');
+      }
+    }
+  }
+
+  Future<void> _disableLinuxFlatpak() async {
+    await _requestBackgroundPortal(autostart: false);
+    final marker = _flatpakAutostartMarker;
+    if (marker != null) {
+      try {
+        final f = File(marker);
+        if (await f.exists()) await f.delete();
+      } catch (e) {
+        debugPrint('Autostart-Marker löschen fehlgeschlagen: $e');
+      }
+    }
+  }
+
+  /// Ruft `org.freedesktop.portal.Background.RequestBackground` auf, um den
+  /// Flatpak-Autostart zu (de)aktivieren. Das Portal legt host-seitig die
+  /// `~/.config/autostart/<app-id>.desktop` an bzw. entfernt sie. Liefert true
+  /// bei erfolgreicher Bestätigung (Response-Code 0); bei ausbleibender Antwort
+  /// wird im Zweifel Erfolg angenommen (manche Backends senden kein Signal).
+  Future<bool> _requestBackgroundPortal({required bool autostart}) async {
+    final client = DBusClient.session();
+    try {
+      final token = 'notizblock_${DateTime.now().millisecondsSinceEpoch}';
+      final portal = DBusRemoteObject(
+        client,
+        name: 'org.freedesktop.portal.Desktop',
+        path: DBusObjectPath('/org/freedesktop/portal/desktop'),
+      );
+      final reply = await portal.callMethod(
+        'org.freedesktop.portal.Background',
+        'RequestBackground',
+        [
+          const DBusString(''), // parent_window
+          DBusDict.stringVariant({
+            'handle_token': DBusString(token),
+            'reason': const DBusString(
+                'Notizblock startet mit den angehefteten Widgets.'),
+            'autostart': DBusBoolean(autostart),
+            'commandline': DBusArray.string(const ['notizblock', '--widgets']),
+          }),
+        ],
+        replySignature: DBusSignature('o'),
+      );
+
+      // Das Ergebnis kommt als Response-Signal auf dem zurückgegebenen
+      // Request-Handle. (Kleines theoretisches Race: das Signal könnte vor dem
+      // Abonnieren feuern – Portale antworten i.d.R. erst nach einem Tick, und
+      // der Timeout fängt den Fall ab.)
+      final handlePath = reply.returnValues.first as DBusObjectPath;
+      final request = DBusRemoteObject(
+        client,
+        name: 'org.freedesktop.portal.Desktop',
+        path: handlePath,
+      );
+      final responses = DBusRemoteObjectSignalStream(
+        object: request,
+        interface: 'org.freedesktop.portal.Request',
+        name: 'Response',
+      );
+      try {
+        final signal =
+            await responses.first.timeout(const Duration(seconds: 20));
+        return (signal.values.first as DBusUint32).value == 0;
+      } on TimeoutException {
+        debugPrint('Background-Portal: keine Response binnen Timeout '
+            '– als Erfolg gewertet.');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Background-Portal-Aufruf fehlgeschlagen: $e');
+      return false;
+    } finally {
+      await client.close();
     }
   }
 
