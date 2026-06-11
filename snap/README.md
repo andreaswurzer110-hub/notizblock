@@ -20,9 +20,8 @@ ein wie der Flatpak-Build (`flatpak/google_drive_config.dart` → `lib/services/
 ## Einmaliges Setup
 
 1. **Ubuntu-One-Account** (snapcraft.io) – kostenlos.
-2. **Snap-Namen registrieren:** auf einem Linux-Host `snapcraft login` und
-   `snapcraft register notizblock`. Ist der Name vergeben → anderen wählen
-   (z.B. `notizblock-aw`) und in `snapcraft.yaml` (`name:`) angleichen.
+2. **Snap-Name:** Registriert als **`notizblock-aw`** (`notizblock` war vergeben);
+   passt zu `name:`/App-Name in `snapcraft.yaml`.
 
 ## Bauen & veröffentlichen
 
@@ -38,15 +37,15 @@ noch: Code pushen → testen → Channel hochstufen.
 ```bash
 sudo snap install snapcraft --classic
 snapcraft            # baut die .snap (nutzt LXD)
-sudo snap install ./notizblock_*.snap --dangerous   # lokal testen
+sudo snap install ./notizblock-aw_*.snap --dangerous   # lokal testen
 snapcraft login
-snapcraft upload --release=edge notizblock_*.snap
+snapcraft upload --release=edge notizblock-aw_*.snap
 ```
 
 ### Channel hochstufen (Release scharf schalten)
 Wenn edge getestet ist:
 ```bash
-snapcraft release notizblock <revision> stable
+snapcraft release notizblock-aw <revision> stable
 ```
 oder im Dashboard per Klick. Nutzer bekommen Updates dann automatisch.
 
@@ -59,7 +58,7 @@ oder im Dashboard per Klick. Nutzer bekommen Updates dann automatisch.
 Dieselben app-spezifischen Risiken wie beim Flatpak – Snap baut sie nur,
 verifiziert aber nicht das Verhalten:
 
-- [ ] Start + DB legt unter den Snap-Datenpfaden an (`~/snap/notizblock/...`)
+- [ ] Start + DB legt unter den Snap-Datenpfaden an (`~/snap/notizblock-aw/...`)
 - [ ] Drive-Login: Browser öffnet, Loopback `127.0.0.1` empfängt Token
 - [ ] Sticky-Fenster (eigene Prozesse) öffnen und **Position bleibt** nach
       Neustart (X11/XWayland)

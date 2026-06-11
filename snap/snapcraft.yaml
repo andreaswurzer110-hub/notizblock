@@ -1,6 +1,4 @@
-name: notizblock # TODO: Store-Namen registrieren (snapcraft register notizblock).
-# Falls vergeben → anderen Namen wählen (z.B. notizblock-aw) und hier + in
-# snap/gui/* angleichen.
+name: notizblock-aw # Im Snap Store registriert (notizblock war vergeben).
 adopt-info: notizblock # Version wird im Part aus pubspec.yaml gesetzt.
 summary: Schlichte Notizen mit Sticky-Fenstern und Drive-Sync
 description: |
@@ -20,8 +18,8 @@ confinement: strict
 grade: stable
 
 apps:
-  notizblock:
-    command: notizblock
+  notizblock-aw: # App-Name = Snap-Name → Start per `notizblock-aw`.
+    command: notizblock # Name der gebauten Flutter-Binärdatei (BINARY_NAME).
     extensions: [gnome] # GTK3/GNOME-Integration: Grafik, Wayland/X11, Themes, Portale.
     plugs:
       - network # Google-Drive-Sync
