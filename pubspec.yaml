@@ -1,7 +1,13 @@
 name: notizblock
 description: "Notizblock AW – schlichte, plattformübergreifende Notiz-App (Android, Windows, Linux) mit Google-Drive-Sync."
 publish_to: 'none'
-version: 1.25.0+25
+# Versionsname (vor dem +) = Anzeigeversion. Build-Nummer (nach dem +) =
+# Android-versionCode; MUSS bei jedem Play-Upload streng steigen und ist eine
+# reine Ganzzahl (kann nicht "25.3" sein). Schema hier: major*10000 +
+# minor*100 + patch  → 1.25.3 = 12503, 1.25.4 = 12504, 1.26.0 = 12600.
+# So spiegelt der versionCode die Version wider (früher lief eine fortlaufende
+# Zählung: …, 25, 26 – daher der "26"-Eintrag in der Play Console).
+version: 1.25.3+12503
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -70,6 +76,11 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    # App-Icon als .ico – wird zur Laufzeit für die Windows-Autostart-
+    # Verknüpfung herausgeschrieben (IconLocation), damit der Eintrag das
+    # richtige Icon zeigt statt des Explorer-Icons.
+    - assets/icon/app_icon.ico
 
 # Microsoft-Store-/Sideload-Paket (Windows). Bauen: dart run msix:create
 # TEST-Konfiguration: selbstsigniertes Zertifikat aus certs\ – `publisher` MUSS
@@ -91,7 +102,7 @@ msix_config:
   # (Add-AppxPackage ohne vorheriges Remove) → Taskleisten-/Startmenü-Pin bleibt.
   # Bei jedem Release Minor/Patch hochzählen; bei schnellen lokalen Re-Builds
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
-  msix_version: 1.25.0.0
+  msix_version: 1.25.3.0
   logo_path: assets/icon/icon_full.png
   capabilities: internetClient
   architecture: x64
@@ -99,7 +110,7 @@ msix_config:
   certificate_password: notizblock
   install_certificate: false
   output_path: build/msix
-  output_name: Notizblock-1.25.0
+  output_name: Notizblock-1.25.3
   # Bewusst KEINE startup_task hier: der Autostart läuft über eine Startup-Ordner-
   # Verknüpfung (AutostartService, AppsFolder-Aktivierung), weil paketbasierte
   # StartupTasks auf manchen Systemen nicht im Task-Manager/in den Einstellungen

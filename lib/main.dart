@@ -14,6 +14,7 @@ import 'services/background_sync_service.dart';
 import 'services/google_drive_service.dart';
 import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
+import 'services/autostart_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_editor_screen.dart';
 import 'screens/autopool_editor_screen.dart';
@@ -61,6 +62,12 @@ void main(List<String> args) async {
 
   if (_isDesktop) {
     await windowManager.ensureInitialized();
+
+    // Einmalig nach einem Update die Autostart-Verknüpfung neu schreiben, damit
+    // der Task-Manager/Autostart-Dialog den korrekten Anzeigenamen zeigt
+    // (AppUserModelID statt „explorer"). Tut nur etwas, wenn Autostart aktiv und
+    // noch nicht aufgefrischt ist (Flag) – sonst praktisch kostenlos.
+    await AutostartService.instance.refreshShortcutIfNeeded();
 
     // Angeheftete Widgets öffnen (gibt Anzahl NEU geöffneter Fenster zurück).
     final widgetIds = await StickyNoteService.instance.getWidgetNoteIds();

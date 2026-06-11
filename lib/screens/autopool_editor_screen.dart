@@ -576,7 +576,11 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
                 )
               : null,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(6, 8, 6, 12),
+            // Unten zusätzlich um die System-Navigationsleiste (Android-Gesten-/
+            // 3-Tasten-Leiste) einrücken, sonst verschwindet der „Zeile
+            // hinzufügen"-Button hinter den System-Buttons (war real ein Bug).
+            padding: EdgeInsets.fromLTRB(
+                6, 8, 6, 12 + MediaQuery.of(context).viewPadding.bottom),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

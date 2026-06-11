@@ -153,6 +153,18 @@ class AutopoolTableState extends State<AutopoolTable> {
     _emitChange();
   }
 
+  // Drag&Drop-Reorder (ReorderableListView liefert beim Verschieben nach unten
+  // ein newIndex hinter der entfernten Position → um 1 korrigieren).
+  void _reorderRow(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      _rows.insert(newIndex, _rows.removeAt(oldIndex));
+      _focus.insert(newIndex, _focus.removeAt(oldIndex));
+      _marked.insert(newIndex, _marked.removeAt(oldIndex));
+    });
+    _emitChange();
+  }
+
   void _toggleMark(int index) {
     setState(() => _marked[index] = !_marked[index]);
     _emitChange();
@@ -181,7 +193,23 @@ class AutopoolTableState extends State<AutopoolTable> {
           children: [
             _buildHeader(cols, narrow),
             const SizedBox(height: 6),
-            for (var i = 0; i < _rows.length; i++) _buildRow(i, cols, narrow),
+            // Zeilen umsortierbar per ↑/↓ ODER per Drag&Drop am Anfasser (links).
+            // shrinkWrap + NeverScrollable, weil das Ganze in einer äußeren
+            // SingleChildScrollView steckt (Editor wie Sticky-Fenster).
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: _rows.length,
+              onReorder: _reorderRow,
+              proxyDecorator: (child, index, animation) => Material(
+                color: Colors.transparent,
+                elevation: 6,
+                borderRadius: BorderRadius.circular(6),
+                child: child,
+              ),
+              itemBuilder: (context, i) => _buildRow(i, cols, narrow),
+            ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
@@ -307,6 +335,22 @@ class AutopoolTableState extends State<AutopoolTable> {
           Icons.keyboard_arrow_up,
           l.moveUp,
           index > 0 ? () => _moveRow(index, -1) : null,
+        ),
+        // Anfasser für Drag&Drop (zusätzlich zu den Pfeilen): am schnellsten,
+        // um eine Zeile über mehrere Positionen zu verschieben.
+        ReorderableDragStartListener(
+          index: index,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: _narrow ? 1 : 2),
+              child: Icon(
+                Icons.drag_indicator,
+                size: _iconSize,
+                color: widget.textColor.withValues(alpha: 0.45),
+              ),
+            ),
+          ),
         ),
         _iconBtn(
           Icons.keyboard_arrow_down,
