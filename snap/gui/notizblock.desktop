@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Notizblock AW
+Comment=Plattformübergreifende Notizblock-App
+Comment[en]=Cross-platform notepad app
+Exec=notizblock
+Icon=${SNAP}/meta/gui/notizblock.png
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=Notes;Notizen;Notizblock;Sticky;
+StartupWMClass=at.aw.notizblock

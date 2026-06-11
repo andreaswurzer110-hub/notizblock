@@ -1,0 +1,41 @@
+name: notizblock # TODO: Store-Namen registrieren (snapcraft register notizblock).
+# Falls vergeben → anderen Namen wählen (z.B. notizblock-aw) und hier + in
+# snap/gui/* angleichen.
+adopt-info: notizblock # Version wird im Part aus pubspec.yaml gesetzt.
+summary: Schlichte Notizen mit Sticky-Fenstern und Drive-Sync
+description: |
+  Notizblock ist eine schlichte, plattformübergreifende App für reine
+  Text-Notizen – ohne Markdown, Bilder oder Checklisten. Fokus: schnell
+  festhalten und wiederfinden.
+
+  Funktionen:
+  - Reine Text-Notizen mit Farben und Anheften
+  - Sticky-Note-Fenster auf dem Desktop
+  - Google-Drive-Sync zwischen Geräten (Android, Windows, Linux)
+  - Archivieren und Wiederherstellen
+  - Mehrsprachig, Deutsch als Standard
+
+base: core22
+confinement: strict
+grade: stable
+
+apps:
+  notizblock:
+    command: notizblock
+    extensions: [gnome] # GTK3/GNOME-Integration: Grafik, Wayland/X11, Themes, Portale.
+    plugs:
+      - network # Google-Drive-Sync
+      - network-bind # lokaler Loopback-Server für den OAuth-Consent
+
+parts:
+  notizblock:
+    source: .
+    plugin: flutter
+    flutter-target: lib/main.dart
+    override-build: |
+      # Dedizierten, bewusst öffentlichen Linux-OAuth-Client einspielen
+      # (im Repo gitignored unter lib/services; Quelle in flatpak/).
+      cp flatpak/google_drive_config.dart lib/services/google_drive_config.dart
+      # Snap-Version aus pubspec.yaml ableiten (z.B. 1.25.0+25 -> 1.25.0).
+      craftctl set version="$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)"
+      craftctl default
