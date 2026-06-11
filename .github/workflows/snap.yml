@@ -26,11 +26,20 @@ concurrency:
   group: snap-build
   cancel-in-progress: true
 
+# Node-20-Deprecation (ab 16.06.2026 erzwingt GitHub Node 24): checkout/
+# upload-artifact laufen unten bereits auf node24-nativen Majors. Die
+# snapcore-Actions gibt es nur als @v1 (node20, kein node24-Release) → dieses
+# offizielle Opt-in-Flag zwingt sie schon JETZT auf Node 24, sodass wir vor
+# der Frist sehen, dass die Pipeline auf Node 24 weiter funktioniert. Sobald
+# snapcore eine node24-Version hat: Version bumpen + dieses Flag entfernen.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Snap bauen
         id: build
@@ -39,7 +48,7 @@ jobs:
       # Gebaute .snap auch als Artefakt anhängen (zum lokalen Testen herunterladbar,
       # auch ohne Store-Credentials).
       - name: Snap als Artefakt
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snap
           path: ${{ steps.build.outputs.snap }}
