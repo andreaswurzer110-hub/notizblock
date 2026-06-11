@@ -67,6 +67,22 @@ class AutostartService {
     return p.join(cfg, 'notizblock_autostart.enabled');
   }
 
+  // Läuft die App als Snap?
+  bool get _isSnap =>
+      Platform.isLinux && Platform.environment.containsKey('SNAP');
+
+  // Autostart-Datei für snapd: muss exakt der `autostart:`-Property im
+  // snapcraft.yaml entsprechen und unter SNAP_USER_DATA liegen. snapd liest sie
+  // beim Login, schreibt das Exec sandbox-sicher um und startet die App.
+  static const String _snapAutostartFileName = 'notizblock-aw.desktop';
+
+  String? get _snapAutostartPath {
+    final base = Platform.environment['SNAP_USER_DATA'] ??
+        Platform.environment['HOME'];
+    if (base == null) return null;
+    return p.join(base, '.config', 'autostart', _snapAutostartFileName);
+  }
+
   // --- Pfade ---
 
   String? get _shortcutPath {
@@ -93,6 +109,11 @@ class AutostartService {
       if (marker == null) return false;
       return File(marker).exists();
     }
+    if (_isSnap) {
+      final path = _snapAutostartPath;
+      if (path == null) return false;
+      return File(path).exists();
+    }
     final path = Platform.isWindows ? _shortcutPath : _desktopFilePath;
     if (path == null) return false;
     return File(path).exists();
@@ -111,6 +132,8 @@ class AutostartService {
     if (Platform.isLinux) {
       if (_isFlatpak) {
         await _enableLinuxFlatpak();
+      } else if (_isSnap) {
+        await _enableSnap();
       } else {
         await _enableLinux();
       }
@@ -122,6 +145,18 @@ class AutostartService {
   Future<void> _disable() async {
     if (_isFlatpak) {
       await _disableLinuxFlatpak();
+      return;
+    }
+    if (_isSnap) {
+      final path = _snapAutostartPath;
+      if (path != null) {
+        try {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        } catch (e) {
+          debugPrint('Autostart deaktivieren (Snap) fehlgeschlagen: $e');
+        }
+      }
       return;
     }
     final path = Platform.isWindows ? _shortcutPath : _desktopFilePath;
@@ -247,6 +282,32 @@ X-GNOME-Autostart-enabled=true
       return false;
     } finally {
       await client.close();
+    }
+  }
+
+  // --- Linux (Snap) ---
+
+  Future<void> _enableSnap() async {
+    final path = _snapAutostartPath;
+    if (path == null) return;
+    // snapd nutzt nur die Exec-Argumente; den Befehl ersetzt es sandbox-sicher
+    // durch den App-Wrapper. Dateiname muss zur `autostart:`-Property passen.
+    const content = '''
+[Desktop Entry]
+Type=Application
+Name=Notizblock AW
+Comment=Notizblock startet mit den angehefteten Widgets
+Exec=notizblock-aw --widgets
+Icon=notizblock-aw
+Terminal=false
+X-GNOME-Autostart-enabled=true
+''';
+    try {
+      final file = File(path);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(content);
+    } catch (e) {
+      debugPrint('Autostart aktivieren (Snap) fehlgeschlagen: $e');
     }
   }
 

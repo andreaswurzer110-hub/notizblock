@@ -21,9 +21,15 @@ apps:
   notizblock-aw: # App-Name = Snap-Name → Start per `notizblock-aw`.
     command: notizblock # Name der gebauten Flutter-Binärdatei (BINARY_NAME).
     extensions: [gnome] # GTK3/GNOME-Integration: Grafik, Wayland/X11, Themes, Portale.
+    # Autostart: snapd startet die zur Laufzeit nach
+    # $SNAP_USER_DATA/.config/autostart/notizblock-aw.desktop geschriebene Datei
+    # (sandbox-sicher; AutostartService schreibt/löscht sie). Muss exakt diesem
+    # Dateinamen entsprechen.
+    autostart: notizblock-aw.desktop
     plugs:
       - network # Google-Drive-Sync
       - network-bind # lokaler Loopback-Server für den OAuth-Consent
+      - x11 # XWayland: nötig, weil der Runner GDK_BACKEND=x11 erzwingt (Sticky-Positionen)
 
 parts:
   notizblock:
