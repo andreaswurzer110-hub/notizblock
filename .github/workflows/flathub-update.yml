@@ -12,7 +12,7 @@
 #   4) Manifest + generated/ werden ins Flathub-Repo gepusht → Buildbot baut/published.
 #
 # VORAUSSETZUNGEN (einmalig, siehe flatpak/RELEASING.md):
-#   - Flathub-Repo existiert (nach Merge von PR #8944).
+#   - Flathub-Repo existiert (nach Merge von PR #8949 gegen den new-pr-Branch).
 #   - Repo-Secret FLATHUB_TOKEN (PAT mit Schreibrecht auf das Flathub-Repo).
 #
 # Drei Stellen, die beim ERSTEN Lauf zu verifizieren sind (Kommentare unten):

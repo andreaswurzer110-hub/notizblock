@@ -25,7 +25,7 @@ einem Ubuntu-Runner; Flathubs Buildbot veröffentlicht danach selbst.
 Status/Logs des Laufs: GitHub → Actions → „Flathub-Update". Manuell auslösbar
 über „Run workflow" (mit optionalem Tag).
 
-## Einmaliges Setup (nach Merge von Flathub-PR #8944)
+## Einmaliges Setup (nach Merge von Flathub-PR #8949)
 
 1. **Flathub-Repo** existiert dann: `flathub/io.github.andreaswurzer110_hub.Notizblock`.
 2. **Schreib-Token anlegen:** GitHub → Settings → Developer settings →
