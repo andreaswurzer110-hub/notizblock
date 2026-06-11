@@ -25,15 +25,33 @@ ein wie der Flatpak-Build (`flatpak/google_drive_config.dart` → `lib/services/
 
 ## Bauen & veröffentlichen
 
-Snap baut **nur auf Linux** – aber für „von Windows aus" gibt es zwei gute Wege:
+Snap baut **nur auf Linux** – für „von Windows aus" baut die GitHub-Actions-
+Pipeline `.github/workflows/snap.yml` in GitHubs Cloud-Linux und lädt hoch.
+(Die GitHub-Build-Verknüpfung im Store-Dashboard erscheint erst nach der ersten
+Revision – darum der CI-Weg.)
 
-### Weg A (empfohlen): Store-Build aus GitHub (kein Linux nötig)
-Im Snap-Store-Dashboard (snapcraft.io/snaps → dein Snap → „Builds") das
-GitHub-Repo verbinden. Canonical baut dann **in der Cloud** bei jedem Push und
-veröffentlicht automatisch in den **edge**-Channel. Danach von Windows aus nur
-noch: Code pushen → testen → Channel hochstufen.
+### Einmalig: Store-Token erzeugen (braucht einmal Linux/Zorin)
+```bash
+sudo snap install snapcraft --classic
+snapcraft login                       # Browser-Login
+snapcraft export-login --snaps=notizblock-aw \
+  --acls package_access,package_push,package_update,package_release exported.txt
+cat exported.txt                      # gesamten Inhalt kopieren
+```
+Inhalt als Repo-Secret hinterlegen: GitHub → Repo → **Settings → Secrets and
+variables → Actions → New repository secret** → Name
+**`SNAPCRAFT_STORE_CREDENTIALS`**, Wert = der kopierte Inhalt.
+(Das Token läuft per Default nach ~1 Jahr ab → dann neu erzeugen.)
 
-### Weg B: lokal auf Zorin
+### Releasen (von Windows)
+- **Testen:** GitHub → Actions → „Snap-Build" → **Run workflow** (Channel `edge`)
+  → baut + veröffentlicht nach edge. Test auf Zorin: `sudo snap install notizblock-aw --edge`.
+- **Live:** Tag pushen → Pipeline veröffentlicht nach **stable**:
+  `git tag vX.Y.Z; git push origin vX.Y.Z`. Danach für alle via `snap install notizblock-aw`.
+- Ohne gesetztes Secret läuft nur der **Build** (Validierung), Veröffentlichen wird
+  übersprungen – praktisch für den ersten Probelauf.
+
+### Alternative: alles lokal auf Zorin
 ```bash
 sudo snap install snapcraft --classic
 snapcraft            # baut die .snap (nutzt LXD)
