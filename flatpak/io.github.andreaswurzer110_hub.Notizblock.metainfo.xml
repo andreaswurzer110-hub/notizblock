@@ -44,6 +44,16 @@
       <li>Archive and restore</li>
       <li>Multilingual, German by default</li>
     </ul>
+    <p>
+      Notizblock AW gibt es auch für Windows (Microsoft Store) und Linux
+      (Snap Store: snapcraft.io/notizblock-aw). Android über Google Play
+      (derzeit geschlossener Test, Zugang auf Anfrage: andi-w-apps@tuta.com).
+    </p>
+    <p xml:lang="en">
+      Notizblock AW is also available for Windows (Microsoft Store) and Linux
+      (Snap Store: snapcraft.io/notizblock-aw). Android via Google Play
+      (currently a closed test, access on request: andi-w-apps@tuta.com).
+    </p>
   </description>
 
   <launchable type="desktop-id">io.github.andreaswurzer110_hub.Notizblock.desktop</launchable>

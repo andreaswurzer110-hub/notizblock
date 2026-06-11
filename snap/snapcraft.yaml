@@ -2,7 +2,7 @@ name: notizblock-aw # Im Snap Store registriert (notizblock war vergeben).
 adopt-info: notizblock # Version wird im Part aus pubspec.yaml gesetzt.
 summary: Schlichte Notizen mit Sticky-Fenstern und Drive-Sync
 description: |
-  Notizblock ist eine schlichte, plattformübergreifende App für reine
+  Notizblock AW ist eine schlichte, plattformübergreifende App für reine
   Text-Notizen – ohne Markdown, Bilder oder Checklisten. Fokus: schnell
   festhalten und wiederfinden.
 
@@ -12,6 +12,12 @@ description: |
   - Google-Drive-Sync zwischen Geräten (Android, Windows, Linux)
   - Archivieren und Wiederherstellen
   - Mehrsprachig, Deutsch als Standard
+
+  Auch erhältlich für:
+  - Windows (Microsoft Store): https://apps.microsoft.com/detail/9N8MGP7GQV4L
+  - Android (Google Play, derzeit geschlossener Test – Zugang auf Anfrage per
+    E-Mail an andi-w-apps@tuta.com):
+    https://play.google.com/store/apps/details?id=at.aw.notizblock
 
 base: core22
 confinement: strict

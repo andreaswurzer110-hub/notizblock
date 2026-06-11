@@ -1,6 +1,13 @@
-# Notizblock App
+# Notizblock AW
 
-Eine schlichte, mehrsprachige Notizblock-App mit Home-Screen Widgets und Google Drive Synchronisierung.
+Notizblock AW – eine schlichte, mehrsprachige Notiz-App mit Home-Screen-Widgets und Google-Drive-Synchronisierung. Verfügbar für **Android, Windows und Linux**.
+
+## Download
+
+- **Windows** – Microsoft Store: https://apps.microsoft.com/detail/9N8MGP7GQV4L
+- **Linux** – Snap Store: https://snapcraft.io/notizblock-aw
+  (Installation: `sudo snap install notizblock-aw`)
+- **Android** – Google Play (derzeit geschlossener Test, Zugang auf Anfrage per E-Mail an andi-w-apps@tuta.com): https://play.google.com/store/apps/details?id=at.aw.notizblock
 
 ## Features
 

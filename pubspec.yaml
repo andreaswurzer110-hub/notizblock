@@ -1,5 +1,5 @@
 name: notizblock
-description: Eine schlichte Notizblock-App mit Widgets und Google Drive Sync
+description: "Notizblock AW – schlichte, plattformübergreifende Notiz-App (Android, Windows, Linux) mit Google-Drive-Sync."
 publish_to: 'none'
 version: 1.25.0+25
 
