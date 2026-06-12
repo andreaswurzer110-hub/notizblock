@@ -14,9 +14,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   mit `--widgets`.
 /// - **Windows (MSIX/Store):** ebenfalls eine .lnk im Autostart-Ordner, aber sie
 ///   darf NICHT die Exe unter `…\WindowsApps\…` als Ziel haben (ACL-geschützt;
-///   Windows ignoriert solche Startup-Verknüpfungen). Stattdessen wird die App
-///   über ihre AppUserModelID via `explorer.exe shell:AppsFolder\<PFN>!<AppId>`
-///   aktiviert. Bewusst KEINE `windows.startupTask`: die taucht auf manchen
+///   Windows ignoriert solche Startup-Verknüpfungen). Stattdessen ist die .lnk
+///   eine Shell-Item-Verknüpfung (`IShellLink::SetIDList`) direkt auf das
+///   App-Objekt in `shell:AppsFolder` – wie beim manuellen „Verknüpfung
+///   erstellen" aus dem Apps-Ordner. Nur so zeigt der Task-Manager unter
+///   „Autostart von Apps" Name+Icon des Pakets („Notizblock AW"); bei einem
+///   Dateiziel listet er stur den Exe-Dateinamen (beim früheren
+///   `explorer.exe shell:AppsFolder\…`-Umweg also „explorer.exe" – auch eine
+///   auf die .lnk geschriebene AppUserModelID-Property ignoriert er dafür).
+///   Bewusst KEINE `windows.startupTask`: die taucht auf manchen
 ///   Systemen weder im Task-Manager noch in den Einstellungen auf und lässt sich
 ///   dann nicht umschalten – der Startup-Ordner dagegen funktioniert dort.
 /// - **Linux (klassisch):** `.desktop`-Datei in `~/.config/autostart/`
@@ -46,10 +52,10 @@ class AutostartService {
   // Zusammen mit dem PackageFamilyName ergibt das die AppUserModelID.
   static const String _appUserModelAppId = 'notizblock';
 
-  // Einmal-Flag: bei Format-Änderungen der Verknüpfung (z.B. AppUserModelID für
-  // den korrekten Anzeigenamen) wird die bestehende .lnk einmalig neu
+  // Einmal-Flag: bei Format-Änderungen der Verknüpfung (z.B. Umstellung auf die
+  // AppsFolder-Shell-Item-Verknüpfung) wird die bestehende .lnk einmalig neu
   // geschrieben. Bei künftigen Format-Änderungen den Suffix hochzählen.
-  static const String _shortcutRefreshFlag = 'autostart_shortcut_refresh_v4';
+  static const String _shortcutRefreshFlag = 'autostart_shortcut_refresh_v5';
 
   // Alter Windows-Registry-Eintrag (Altlast) – beim Umschalten mit aufgeräumt.
   static const String _legacyRunKey =
@@ -366,43 +372,27 @@ X-GNOME-Autostart-enabled=true
     final path = _shortcutPath;
     if (path == null) return;
 
-    String target;
-    String args;
-    String workDir;
-    // Bei der Paket-Variante zeigt die Verknüpfung als Ziel `explorer.exe` – der
-    // Task-Manager/Autostart-Dialog würde sie sonst als „explorer" listen.
-    // Damit dort der Paket-Anzeigename („Notizblock AW") erscheint, wird die
-    // AppUserModelID des Pakets auf die .lnk geschrieben (s.u.).
-    String? aumid;
     if (_isPackaged) {
-      // Paket-App über die AppUserModelID via Explorer starten (NICHT die Exe
-      // unter …\WindowsApps\… als Ziel – die ignoriert Windows beim Autostart).
-      // Ohne Argumente: main() öffnet beim Logon nur die angehefteten Widgets
-      // (kein Hauptfenster), identisch zum --widgets-Verhalten.
+      // Paket-App: Shell-Item-Verknüpfung direkt aufs AppsFolder-Objekt (NICHT
+      // die Exe unter …\WindowsApps\… als Ziel – die ignoriert Windows beim
+      // Autostart; und NICHT via `explorer.exe shell:AppsFolder\…` – dann
+      // listet der Task-Manager den Eintrag als „explorer.exe", s. Klassendoku).
+      // Diese Verknüpfungsart übergibt keine Argumente: main() öffnet beim
+      // Logon nur die angehefteten Widgets (kein Hauptfenster), identisch zum
+      // --widgets-Verhalten. Name+Icon liefert das Paket selbst.
       final pfn = _packageFamilyName();
       if (pfn == null) {
         debugPrint('Autostart: PackageFamilyName nicht ermittelbar.');
         return;
       }
-      final windir = Platform.environment['WINDIR'] ?? r'C:\Windows';
-      target = p.join(windir, 'explorer.exe');
-      args = 'shell:AppsFolder\\$pfn!$_appUserModelAppId';
-      workDir = windir;
-      aumid = '$pfn!$_appUserModelAppId';
+      await _writeAppsFolderShortcut(path, '$pfn!$_appUserModelAppId');
     } else {
       final exe = Platform.resolvedExecutable;
-      target = exe;
-      args = '--widgets';
-      workDir = File(exe).parent.path;
+      // App-Icon herausschreiben und als Verknüpfungs-Icon setzen.
+      final iconPath = await _ensureAutostartIcon();
+      await _writeShortcut(
+          path, exe, '--widgets', File(exe).parent.path, iconPath);
     }
-
-    // App-Icon herausschreiben und als Verknüpfungs-Icon setzen, damit der
-    // Eintrag (besonders bei der Paket-Variante mit explorer.exe als Ziel) das
-    // Notizblock-Icon statt des Explorer-Icons zeigt.
-    final iconPath = await _ensureAutostartIcon();
-
-    await _writeShortcut(path, target, args, workDir, iconPath);
-    if (aumid != null) await _setShortcutAppUserModelId(path, aumid);
     // Verknüpfung umbenannt (früher „Notizblock.lnk") → Alt-Eintrag entfernen.
     await _removeLegacyShortcuts();
     await _removeLegacyRegistryEntry();
@@ -410,7 +400,9 @@ X-GNOME-Autostart-enabled=true
 
   /// Schreibt das gebündelte App-Icon (`assets/icon/app_icon.ico`) in einen
   /// festen, lesbaren Pfad und gibt ihn zurück (für `IconLocation` der .lnk).
-  /// Version-unabhängig (im App-Support-Ordner), überlebt App-Updates.
+  /// Nur noch für die Win32-Variante nötig – die AppsFolder-Verknüpfung der
+  /// Paket-App bringt ihr Icon selbst mit. Version-unabhängig (im
+  /// App-Support-Ordner), überlebt App-Updates.
   Future<String?> _ensureAutostartIcon() async {
     try {
       final dir = await getApplicationSupportDirectory();
@@ -425,13 +417,15 @@ X-GNOME-Autostart-enabled=true
     }
   }
 
-  /// Setzt die AppUserModelID (`PKEY_AppUserModel_ID`) auf die Verknüpfung.
-  /// Ohne sie zeigt der Task-Manager/Autostart-Dialog für die Paket-Variante
-  /// „explorer" (das Verknüpfungsziel) statt des Paket-Anzeigenamens
-  /// „Notizblock AW". Best effort – schlägt es fehl, bleibt nur der Name falsch,
-  /// der Autostart funktioniert trotzdem. Setzt die Eigenschaft via Shell-COM
-  /// (`IShellLink`-Objekt → `IPropertyStore`), das WScript.Shell nicht kann.
-  Future<void> _setShortcutAppUserModelId(String lnkPath, String aumid) async {
+  /// Legt die Autostart-Verknüpfung der Paket-App an: eine Shell-Item-
+  /// Verknüpfung (`IShellLink::SetIDList`) direkt auf das App-Objekt in
+  /// `shell:AppsFolder` – wie beim manuellen „Verknüpfung erstellen" aus dem
+  /// Apps-Ordner. Die .lnk hat damit KEIN Datei-Ziel; Task-Manager und Explorer
+  /// zeigen Name+Icon des Pakets. (Die früher stattdessen auf eine
+  /// explorer.exe-Verknüpfung geschriebene `PKEY_AppUserModel_ID` half NICHT:
+  /// der Task-Manager ignoriert die Property und listet den Exe-Dateinamen.)
+  /// Best effort – schlägt es fehl, fehlt nur der Autostart-Eintrag.
+  Future<void> _writeAppsFolderShortcut(String lnkPath, String aumid) async {
     // Skript in eine temporäre .ps1 schreiben und mit -File ausführen – robuster
     // als ein riesiges, mehrzeiliges -Command (kein Quoting des Skriptkörpers).
     // Pfad/AUMID werden sicher als PowerShell-Literale eingebettet. Der C#-Block
@@ -443,11 +437,8 @@ X-GNOME-Autostart-enabled=true
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class NbShortcut {
-  [StructLayout(LayoutKind.Sequential)]
-  public struct PROPERTYKEY { public Guid fmtid; public uint pid; }
-  [StructLayout(LayoutKind.Sequential)]
-  public struct PROPVARIANT { public ushort vt; public ushort r1; public ushort r2; public ushort r3; public IntPtr p; public IntPtr p2; }
+using System.Text;
+public static class NbAppLink {
   [ComImport, Guid("0000010b-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   interface IPersistFile {
     void GetClassID(out Guid pClassID);
@@ -457,46 +448,54 @@ public static class NbShortcut {
     void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string pszFileName);
     void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string ppszFileName);
   }
-  [ComImport, Guid("886d8eeb-8cf2-4446-8d02-cdba1dbdcf99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-  interface IPropertyStore {
-    void GetCount(out uint cProps);
-    void GetAt(uint iProp, out PROPERTYKEY pkey);
-    void GetValue(ref PROPERTYKEY key, out PROPVARIANT pv);
-    void SetValue(ref PROPERTYKEY key, ref PROPVARIANT pv);
-    void Commit();
+  // Vollständige Vtable von IShellLinkW – Reihenfolge der Methoden ist bindend.
+  [ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IShellLinkW {
+    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cch, IntPtr pfd, uint fFlags);
+    void GetIDList(out IntPtr ppidl);
+    void SetIDList(IntPtr pidl);
+    void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cch);
+    void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+    void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cch);
+    void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
+    void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cch);
+    void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
+    void GetHotkey(out ushort pwHotkey);
+    void SetHotkey(ushort wHotkey);
+    void GetShowCmd(out int piShowCmd);
+    void SetShowCmd(int iShowCmd);
+    void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cch, out int piIcon);
+    void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
+    void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, uint dwReserved);
+    void Resolve(IntPtr hwnd, uint fFlags);
+    void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
   }
-  [DllImport("ole32.dll")]
-  static extern int PropVariantClear(ref PROPVARIANT pvar);
-  const ushort VT_LPWSTR = 31;
-  public static void SetAumid(string lnkPath, string aumid) {
-    Type t = Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046"));
-    object link = Activator.CreateInstance(t);
-    IPersistFile pf = (IPersistFile)link;
-    pf.Load(lnkPath, 2);
-    IPropertyStore store = (IPropertyStore)link;
-    PROPERTYKEY key = new PROPERTYKEY();
-    key.fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3");
-    key.pid = 5;
-    // PROPVARIANT (VT_LPWSTR) manuell aufbauen. InitPropVariantFromString ist
-    // nicht zuverlaessig aus propsys.dll exportiert (EntryPointNotFound auf
-    // Win11) -> stattdessen Zeiger selbst setzen. SetValue kopiert den Wert,
-    // unser PROPVARIANT wird danach freigegeben.
-    PROPVARIANT pv = new PROPVARIANT();
-    pv.vt = VT_LPWSTR;
-    pv.p = Marshal.StringToCoTaskMemUni(aumid);
-    store.SetValue(ref key, ref pv);
-    store.Commit();
-    PropVariantClear(ref pv);
-    pf.Save(lnkPath, true);
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+  static extern int SHParseDisplayName(string pszName, IntPtr pbc, out IntPtr ppidl, uint sfgaoIn, out uint psfgaoOut);
+  public static void Create(string aumid, string lnkPath, string desc) {
+    IntPtr pidl;
+    uint sfgao;
+    int hr = SHParseDisplayName("shell:AppsFolder\\\\" + aumid, IntPtr.Zero, out pidl, 0, out sfgao);
+    if (hr != 0) Marshal.ThrowExceptionForHR(hr);
+    try {
+      Type t = Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046"));
+      object link = Activator.CreateInstance(t);
+      IShellLinkW sl = (IShellLinkW)link;
+      sl.SetIDList(pidl);
+      sl.SetDescription(desc);
+      IPersistFile pf = (IPersistFile)link;
+      pf.Save(lnkPath, true);
+    } finally {
+      Marshal.FreeCoTaskMem(pidl);
+    }
   }
 }
 '@
-[NbShortcut]::SetAumid(\$lnk, \$aumid)
+[NbAppLink]::Create(\$aumid, \$lnk, 'Notizblock AW')
 ''';
-    File? scriptFile;
     try {
-      final dir = await Directory.systemTemp.createTemp('nb_aumid');
-      scriptFile = File(p.join(dir.path, 'set_aumid.ps1'));
+      final dir = await Directory.systemTemp.createTemp('nb_applink');
+      final scriptFile = File(p.join(dir.path, 'applink.ps1'));
       await scriptFile.writeAsString(script);
       final r = await Process.run(
         'powershell',
@@ -510,21 +509,22 @@ public static class NbShortcut {
         ],
       );
       if (r.exitCode != 0) {
-        debugPrint('Autostart AppUserModelID setzen fehlgeschlagen: ${r.stderr}');
+        debugPrint(
+            'Autostart-AppsFolder-Verknüpfung anlegen fehlgeschlagen: ${r.stderr}');
       }
       try {
         await dir.delete(recursive: true);
       } catch (_) {}
     } catch (e) {
-      debugPrint('Autostart AppUserModelID setzen fehlgeschlagen: $e');
+      debugPrint('Autostart-AppsFolder-Verknüpfung anlegen fehlgeschlagen: $e');
     }
   }
 
   /// Schreibt die Autostart-Verknüpfung einmalig neu, falls Autostart aktiv ist.
   /// Nötig nach einem Update, das das Verknüpfungsformat ändert (z.B. die
-  /// AppUserModelID für den korrekten Anzeigenamen): eine schon bestehende .lnk
-  /// aus einer Altinstallation wird sonst nicht angefasst. Läuft dank Flag nur
-  /// einmal pro Format-Version. Nur Windows.
+  /// Umstellung auf die AppsFolder-Shell-Item-Verknüpfung): eine schon
+  /// bestehende .lnk aus einer Altinstallation wird sonst nicht angefasst.
+  /// Läuft dank Flag nur einmal pro Format-Version. Nur Windows.
   Future<void> refreshShortcutIfNeeded() async {
     if (!Platform.isWindows) return;
     try {

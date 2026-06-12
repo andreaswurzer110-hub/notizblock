@@ -15,9 +15,15 @@ $ErrorActionPreference = 'Stop'
 # Projektwurzel = zwei Ebenen ueber diesem Skript (installer\msix\..\..)
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $cer  = Join-Path $root 'certs\notizblock_test.cer'
-$msix = Join-Path $root 'build\msix\Notizblock-1.25.0.msix'
 
-if (-not (Test-Path $msix)) { throw "MSIX fehlt: $msix  (zuerst: dart run msix:create)" }
+# Neueste lokale Test-MSIX nehmen. Die Store-Variante (*-Store.msix) ist
+# ausgeschlossen: unsigniert + Partner-Center-Identitaet -> nicht sideloadbar.
+$msixItem = Get-ChildItem (Join-Path $root 'build\msix\Notizblock-*.msix') -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notlike '*-Store*' } |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if (-not $msixItem) { throw "Keine Test-MSIX in build\msix gefunden (zuerst: dart run msix:create)" }
+$msix = $msixItem.FullName
+Write-Host "Paket: $msix" -ForegroundColor Cyan
 
 # (1) Zertifikat vertrauen. Schlaegt der Import fehl (kein Admin) und ist das
 # Zertifikat bereits vertraut, klappt die Installation trotzdem.
