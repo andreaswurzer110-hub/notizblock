@@ -305,4 +305,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get linkOpenFailed => 'Link konnte nicht geöffnet werden';
+
+  @override
+  String get ctxCut => 'cut';
+
+  @override
+  String get ctxPaste => 'Einfügen';
 }

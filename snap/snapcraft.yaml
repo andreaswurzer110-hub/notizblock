@@ -46,6 +46,8 @@ parts:
       # Dedizierten, bewusst öffentlichen Linux-OAuth-Client einspielen
       # (im Repo gitignored unter lib/services; Quelle in flatpak/).
       cp flatpak/google_drive_config.dart lib/services/google_drive_config.dart
-      # Snap-Version aus pubspec.yaml ableiten (z.B. 1.25.0+25 -> 1.25.0).
-      craftctl set version="$(sed -n 's/^version: \([0-9.]*\).*/\1/p' pubspec.yaml)"
+      # Snap-Version = die 4-teilige msix_version aus pubspec (z.B. 1.25.5.3),
+      # damit der Store die volle Nummer inkl. Revision zeigt. pubspec `version:`
+      # ist nur 3-teilig (semver), taugt dafür nicht.
+      craftctl set version="$(sed -n 's/^[[:space:]]*msix_version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)"
       craftctl default

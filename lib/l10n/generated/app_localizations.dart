@@ -655,6 +655,18 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Link konnte nicht geöffnet werden'**
   String get linkOpenFailed;
+
+  /// No description provided for @ctxCut.
+  ///
+  /// In de, this message translates to:
+  /// **'cut'**
+  String get ctxCut;
+
+  /// No description provided for @ctxPaste.
+  ///
+  /// In de, this message translates to:
+  /// **'Einfügen'**
+  String get ctxPaste;
 }
 
 class _AppLocalizationsDelegate

@@ -64,45 +64,90 @@ Future<void> _open(BuildContext context, String raw) async {
   }
 }
 
-// Baut das Auswahl-/Kontextmenü für ein Notiz-Textfeld. Als
+// Eigener „Link öffnen" / „Im Web suchen"-Eintrag – oder null, wenn weder eine
+// URL am Cursor/in der Auswahl noch markierter Text vorliegt.
+ContextMenuButtonItem? _linkItem(BuildContext context,
+    EditableTextState editableTextState, AppLocalizations l10n) {
+  final value = editableTextState.currentTextEditingValue;
+  final sel = value.selection;
+  if (!sel.isValid) return null;
+  String? target;
+  bool isLink = false;
+  // Erst das Token rund um Auswahl/Cursor prüfen: ist es eine URL, wird die
+  // GANZE Adresse geöffnet (auch bei Teilauswahl / blankem Cursor darin).
+  final token = _tokenSpanning(value.text, sel.start, sel.end);
+  if (looksLikeUrl(token)) {
+    target = token;
+    isLink = true;
+  } else if (!sel.isCollapsed) {
+    // Sonst: markierten Text (mehrere Wörter) im Web suchen.
+    final selected = sel.textInside(value.text);
+    if (selected.trim().isNotEmpty) {
+      target = selected;
+      isLink = false;
+    }
+  }
+  if (target == null) return null;
+  final t = target;
+  return ContextMenuButtonItem(
+    onPressed: () {
+      editableTextState.hideToolbar();
+      _open(context, t);
+    },
+    label: isLink ? l10n.openLink : l10n.searchWeb,
+  );
+}
+
+// Baut das aufgeräumte Auswahl-/Kontextmenü für ein Notiz-Textfeld. Als
 // `contextMenuBuilder` eines TextField verwenden.
+//
+// Aus der Standard-Liste werden nur die gewünschten Einträge übernommen,
+// umbenannt und neu sortiert. Reihenfolge: cut, Kopieren, Link öffnen/Im Web
+// suchen, Claude fragen, Alle auswählen, Einfügen. Entfernt: Teilen sowie alle
+// „Text verarbeiten"-Aktionen fremder Apps (DeepL, Übersetzen, Vorlesen, Grok,
+// In Edge suchen …) AUSSER „Claude fragen".
 Widget buildNoteContextMenu(
     BuildContext context, EditableTextState editableTextState) {
   final l10n = AppLocalizations.of(context)!;
-  final items =
-      List<ContextMenuButtonItem>.of(editableTextState.contextMenuButtonItems);
+  final defaults = editableTextState.contextMenuButtonItems;
 
-  final value = editableTextState.currentTextEditingValue;
-  final sel = value.selection;
-  String? target;
-  bool isLink = false;
-  if (sel.isValid) {
-    // Erst das Token rund um Auswahl/Cursor prüfen: ist es eine URL, wird die
-    // GANZE Adresse geöffnet (auch bei Teilauswahl / blankem Cursor darin).
-    final token = _tokenSpanning(value.text, sel.start, sel.end);
-    if (looksLikeUrl(token)) {
-      target = token;
-      isLink = true;
-    } else if (!sel.isCollapsed) {
-      // Sonst: markierten Text (mehrere Wörter) im Web suchen.
-      final selected = sel.textInside(value.text);
-      if (selected.trim().isNotEmpty) {
-        target = selected;
-        isLink = false;
-      }
+  ContextMenuButtonItem? byType(ContextMenuButtonType type) {
+    for (final item in defaults) {
+      if (item.type == type) return item;
+    }
+    return null;
+  }
+
+  // „Text verarbeiten"-Aktionen sind type == custom mit dem App-Namen als
+  // Label; davon nur „Claude fragen" behalten.
+  ContextMenuButtonItem? claude;
+  for (final item in defaults) {
+    if (item.type == ContextMenuButtonType.custom &&
+        (item.label?.toLowerCase().contains('claude') ?? false)) {
+      claude = item;
+      break;
     }
   }
 
-  if (target != null) {
-    final t = target;
-    items.add(ContextMenuButtonItem(
-      onPressed: () {
-        editableTextState.hideToolbar();
-        _open(context, t);
-      },
-      label: isLink ? l10n.openLink : l10n.searchWeb,
-    ));
-  }
+  // Ausschneiden -> „cut", Einsetzen -> „Einfügen" (Funktion/Typ bleiben).
+  ContextMenuButtonItem relabel(ContextMenuButtonItem item, String label) =>
+      ContextMenuButtonItem(
+          onPressed: item.onPressed, type: item.type, label: label);
+
+  final cut = byType(ContextMenuButtonType.cut);
+  final copy = byType(ContextMenuButtonType.copy);
+  final selectAll = byType(ContextMenuButtonType.selectAll);
+  final paste = byType(ContextMenuButtonType.paste);
+  final link = _linkItem(context, editableTextState, l10n);
+
+  final items = <ContextMenuButtonItem>[
+    if (cut != null) relabel(cut, l10n.ctxCut),
+    if (copy != null) copy,
+    if (link != null) link,
+    if (claude != null) claude,
+    if (selectAll != null) selectAll,
+    if (paste != null) relabel(paste, l10n.ctxPaste),
+  ];
 
   return AdaptiveTextSelectionToolbar.buttonItems(
     anchors: editableTextState.contextMenuAnchors,

@@ -99,5 +99,7 @@
   "moveDown": "Move down",
   "openLink": "Open link",
   "searchWeb": "Search the web",
-  "linkOpenFailed": "Could not open link"
+  "linkOpenFailed": "Could not open link",
+  "ctxCut": "Cut",
+  "ctxPaste": "Paste"
 }

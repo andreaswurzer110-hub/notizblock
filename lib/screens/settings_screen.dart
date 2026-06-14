@@ -9,7 +9,7 @@ import '../widgets/color_picker.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import '../app_info.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -22,8 +22,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
   bool _autostartEnabled = false;
-  // App-Version dynamisch aus dem Build (identisch zu Android-App-Infos/pubspec).
-  String _appVersion = '';
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -33,16 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadLastSyncTime();
     _loadAutostart();
-    _loadAppVersion();
-  }
-
-  // Versionsnummer aus dem Build lesen, damit App-Anzeige und Android-App-Infos
-  // immer dieselbe (pubspec-)Version zeigen.
-  Future<void> _loadAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _appVersion = info.version);
-    }
   }
 
   Future<void> _loadLastSyncTime() async {
@@ -250,7 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(l10n.version),
-            subtitle: Text(_appVersion),
+            subtitle: Text(kAppVersionDisplay),
           ),
         ],
       ),
