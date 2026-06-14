@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/note_context_menu.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
@@ -812,6 +813,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   // bis zum rechten Rand mit, sobald ein Zeilenumbruch im
                   // markierten Bereich liegt).
                   selectionWidthStyle: BoxWidthStyle.tight,
+                  contextMenuBuilder: buildNoteContextMenu,
                 ),
 
                 const SizedBox(height: 16),
@@ -840,6 +842,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   textCapitalization: TextCapitalization.sentences,
                   // s. Titel: enge Markierung statt voller Zeilenbreite.
                   selectionWidthStyle: BoxWidthStyle.tight,
+                  contextMenuBuilder: buildNoteContextMenu,
                 ),
               ],
             ),

@@ -295,4 +295,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moveDown => 'Move down';
+
+  @override
+  String get openLink => 'Open link';
+
+  @override
+  String get searchWeb => 'Search the web';
+
+  @override
+  String get linkOpenFailed => 'Could not open link';
 }

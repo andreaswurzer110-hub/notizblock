@@ -96,5 +96,8 @@
   "autopoolDeleteRow": "Delete row",
   "autopoolMarkRow": "Mark / unmark row",
   "moveUp": "Move up",
-  "moveDown": "Move down"
+  "moveDown": "Move down",
+  "openLink": "Open link",
+  "searchWeb": "Search the web",
+  "linkOpenFailed": "Could not open link"
 }

@@ -296,4 +296,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get moveDown => 'Nach unten';
+
+  @override
+  String get openLink => 'Link öffnen';
+
+  @override
+  String get searchWeb => 'Im Web suchen';
+
+  @override
+  String get linkOpenFailed => 'Link konnte nicht geöffnet werden';
 }

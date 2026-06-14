@@ -96,5 +96,8 @@
   "autopoolDeleteRow": "Zeile löschen",
   "autopoolMarkRow": "Markieren / Markierung entfernen",
   "moveUp": "Nach oben",
-  "moveDown": "Nach unten"
+  "moveDown": "Nach unten",
+  "openLink": "Link öffnen",
+  "searchWeb": "Im Web suchen",
+  "linkOpenFailed": "Link konnte nicht geöffnet werden"
 }

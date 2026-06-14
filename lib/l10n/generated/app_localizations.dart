@@ -637,6 +637,24 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Nach unten'**
   String get moveDown;
+
+  /// No description provided for @openLink.
+  ///
+  /// In de, this message translates to:
+  /// **'Link öffnen'**
+  String get openLink;
+
+  /// No description provided for @searchWeb.
+  ///
+  /// In de, this message translates to:
+  /// **'Im Web suchen'**
+  String get searchWeb;
+
+  /// No description provided for @linkOpenFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Link konnte nicht geöffnet werden'**
+  String get linkOpenFailed;
 }
 
 class _AppLocalizationsDelegate

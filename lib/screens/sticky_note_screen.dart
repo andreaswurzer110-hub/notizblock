@@ -12,6 +12,7 @@ import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/autopool_table.dart';
+import '../widgets/note_context_menu.dart';
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -516,6 +517,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                       // Markierung eng an den Text legen (Flutter-Default ist
                       // .max → markiert sonst die ganze Zeile bis zum Rand mit).
                       selectionWidthStyle: BoxWidthStyle.tight,
+                      contextMenuBuilder: buildNoteContextMenu,
                       onChanged: (_) => _onTextChanged(),
                     ),
                   ),
