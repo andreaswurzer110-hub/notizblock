@@ -17,14 +17,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   Windows ignoriert solche Startup-Verknüpfungen). Stattdessen ist die .lnk
 ///   eine Shell-Item-Verknüpfung (`IShellLink::SetIDList`) direkt auf das
 ///   App-Objekt in `shell:AppsFolder` – wie beim manuellen „Verknüpfung
-///   erstellen" aus dem Apps-Ordner. Nur so zeigt der Task-Manager unter
-///   „Autostart von Apps" Name+Icon des Pakets („Notizblock AW"); bei einem
-///   Dateiziel listet er stur den Exe-Dateinamen (beim früheren
-///   `explorer.exe shell:AppsFolder\…`-Umweg also „explorer.exe" – auch eine
-///   auf die .lnk geschriebene AppUserModelID-Property ignoriert er dafür).
-///   Bewusst KEINE `windows.startupTask`: die taucht auf manchen
-///   Systemen weder im Task-Manager noch in den Einstellungen auf und lässt sich
-///   dann nicht umschalten – der Startup-Ordner dagegen funktioniert dort.
+///   erstellen" aus dem Apps-Ordner. Die .lnk hat damit KEIN Datei-Ziel
+///   (`GetPath` leer); der Autostart-Ordner/Explorer zeigt darüber den richtigen
+///   Namen+Icon („Notizblock AW"), und die App startet beim Logon korrekt.
+///   **Bekannte Einschränkung (real nach Reboot bestätigt):** Im
+///   Task-Manager-Tab „Autostart von Apps" erscheint der Eintrag GAR NICHT – der
+///   Task-Manager listet eine Startup-.lnk nur mit auflösbarem Exe-Ziel und nennt
+///   sie nach dieser Ziel-Exe. „Kein Exe-Ziel" ist also gleichzeitig Bedingung
+///   für den richtigen Namen UND Grund fürs Fehlen im Task-Manager – beides geht
+///   über eine Startup-.lnk nicht zugleich. Der frühere `explorer.exe
+///   shell:AppsFolder\…`-Umweg erschien zwar, aber als „explorer.exe" (die auf
+///   die .lnk geschriebene AppUserModelID-Property ignoriert der Task-Manager).
+///   Das Fehlen ist bewusst akzeptiert (Andi): Autostart funktioniert, abschalten
+///   geht über die App-Einstellungen oder Löschen der .lnk. Bewusst KEINE
+///   `windows.startupTask` (der einzige Weg, der den Paketnamen im Task-Manager
+///   zeigen KÖNNTE): die taucht auf Andis System weder im Task-Manager noch in
+///   den Einstellungen auf und lässt sich dann nicht umschalten – der
+///   Startup-Ordner dagegen funktioniert dort.
 /// - **Linux (klassisch):** `.desktop`-Datei in `~/.config/autostart/`
 ///   (XDG-Autostart).
 /// - **Linux (Flatpak):** Der Sandbox darf NICHT in `~/.config/autostart`
@@ -420,10 +429,13 @@ X-GNOME-Autostart-enabled=true
   /// Legt die Autostart-Verknüpfung der Paket-App an: eine Shell-Item-
   /// Verknüpfung (`IShellLink::SetIDList`) direkt auf das App-Objekt in
   /// `shell:AppsFolder` – wie beim manuellen „Verknüpfung erstellen" aus dem
-  /// Apps-Ordner. Die .lnk hat damit KEIN Datei-Ziel; Task-Manager und Explorer
-  /// zeigen Name+Icon des Pakets. (Die früher stattdessen auf eine
-  /// explorer.exe-Verknüpfung geschriebene `PKEY_AppUserModel_ID` half NICHT:
-  /// der Task-Manager ignoriert die Property und listet den Exe-Dateinamen.)
+  /// Apps-Ordner. Die .lnk hat damit KEIN Datei-Ziel; der Autostart-Ordner/
+  /// Explorer zeigt darüber den richtigen Namen+Icon des Pakets, und die App
+  /// startet beim Logon. Im Task-Manager-Autostart-Tab erscheint der Eintrag
+  /// hingegen NICHT (der listet nur .lnks mit auflösbarem Exe-Ziel) – bewusst
+  /// akzeptierter Trade-off, Details siehe Klassendoku. (Die früher stattdessen
+  /// auf eine explorer.exe-Verknüpfung geschriebene `PKEY_AppUserModel_ID` half
+  /// NICHT: der Task-Manager ignoriert die Property und listet den Exe-Dateinamen.)
   /// Best effort – schlägt es fehl, fehlt nur der Autostart-Eintrag.
   Future<void> _writeAppsFolderShortcut(String lnkPath, String aumid) async {
     // Skript in eine temporäre .ps1 schreiben und mit -File ausführen – robuster
