@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show BoxWidthStyle;
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:intl/intl.dart';
@@ -512,6 +513,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                       ),
                       maxLines: null,
                       expands: true,
+                      // Markierung eng an den Text legen (Flutter-Default ist
+                      // .max → markiert sonst die ganze Zeile bis zum Rand mit).
+                      selectionWidthStyle: BoxWidthStyle.tight,
                       onChanged: (_) => _onTextChanged(),
                     ),
                   ),

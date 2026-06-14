@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show BoxWidthStyle;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -806,6 +807,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   ),
                   maxLines: null,
                   textCapitalization: TextCapitalization.sentences,
+                  // Markierung eng an den Text legen (Flutter-Default auf
+                  // Android/Desktop ist .max → markiert sonst die ganze Zeile
+                  // bis zum rechten Rand mit, sobald ein Zeilenumbruch im
+                  // markierten Bereich liegt).
+                  selectionWidthStyle: BoxWidthStyle.tight,
                 ),
 
                 const SizedBox(height: 16),
@@ -832,6 +838,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   maxLines: null,
                   minLines: 10,
                   textCapitalization: TextCapitalization.sentences,
+                  // s. Titel: enge Markierung statt voller Zeilenbreite.
+                  selectionWidthStyle: BoxWidthStyle.tight,
                 ),
               ],
             ),
