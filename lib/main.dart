@@ -15,6 +15,7 @@ import 'services/google_drive_service.dart';
 import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
 import 'services/autostart_service.dart';
+import 'services/restart_on_update_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_editor_screen.dart';
 import 'screens/autopool_editor_screen.dart';
@@ -32,6 +33,10 @@ void main(List<String> args) async {
     final noteId = args[1];
     if (_isDesktop) {
       await _initStickyWindow(noteId, _parsePosArg(args));
+      // Nach einem App-Update (Windows/MSIX) dieses Sticky-Fenster automatisch
+      // wieder öffnen – mit derselben Notiz, gespeicherte Lage wird beim Start
+      // wiederhergestellt. (Nur Windows; sonst no-op.)
+      RestartOnUpdateService.register(['--sticky-note', noteId]);
       // Stiller Login, damit der Sync-Button im Sticky-Fenster funktioniert
       // (auch wenn das Hauptfenster geschlossen ist).
       await GoogleDriveService.instance.signInSilently();
@@ -58,6 +63,10 @@ void main(List<String> args) async {
   // Einstellungen-Button eines Sticky-Fensters mit --show-settings).
   final isAutostart = args.contains('--widgets');
   final openSettings = args.contains('--show-settings');
+  // Vom Restart Manager nach einem App-Update neu gestartet (siehe
+  // RestartOnUpdateService): Die Sticky-Fenster starten sich dann einzeln selbst
+  // neu → der Hauptprozess darf sie NICHT zusätzlich öffnen (sonst Doppel-Fenster).
+  final restartedByUpdate = args.contains('--updated');
   final forceMainWindow = args.contains('--show-main') || openSettings;
 
   if (_isDesktop) {
@@ -70,9 +79,13 @@ void main(List<String> args) async {
     await AutostartService.instance.refreshShortcutIfNeeded();
 
     // Angeheftete Widgets öffnen (gibt Anzahl NEU geöffneter Fenster zurück).
+    // Nach einem Update-Neustart NICHT öffnen – die Sticky-Prozesse starten sich
+    // selbst neu (jeder hat sich via RestartOnUpdateService registriert).
     final widgetIds = await StickyNoteService.instance.getWidgetNoteIds();
     final hasWidgets = widgetIds.isNotEmpty;
-    final openedCount = await StickyNoteService.instance.openAllWidgets();
+    final openedCount = restartedByUpdate
+        ? 0
+        : await StickyNoteService.instance.openAllWidgets();
 
     // Standard: beim Start nur die angehefteten Widgets. Das Hauptfenster
     // erscheint nur, wenn:
@@ -105,6 +118,11 @@ void main(List<String> args) async {
         await windowManager.focus();
       },
     );
+
+    // Bleibt das Hauptfenster offen, soll es nach einem App-Update ebenfalls
+    // wiederkommen. `--updated` lässt den neu gestarteten Hauptprozess das
+    // erneute Öffnen der Widgets überspringen (die starten sich selbst neu).
+    RestartOnUpdateService.register(['--show-main', '--updated']);
   }
 
   // Stiller Login: Desktop nutzt gespeicherte OAuth-Token, Mobil google_sign_in.

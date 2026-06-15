@@ -626,6 +626,36 @@ abstract class AppLocalizations {
   /// **'Markieren / Markierung entfernen'**
   String get autopoolMarkRow;
 
+  /// No description provided for @autopoolRowColor.
+  ///
+  /// In de, this message translates to:
+  /// **'Zeilenfarbe'**
+  String get autopoolRowColor;
+
+  /// No description provided for @autopoolNoColor.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine Farbe'**
+  String get autopoolNoColor;
+
+  /// No description provided for @autopoolRenameColumn.
+  ///
+  /// In de, this message translates to:
+  /// **'Spalte umbenennen'**
+  String get autopoolRenameColumn;
+
+  /// No description provided for @autopoolResetColumn.
+  ///
+  /// In de, this message translates to:
+  /// **'Auf Standard zurücksetzen'**
+  String get autopoolResetColumn;
+
+  /// No description provided for @autopoolColumnLabel.
+  ///
+  /// In de, this message translates to:
+  /// **'Spaltenname'**
+  String get autopoolColumnLabel;
+
   /// No description provided for @moveUp.
   ///
   /// In de, this message translates to:

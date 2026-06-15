@@ -291,6 +291,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autopoolMarkRow => 'Mark / unmark row';
 
   @override
+  String get autopoolRowColor => 'Row color';
+
+  @override
+  String get autopoolNoColor => 'No color';
+
+  @override
+  String get autopoolRenameColumn => 'Rename column';
+
+  @override
+  String get autopoolResetColumn => 'Reset to default';
+
+  @override
+  String get autopoolColumnLabel => 'Column name';
+
+  @override
   String get moveUp => 'Move up';
 
   @override

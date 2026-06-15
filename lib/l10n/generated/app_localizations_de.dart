@@ -292,6 +292,21 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autopoolMarkRow => 'Markieren / Markierung entfernen';
 
   @override
+  String get autopoolRowColor => 'Zeilenfarbe';
+
+  @override
+  String get autopoolNoColor => 'Keine Farbe';
+
+  @override
+  String get autopoolRenameColumn => 'Spalte umbenennen';
+
+  @override
+  String get autopoolResetColumn => 'Auf Standard zurücksetzen';
+
+  @override
+  String get autopoolColumnLabel => 'Spaltenname';
+
+  @override
   String get moveUp => 'Nach oben';
 
   @override
