@@ -27,6 +27,14 @@ apps:
   notizblock-aw: # App-Name = Snap-Name → Start per `notizblock-aw`.
     command: notizblock # Name der gebauten Flutter-Binärdatei (BINARY_NAME).
     extensions: [gnome] # GTK3/GNOME-Integration: Grafik, Wayland/X11, Themes, Portale.
+    # WICHTIG: Ohne das blockiert snapd (refresh-app-awareness) das Update,
+    # solange noch ein Fenster der App läuft – inkl. der Sticky-Fenster, die
+    # eigene Prozesse (gleiche Binary, gleicher Snap-Cgroup) sind. Dann ließ sich
+    # der Snap nur aktualisieren, wenn ALLE Fenster geschlossen waren (Bug).
+    # `ignore-running` lässt snapd diese App beim Refresh ignorieren → `snap
+    # refresh` läuft auch bei offenen Fenstern durch (laufende Fenster behalten
+    # bis zum nächsten Start die alte Revision; kein erzwungenes Schließen).
+    refresh-mode: ignore-running
     # Autostart: snapd startet die zur Laufzeit nach
     # $SNAP_USER_DATA/.config/autostart/notizblock-aw.desktop geschriebene Datei
     # (sandbox-sicher; AutostartService schreibt/löscht sie). Muss exakt diesem
