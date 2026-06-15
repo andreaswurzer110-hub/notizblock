@@ -1,5 +1,11 @@
 # Automatischer Flathub-Update-Push.
 #
+# STATUS (2026-06-15): Flathub AUFGEGEBEN (KI-Policy, siehe CLAUDE.md /
+# Memory). Der automatische `v*`-Tag-Trigger wurde ENTFERNT, weil jeder
+# Release-Tag (für Snap-stable) sonst auch diesen toten Workflow startet und
+# eine Fehler-Mail schickt. Bleibt nur noch MANUELL startbar (workflow_dispatch),
+# falls je ein eigener Flatpak-Repo kommt. NICHT wieder auf Tag-Trigger stellen.
+#
 # Idee: Der Linux-only-Teil (Offline-Sources regenerieren + Flatpak test-bauen)
 # läuft auf einem Ubuntu-Runner (= echtes Linux in der Cloud). Dadurch lässt sich
 # ein Release komplett von Windows aus auslösen: Version bumpen, Tag pushen –
@@ -23,8 +29,8 @@
 name: Flathub-Update
 
 on:
-  push:
-    tags: ['v*']
+  # KEIN automatischer `v*`-Tag-Trigger mehr (Flathub aufgegeben) – ein Release-Tag
+  # soll NUR den Snap-Build (snap.yml) auslösen. Nur noch manuell startbar.
   workflow_dispatch:
     inputs:
       tag:
