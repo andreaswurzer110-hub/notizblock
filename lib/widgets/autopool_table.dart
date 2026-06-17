@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/autopool.dart';
 import 'color_picker.dart';
@@ -8,10 +10,16 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 ///
 /// - Desktop/breit: alle 6 Felder in einer Zeile.
 /// - Handy/schmal: drei Zeilen à zwei Felder pro Gerät (lesbarer als 6 quer).
-/// - Zeilen per ↑/↓ an der Seite umsortierbar (oder per Drag&Drop am Anfasser).
+/// - Zeilen per ↑/↓ an der Seite umsortierbar. Drag&Drop:
+///   - **Desktop:** direkt am Anfasser links mit der Maus ziehen.
+///   - **Touch (Android):** über das Kontextmenü → „Verschieben" den Verschiebe-
+///     Modus aktivieren (Long-Press am Anfasser startete früher KEIN Drag, weil
+///     er mit dem Long-Press fürs Kontextmenü kollidierte). Im Verschiebe-Modus
+///     liegt eine halbtransparente Auflage mit Hoch/Runter-Pfeilen über der Zeile;
+///     ein Druck darauf greift die Zeile zum Ziehen (s. [_moveOverlay]).
 /// - **Zeilen-Kontextmenü** (Rechtsklick auf die Zeile bzw. langer Druck auf den
-///   Anfasser links): Zeile einfärben, markieren (durchgestrichen) und löschen.
-///   Diese Aktionen haben KEINE eigenen Buttons mehr an der Seite.
+///   Anfasser links): Verschieben, einfärben, markieren (durchgestrichen) und
+///   löschen. Diese Aktionen haben KEINE eigenen Buttons mehr an der Seite.
 /// - **Spaltenüberschriften umbenennbar** per Rechtsklick / langem Druck auf die
 ///   Überschrift (eigener Name pro Notiz; auf Standard zurücksetzbar).
 /// - Felder sind umrahmt und wachsen mit dem Inhalt (kein Abschneiden).
@@ -54,11 +62,18 @@ class AutopoolTableState extends State<AutopoolTable> {
   double get _arrowWidth => _narrow ? 24 : 40;
   double get _iconSize => _narrow ? 18.0 : 24.0;
 
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
   final List<List<TextEditingController>> _rows = [];
   final List<List<FocusNode>> _focus = [];
   final List<bool> _marked = [];
   // Eigene Zeilenfarbe je Zeile (Hex `#RRGGBB`) oder null = Zebra-Standard.
   final List<String?> _colors = [];
+  // Index der Zeile im Verschiebe-Modus (per Kontextmenü aktiviert) oder null.
+  // Im Verschiebe-Modus ist die Zeile per Druck greif- und ziehbar; gesetzt nur
+  // jeweils EINE Zeile. Wird nach Drag-Ende/Strukturänderung zurückgesetzt.
+  int? _moveMode;
   // Benutzerdefinierte Spaltenüberschriften (Länge kAutopoolColCount) oder null
   // = lokalisierte Standardüberschriften. Ein null-Eintrag = diese Spalte Standard.
   List<String?>? _headers;
@@ -75,6 +90,7 @@ class AutopoolTableState extends State<AutopoolTable> {
     _focus.clear();
     _marked.clear();
     _colors.clear();
+    _moveMode = null;
     for (final r in data.rows) {
       _rows.add([for (final c in r.cells) TextEditingController(text: c)]);
       _focus.add([for (var i = 0; i < kAutopoolColCount; i++) FocusNode()]);
@@ -138,7 +154,10 @@ class AutopoolTableState extends State<AutopoolTable> {
   }
 
   void _addRow() {
-    setState(_addEmptyRowInternal);
+    setState(() {
+      _addEmptyRowInternal();
+      _moveMode = null;
+    });
     _emitChange();
   }
 
@@ -154,6 +173,7 @@ class AutopoolTableState extends State<AutopoolTable> {
       _focus.removeAt(index);
       _marked.removeAt(index);
       _colors.removeAt(index);
+      _moveMode = null;
       if (_rows.isEmpty) _addEmptyRowInternal();
     });
     _emitChange();
@@ -180,6 +200,7 @@ class AutopoolTableState extends State<AutopoolTable> {
       _focus.insert(newIndex, _focus.removeAt(oldIndex));
       _marked.insert(newIndex, _marked.removeAt(oldIndex));
       _colors.insert(newIndex, _colors.removeAt(oldIndex));
+      _moveMode = null;
     });
     _emitChange();
   }
@@ -236,7 +257,7 @@ class AutopoolTableState extends State<AutopoolTable> {
     );
   }
 
-  // Zeilen-Kontextmenü: Einfärben / Markieren / Löschen.
+  // Zeilen-Kontextmenü: Verschieben / Einfärben / Markieren / Löschen.
   Future<void> _showRowMenu(int index, Offset globalPos) async {
     if (index < 0 || index >= _rows.length) return;
     final l = AppLocalizations.of(context)!;
@@ -244,6 +265,16 @@ class AutopoolTableState extends State<AutopoolTable> {
       context: context,
       position: _menuPosition(globalPos),
       items: [
+        // „Verschieben" nur sinnvoll, wenn es mehr als eine Zeile gibt.
+        if (_rows.length > 1)
+          PopupMenuItem(
+            value: 'move',
+            child: Row(children: [
+              const Icon(Icons.swap_vert, size: 20),
+              const SizedBox(width: 12),
+              Text(l.autopoolMoveRow),
+            ]),
+          ),
         PopupMenuItem(
           value: 'color',
           child: Row(children: [
@@ -274,6 +305,10 @@ class AutopoolTableState extends State<AutopoolTable> {
     );
     if (action == null || !mounted || index >= _rows.length) return;
     switch (action) {
+      case 'move':
+        // Verschiebe-Modus an: Zeile bekommt die Drag-Auflage (s. _buildRow).
+        setState(() => _moveMode = index);
+        break;
       case 'color':
         final chosen = await showRowColorPickerSheet(
           context,
@@ -384,6 +419,11 @@ class AutopoolTableState extends State<AutopoolTable> {
               buildDefaultDragHandles: false,
               itemCount: _rows.length,
               onReorder: _reorderRow,
+              // Verschiebe-Modus endet, sobald der Griff losgelassen wird – auch
+              // ohne Sortierung (Tippen ohne Ziehen = Abbrechen).
+              onReorderEnd: (_) {
+                if (_moveMode != null) setState(() => _moveMode = null);
+              },
               proxyDecorator: (child, index, animation) => Material(
                 color: Colors.transparent,
                 elevation: 6,
@@ -494,12 +534,11 @@ class AutopoolTableState extends State<AutopoolTable> {
       );
     }
 
-    return GestureDetector(
+    final row = GestureDetector(
       // Rechtsklick irgendwo auf der Zeile öffnet das Zeilenmenü (Desktop). Über
       // den Zellen gewinnt das Textfeld die Geste (zeigt dessen Textmenü) – das
       // ist gewollt. Der Anfasser links ist der zuverlässige Auslöser (auch
       // Long-Press auf Android), s. _arrows().
-      key: ObjectKey(_rows[index]),
       onSecondaryTapDown: (d) => _showRowMenu(index, d.globalPosition),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 2),
@@ -515,6 +554,59 @@ class AutopoolTableState extends State<AutopoolTable> {
                 width: _arrowWidth, child: _arrows(index, rowTextColor)),
             Expanded(child: cells),
           ],
+        ),
+      ),
+    );
+
+    // Im Verschiebe-Modus liegt eine halbtransparente Auflage über der ganzen
+    // Zeile (Hoch/Runter-Pfeile als Hinweis). Die Auflage ist zugleich der
+    // Drag-Griff: ein Druck darauf greift die Zeile zum Ziehen – so kollidiert
+    // das Verschieben nicht mehr mit dem Long-Press fürs Kontextmenü.
+    return KeyedSubtree(
+      key: ObjectKey(_rows[index]),
+      child: _moveMode == index
+          ? Stack(
+              children: [
+                row,
+                Positioned.fill(
+                  child: ReorderableDragStartListener(
+                    index: index,
+                    child: _moveOverlay(rowTextColor),
+                  ),
+                ),
+              ],
+            )
+          : row,
+    );
+  }
+
+  // Halbtransparente Auflage der im Verschiebe-Modus aktiven Zeile. Die äußere
+  // Container-`color` (ColoredBox → HitTestBehavior.opaque) fängt den Druck auf
+  // der GANZEN Fläche ab, damit der ReorderableDragStartListener überall greift
+  // (nicht nur auf den Pfeil-Icons). Innen nur Optik: Rahmen + Pfeile.
+  Widget _moveOverlay(Color color) {
+    return Container(
+      color: color.withValues(alpha: 0.04),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.grab,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.keyboard_arrow_up,
+                  size: _iconSize, color: color.withValues(alpha: 0.5)),
+              Icon(Icons.drag_indicator,
+                  size: _iconSize, color: color.withValues(alpha: 0.55)),
+              Icon(Icons.keyboard_arrow_down,
+                  size: _iconSize, color: color.withValues(alpha: 0.5)),
+            ],
+          ),
         ),
       ),
     );
@@ -539,22 +631,12 @@ class AutopoolTableState extends State<AutopoolTable> {
             index > 0 ? () => _moveRow(index, -1) : null,
             color,
           ),
-          // Anfasser für Drag&Drop (zusätzlich zu den Pfeilen): am schnellsten,
-          // um eine Zeile über mehrere Positionen zu verschieben.
-          ReorderableDragStartListener(
-            index: index,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.grab,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: _narrow ? 1 : 2),
-                child: Icon(
-                  Icons.drag_indicator,
-                  size: _iconSize,
-                  color: color.withValues(alpha: 0.55),
-                ),
-              ),
-            ),
-          ),
+          // Anfasser für Drag&Drop. Auf Desktop direkt mit der Maus ziehbar.
+          // Auf Touch (Android) KEIN Sofort-Drag hier – das kollidierte mit dem
+          // Long-Press fürs Kontextmenü, sodass Ziehen gar nicht mehr ging.
+          // Touch verschiebt stattdessen über das Kontextmenü → „Verschieben"
+          // (Verschiebe-Modus, s. _buildRow/_moveOverlay).
+          _buildDragHandle(index, color),
           _iconBtn(
             Icons.keyboard_arrow_down,
             l.moveDown,
@@ -563,6 +645,25 @@ class AutopoolTableState extends State<AutopoolTable> {
           ),
         ],
       ),
+    );
+  }
+
+  // Anfasser-Icon. Nur auf Desktop in einen ReorderableDragStartListener gehüllt
+  // (Maus-Sofort-Drag); auf Touch ein reines Icon, damit der Long-Press fürs
+  // Kontextmenü greift (Touch zieht über den Verschiebe-Modus).
+  Widget _buildDragHandle(int index, Color color) {
+    final handle = Padding(
+      padding: EdgeInsets.symmetric(vertical: _narrow ? 1 : 2),
+      child: Icon(
+        Icons.drag_indicator,
+        size: _iconSize,
+        color: color.withValues(alpha: 0.55),
+      ),
+    );
+    if (!_isDesktop) return handle;
+    return ReorderableDragStartListener(
+      index: index,
+      child: MouseRegion(cursor: SystemMouseCursors.grab, child: handle),
     );
   }
 

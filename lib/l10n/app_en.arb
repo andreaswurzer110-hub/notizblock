@@ -93,6 +93,7 @@
   "autopoolColSerial": "Serial number",
   "autopoolColDate": "Date",
   "autopoolAddRow": "Add row",
+  "autopoolMoveRow": "Move row",
   "autopoolDeleteRow": "Delete row",
   "autopoolMarkRow": "Mark / unmark row",
   "autopoolRowColor": "Row color",

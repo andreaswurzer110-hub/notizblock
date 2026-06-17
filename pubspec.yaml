@@ -1,13 +1,14 @@
 name: notizblock
 description: "Notizblock AW – schlichte, plattformübergreifende Notiz-App (Android, Windows, Linux) mit Google-Drive-Sync."
 publish_to: 'none'
-# Versionsname (vor dem +) = Anzeigeversion. Build-Nummer (nach dem +) =
-# Android-versionCode; MUSS bei jedem Play-Upload streng steigen und ist eine
-# reine Ganzzahl (kann nicht "25.3" sein). Schema hier: major*10000 +
-# minor*100 + patch  → 1.25.3 = 12503, 1.25.4 = 12504, 1.26.0 = 12600.
-# So spiegelt der versionCode die Version wider (früher lief eine fortlaufende
-# Zählung: …, 25, 26 – daher der "26"-Eintrag in der Play Console).
-version: 1.25.6+12560
+# Versionsname (vor dem +, nur 3-teilig möglich = semver) + Build-Nummer
+# (nach dem +) = Android-versionCode; MUSS bei jedem Play-Upload streng steigen.
+# Schema: versionCode = die 4-teilige Anzeigeversion OHNE Punkte (1.25.6.0 →
+# 12560, 1.25.7.0 → 12570). Die 4. Stelle ist normalerweise 0 (gleiche Version
+# auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
+# nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
+# gesetzt, da pubspec keine 4. Stelle führen kann.
+version: 1.25.6+12561
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

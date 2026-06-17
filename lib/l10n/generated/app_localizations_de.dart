@@ -286,6 +286,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autopoolAddRow => 'Zeile hinzufügen';
 
   @override
+  String get autopoolMoveRow => 'Verschieben';
+
+  @override
   String get autopoolDeleteRow => 'Zeile löschen';
 
   @override

@@ -93,6 +93,7 @@
   "autopoolColSerial": "Seriennummer",
   "autopoolColDate": "Datum",
   "autopoolAddRow": "Zeile hinzufügen",
+  "autopoolMoveRow": "Verschieben",
   "autopoolDeleteRow": "Zeile löschen",
   "autopoolMarkRow": "Markieren / Markierung entfernen",
   "autopoolRowColor": "Zeilenfarbe",

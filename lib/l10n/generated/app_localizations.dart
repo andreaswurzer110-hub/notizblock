@@ -614,6 +614,12 @@ abstract class AppLocalizations {
   /// **'Zeile hinzufügen'**
   String get autopoolAddRow;
 
+  /// No description provided for @autopoolMoveRow.
+  ///
+  /// In de, this message translates to:
+  /// **'Verschieben'**
+  String get autopoolMoveRow;
+
   /// No description provided for @autopoolDeleteRow.
   ///
   /// In de, this message translates to:
