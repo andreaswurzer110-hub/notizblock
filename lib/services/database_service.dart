@@ -51,9 +51,30 @@ class DatabaseService {
     return await openDatabase(
       path,
       version: _databaseVersion,
+      onConfigure: _onConfigure,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Läuft bei JEDEM Verbindungsaufbau (in jedem Prozess) – vor dem Versions-
+  /// Check (`PRAGMA user_version`). Auf Desktop teilen sich Hauptapp UND jedes
+  /// Sticky-Note-Fenster (eigene Prozesse) dieselbe DB-Datei; auf Android öffnet
+  /// zusätzlich das Background-Sync-Isolate eine eigene Verbindung.
+  ///
+  /// Ohne diese Pragmas liefert SQLite bei Lock-Kollision SOFORT „database is
+  /// locked" (SQLITE_BUSY, Code 5) – z.B. wenn ein Sync gerade schreibt, während
+  /// ein anderer Prozess die DB öffnet/liest (war real ein Bug: Sync hängt bei
+  /// einer Notiz, paralleler Sync im Hauptmenü scheitert mit „database is locked"
+  /// schon beim `PRAGMA user_version`).
+  Future<void> _onConfigure(Database db) async {
+    // Bei belegter Sperre bis zu 5 s warten statt sofort zu scheitern. MUSS pro
+    // Verbindung gesetzt werden (nicht persistent) → daher hier.
+    await db.execute('PRAGMA busy_timeout = 5000');
+    // WAL: nebenläufige Leser blockieren den Schreiber nicht mehr und umgekehrt
+    // (prozessübergreifend). Einmal gesetzt, bleibt der Modus in der Datei. Muss
+    // NACH busy_timeout kommen, damit der Moduswechsel selbst ggf. warten kann.
+    await db.execute('PRAGMA journal_mode = WAL');
   }
 
   /// Verschiebt eine alte DB aus dem Dokumente-Ordner an den neuen Ort
