@@ -285,6 +285,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autopoolAddRow => 'Add row';
 
   @override
+  String get autopoolAddRowFull => 'Full row (6 fields)';
+
+  @override
+  String get autopoolAddRow4 => 'Short row (4 fields)';
+
+  @override
+  String get autopoolAddRow2 => 'Short row (2 fields)';
+
+  @override
   String get autopoolMoveRow => 'Move row';
 
   @override

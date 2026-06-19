@@ -286,6 +286,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autopoolAddRow => 'Zeile hinzufügen';
 
   @override
+  String get autopoolAddRowFull => 'Volle Zeile (6 Felder)';
+
+  @override
+  String get autopoolAddRow4 => 'Kurze Zeile (4 Felder)';
+
+  @override
+  String get autopoolAddRow2 => 'Kurze Zeile (2 Felder)';
+
+  @override
   String get autopoolMoveRow => 'Verschieben';
 
   @override

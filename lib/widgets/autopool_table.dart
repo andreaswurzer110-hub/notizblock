@@ -5,11 +5,14 @@ import '../models/autopool.dart';
 import 'color_picker.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
-/// Editierbare Autopool-Tabelle (6 Spalten je Zeile). Wird sowohl im Vollbild-
-/// Editor als auch im Windows-Sticky-Fenster verwendet.
+/// Editierbare Autopool-Tabelle (Standardzeile 6 Spalten, verkürzte Zeilen mit
+/// 4 oder 2 Feldern möglich – „Zeile hinzufügen" ist ein Menü). Wird sowohl im
+/// Vollbild-Editor als auch im Windows-Sticky-Fenster verwendet.
 ///
-/// - Desktop/breit: alle 6 Felder in einer Zeile.
-/// - Handy/schmal: drei Zeilen à zwei Felder pro Gerät (lesbarer als 6 quer).
+/// - Desktop/breit: die Felder der Zeile in einer Reihe; verkürzte Zeilen füllen
+///   die Breite mit weniger (dafür breiteren) Feldern.
+/// - Handy/schmal: je zwei Felder pro Unterzeile; verkürzte Zeilen haben weniger
+///   Unterzeilen und sind dadurch kürzer (gehen nicht so weit nach unten).
 /// - Zeilen per ↑/↓ an der Seite umsortierbar. Drag&Drop:
 ///   - **Desktop:** direkt am Anfasser links mit der Maus ziehen.
 ///   - **Touch (Android):** über das Kontextmenü → „Verschieben" den Verschiebe-
@@ -93,7 +96,7 @@ class AutopoolTableState extends State<AutopoolTable> {
     _moveMode = null;
     for (final r in data.rows) {
       _rows.add([for (final c in r.cells) TextEditingController(text: c)]);
-      _focus.add([for (var i = 0; i < kAutopoolColCount; i++) FocusNode()]);
+      _focus.add([for (var i = 0; i < r.cells.length; i++) FocusNode()]);
       _marked.add(r.marked);
       _colors.add(r.color);
     }
@@ -144,18 +147,17 @@ class AutopoolTableState extends State<AutopoolTable> {
   Color _parseColor(String hex) =>
       Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
-  void _addEmptyRowInternal() {
-    _rows.add([
-      for (var i = 0; i < kAutopoolColCount; i++) TextEditingController()
-    ]);
-    _focus.add([for (var i = 0; i < kAutopoolColCount; i++) FocusNode()]);
+  void _addEmptyRowInternal({int cols = kAutopoolColCount}) {
+    _rows.add([for (var i = 0; i < cols; i++) TextEditingController()]);
+    _focus.add([for (var i = 0; i < cols; i++) FocusNode()]);
     _marked.add(false);
     _colors.add(null);
   }
 
-  void _addRow() {
+  // Neue (leere) Zeile mit `cols` Feldern (2/4/6) anhängen.
+  void _addRow([int cols = kAutopoolColCount]) {
     setState(() {
-      _addEmptyRowInternal();
+      _addEmptyRowInternal(cols: cols);
       _moveMode = null;
     });
     _emitChange();
@@ -435,16 +437,54 @@ class AutopoolTableState extends State<AutopoolTable> {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _addRow,
-                icon: const Icon(Icons.add),
-                label: Text(l.autopoolAddRow),
-                style: TextButton.styleFrom(foregroundColor: widget.textColor),
-              ),
+              child: _addRowButton(l),
             ),
           ],
         );
       },
+    );
+  }
+
+  // „Zeile hinzufügen" als Menü: volle Zeile (6) oder verkürzt (4 / 2 Felder).
+  Widget _addRowButton(AppLocalizations l) {
+    PopupMenuItem<int> item(int cols, String label) => PopupMenuItem<int>(
+          value: cols,
+          child: Row(children: [
+            Icon(
+                cols == kAutopoolColCount
+                    ? Icons.table_rows_outlined
+                    : Icons.view_column_outlined,
+                size: 20),
+            const SizedBox(width: 12),
+            Text(label),
+          ]),
+        );
+    return PopupMenuButton<int>(
+      tooltip: l.autopoolAddRow,
+      onSelected: (cols) => _addRow(cols),
+      itemBuilder: (context) => [
+        item(kAutopoolColCount, l.autopoolAddRowFull),
+        item(4, l.autopoolAddRow4),
+        item(2, l.autopoolAddRow2),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 20, color: widget.textColor),
+            const SizedBox(width: 8),
+            Text(
+              l.autopoolAddRow,
+              style: TextStyle(
+                color: widget.textColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Icon(Icons.arrow_drop_down, size: 20, color: widget.textColor),
+          ],
+        ),
+      ),
     );
   }
 
@@ -493,6 +533,9 @@ class AutopoolTableState extends State<AutopoolTable> {
   }
 
   Widget _buildRow(int index, List<String> cols, bool narrow) {
+    // Feldanzahl dieser Zeile (2, 4 oder 6) – steuert, wie viele Felder/
+    // Unterzeilen gerendert werden.
+    final n = _rows[index].length;
     // Eigene Zeilenfarbe? Dann diese als Hintergrund + passende Textfarbe (Kontrast
     // zur Zeilenfarbe, unabhängig von der Notizfarbe). Sonst Zebra + Notiz-Textfarbe.
     final customHex = _colors[index];
@@ -507,9 +550,11 @@ class AutopoolTableState extends State<AutopoolTable> {
 
     final Widget cells;
     if (narrow) {
+      // Verkürzte Zeile = weniger Unterzeilen (n~/2 Gruppen à zwei Feldern),
+      // damit sie nicht so weit nach unten geht.
       cells = Column(
         children: [
-          for (var g = 0; g < _narrowGroups.length; g++) ...[
+          for (var g = 0; g < n ~/ 2; g++) ...[
             if (g > 0) const SizedBox(height: 4),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,10 +568,12 @@ class AutopoolTableState extends State<AutopoolTable> {
         ],
       );
     } else {
+      // Verkürzte Zeile füllt die Breite mit den ersten n Feldern (Desktop passt
+      // sich der Fensterbreite an, weil die Expanded-Felder den Platz aufteilen).
       cells = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var c = 0; c < kAutopoolColCount; c++)
+          for (var c = 0; c < n; c++)
             Expanded(
                 flex: _flex[c],
                 child: _cell(index, c, _colLabel(c, cols), rowTextColor)),

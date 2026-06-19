@@ -614,6 +614,24 @@ abstract class AppLocalizations {
   /// **'Zeile hinzufügen'**
   String get autopoolAddRow;
 
+  /// No description provided for @autopoolAddRowFull.
+  ///
+  /// In de, this message translates to:
+  /// **'Volle Zeile (6 Felder)'**
+  String get autopoolAddRowFull;
+
+  /// No description provided for @autopoolAddRow4.
+  ///
+  /// In de, this message translates to:
+  /// **'Kurze Zeile (4 Felder)'**
+  String get autopoolAddRow4;
+
+  /// No description provided for @autopoolAddRow2.
+  ///
+  /// In de, this message translates to:
+  /// **'Kurze Zeile (2 Felder)'**
+  String get autopoolAddRow2;
+
   /// No description provided for @autopoolMoveRow.
   ///
   /// In de, this message translates to:
