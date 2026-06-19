@@ -11,6 +11,30 @@ import '../models/note.dart';
 import 'database_service.dart';
 import 'google_drive_config.dart';
 
+/// Maximale Dauer eines einzelnen Drive-HTTP-Requests (Verbindung + Senden +
+/// Antwort-Header) bzw. einer Stillstands-Pause im Download-Stream. Schutz gegen
+/// endloses Hängen bei stockendem Netz (Standby/Resume, Netzwechsel): die Notiz-/
+/// Backup-Dateien sind klein (KB), 30 s sind reichlich. Bei Stillstand bricht der
+/// Request ab → der Sync scheitert SAUBER (als Fehler-Result, _inFlight wird im
+/// finally aufgeräumt) und der nächste Auto-Sync versucht es erneut, statt
+/// unendlich zu warten (war real ein „Sync hängt"-Fall).
+const Duration _netTimeout = Duration(seconds: 30);
+
+/// http.Client, der jeden Request nach [_netTimeout] abbricht. Wird als
+/// zugrundeliegender Client für ALLE Drive-Aufrufe genutzt – mobil über
+/// [GoogleAuthClient], auf Desktop über `autoRefreshingClient` /
+/// `clientViaUserConsent` –, damit ein hängender Request nicht den ganzen Sync
+/// (und über die Reentrancy alle weiteren Syncs desselben Prozesses) blockiert.
+class _TimeoutClient extends http.BaseClient {
+  final http.Client _inner;
+  _TimeoutClient(this._inner);
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request).timeout(_netTimeout);
+  @override
+  void close() => _inner.close();
+}
+
 /// HTTP-Client für google_sign_in (Mobil), der die Auth-Header PRO REQUEST frisch
 /// aus dem aktuell angemeldeten Konto holt – NICHT einmal beim Login einfriert.
 /// Grund: das Google-Access-Token lebt nur ~1 h. Ein eingefrorener Header lieferte
@@ -18,7 +42,7 @@ import 'google_drive_config.dart';
 /// auch ein zwischenzeitlicher clearAuthCache()-Refresh sofort beim nächsten Request.
 class GoogleAuthClient extends http.BaseClient {
   final GoogleSignIn _signIn;
-  final http.Client _client = http.Client();
+  final http.Client _client = _TimeoutClient(http.Client());
 
   GoogleAuthClient(this._signIn);
 
@@ -207,8 +231,8 @@ class GoogleDriveService {
         final credentials = auth.AccessCredentials.fromJson(
           jsonDecode(stored) as Map<String, dynamic>,
         );
-        final client =
-            auth.autoRefreshingClient(clientId, credentials, http.Client());
+        final client = auth.autoRefreshingClient(
+            clientId, credentials, _TimeoutClient(http.Client()));
         client.credentialUpdates.listen(_saveCredentials);
         await _finishDesktopSignIn(client);
         return true;
@@ -228,6 +252,7 @@ class GoogleDriveService {
       (url) {
         launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       },
+      baseClient: _TimeoutClient(http.Client()),
     );
     client.credentialUpdates.listen(_saveCredentials);
     await _saveCredentials(client.credentials);
@@ -724,7 +749,9 @@ class GoogleDriveService {
         downloadOptions: drive.DownloadOptions.fullMedia,
       ) as drive.Media;
       final bytes = <int>[];
-      await for (final chunk in media.stream) {
+      // Stillstands-Timeout pro Chunk: bricht ab, wenn der Body mitten im
+      // Download hängt (Antwort-Header kamen, aber keine weiteren Daten mehr).
+      await for (final chunk in media.stream.timeout(_netTimeout)) {
         bytes.addAll(chunk);
       }
       return utf8.decode(bytes);
