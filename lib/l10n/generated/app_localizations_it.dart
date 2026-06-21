@@ -1,0 +1,367 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Italian (`it`).
+class AppLocalizationsIt extends AppLocalizations {
+  AppLocalizationsIt([String locale = 'it']) : super(locale);
+
+  @override
+  String get appTitle => 'Notizblock AW';
+
+  @override
+  String get newNote => 'Nuova nota';
+
+  @override
+  String get settings => 'Impostazioni';
+
+  @override
+  String get search => 'Cerca';
+
+  @override
+  String get searchHint => 'Cerca tra le note...';
+
+  @override
+  String get delete => 'Elimina';
+
+  @override
+  String get deleteNote => 'Elimina nota';
+
+  @override
+  String get deleteNoteConfirm => 'Vuoi davvero eliminare questa nota?';
+
+  @override
+  String get save => 'Salva';
+
+  @override
+  String get cancel => 'Annulla';
+
+  @override
+  String get noNotes => 'Nessuna nota';
+
+  @override
+  String get noNotesHint => 'Tocca + per creare una nuova nota';
+
+  @override
+  String get noSearchResults => 'Nessun risultato';
+
+  @override
+  String get emptyNote => 'Nota vuota';
+
+  @override
+  String get pin => 'Fissa';
+
+  @override
+  String get unpin => 'Rilascia';
+
+  @override
+  String get color => 'Colore';
+
+  @override
+  String get archive => 'Archivia';
+
+  @override
+  String get titleHint => 'Titolo';
+
+  @override
+  String get contentHint => 'Scrivi una nota...';
+
+  @override
+  String createdAt(String date) {
+    return 'Creata: $date';
+  }
+
+  @override
+  String modifiedAt(String date) {
+    return 'Modificata: $date';
+  }
+
+  @override
+  String get language => 'Lingua';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get themeSystem => 'Sistema';
+
+  @override
+  String get themeLight => 'Chiaro';
+
+  @override
+  String get themeDark => 'Scuro';
+
+  @override
+  String get defaultColor => 'Colore predefinito';
+
+  @override
+  String get googleDrive => 'Google Drive';
+
+  @override
+  String get signIn => 'Accedi';
+
+  @override
+  String get signOut => 'Esci';
+
+  @override
+  String signedInAs(String email) {
+    return 'Connesso come $email';
+  }
+
+  @override
+  String get sync => 'Sincronizza';
+
+  @override
+  String get autoSync => 'Sincronizzazione automatica';
+
+  @override
+  String lastSync(String date) {
+    return 'Ultima sincronizzazione: $date';
+  }
+
+  @override
+  String get neverSynced => 'Mai sincronizzato';
+
+  @override
+  String get syncSuccess => 'Sincronizzazione riuscita';
+
+  @override
+  String get syncFailed => 'Sincronizzazione non riuscita';
+
+  @override
+  String uploaded(int count) {
+    return '$count caricate';
+  }
+
+  @override
+  String downloaded(int count) {
+    return '$count scaricate';
+  }
+
+  @override
+  String get createBackup => 'Crea backup';
+
+  @override
+  String get restoreBackup => 'Ripristina backup';
+
+  @override
+  String get restore => 'Ripristina';
+
+  @override
+  String get restoreConfirm =>
+      'Tutte le note locali verranno sovrascritte. Continuare?';
+
+  @override
+  String get backupSuccess => 'Backup creato correttamente';
+
+  @override
+  String get backupFailed => 'Backup non riuscito';
+
+  @override
+  String get restoreSuccess => 'Backup ripristinato correttamente';
+
+  @override
+  String get restoreFailed => 'Ripristino non riuscito';
+
+  @override
+  String get about => 'Informazioni';
+
+  @override
+  String get version => 'Versione';
+
+  @override
+  String get openInWindow => 'Apri in una nuova finestra';
+
+  @override
+  String get pinAsWidget => 'Fissa come widget';
+
+  @override
+  String get unpinWidget => 'Rimuovi widget';
+
+  @override
+  String get syncNow => 'Sincronizza ora';
+
+  @override
+  String get autostart => 'Avvio automatico';
+
+  @override
+  String get autostartSubtitle =>
+      'Apri automaticamente i widget all’avvio del sistema';
+
+  @override
+  String get showMainWindow => 'Apri la finestra principale all’avvio';
+
+  @override
+  String get showMainWindowSubtitle =>
+      'Per impostazione predefinita si aprono solo i widget fissati';
+
+  @override
+  String get fontSize => 'Dimensione del testo';
+
+  @override
+  String get fontSizeSample => 'Testo di esempio';
+
+  @override
+  String get undo => 'Annulla';
+
+  @override
+  String get redo => 'Ripeti';
+
+  @override
+  String get notSignedIn => 'Accesso a Google Drive non effettuato';
+
+  @override
+  String get archiveAndRestore => 'Archivio e ripristino';
+
+  @override
+  String get archivedTab => 'Archiviate';
+
+  @override
+  String get deletedTab => 'Eliminate';
+
+  @override
+  String get noArchivedNotes => 'Nessuna nota archiviata';
+
+  @override
+  String get noDeletedNotes => 'Nessuna nota eliminata';
+
+  @override
+  String get deletedSignInHint =>
+      'Accedi a Google Drive per visualizzare le note eliminate';
+
+  @override
+  String get deletedLoadFailed => 'Impossibile caricare le note eliminate';
+
+  @override
+  String get noteRestored => 'Nota ripristinata';
+
+  @override
+  String deletedOn(String date) {
+    return 'Eliminata: $date';
+  }
+
+  @override
+  String get deletePermanently => 'Elimina definitivamente';
+
+  @override
+  String get deletePermanentlyConfirm =>
+      'Eliminare definitivamente questa nota? L’operazione è irreversibile.';
+
+  @override
+  String get autopool => 'Autopool';
+
+  @override
+  String get createNoteTitle => 'Cosa vuoi creare?';
+
+  @override
+  String get noteTypeNote => 'Nota';
+
+  @override
+  String get noteTypeNoteSubtitle => 'Semplice nota di testo';
+
+  @override
+  String get noteTypeAutopoolSubtitle => 'Tabella (elenco dispositivi)';
+
+  @override
+  String get autopoolColName => 'Denominazione';
+
+  @override
+  String get autopoolColOfficeVersion => 'Ufficio e versione';
+
+  @override
+  String get autopoolColLocation => 'Luogo';
+
+  @override
+  String get autopoolColInventory => 'N. inventario';
+
+  @override
+  String get autopoolColSerial => 'N. di serie';
+
+  @override
+  String get autopoolColDate => 'Data';
+
+  @override
+  String get autopoolAddRow => 'Aggiungi riga';
+
+  @override
+  String get autopoolAddRowFull => 'Riga completa (6 campi)';
+
+  @override
+  String get autopoolAddRow4 => 'Riga breve (4 campi)';
+
+  @override
+  String get autopoolAddRow2 => 'Riga breve (2 campi)';
+
+  @override
+  String get autopoolMoveRow => 'Sposta';
+
+  @override
+  String get autopoolDeleteRow => 'Elimina riga';
+
+  @override
+  String get autopoolMarkRow => 'Segna / rimuovi segno';
+
+  @override
+  String get autopoolRowColor => 'Colore riga';
+
+  @override
+  String get autopoolNoColor => 'Nessun colore';
+
+  @override
+  String get autopoolRenameColumn => 'Rinomina colonna';
+
+  @override
+  String get autopoolResetColumn => 'Ripristina predefinito';
+
+  @override
+  String get autopoolColumnLabel => 'Nome colonna';
+
+  @override
+  String get moveUp => 'Su';
+
+  @override
+  String get moveDown => 'Giù';
+
+  @override
+  String get openLink => 'Apri link';
+
+  @override
+  String get searchWeb => 'Cerca sul web';
+
+  @override
+  String get linkOpenFailed => 'Impossibile aprire il link';
+
+  @override
+  String get ctxCut => 'Taglia';
+
+  @override
+  String get ctxPaste => 'Incolla';
+
+  @override
+  String get readOnly => 'Sola lettura';
+
+  @override
+  String get creator => 'Creatore';
+
+  @override
+  String get feedback => 'Feedback e domande';
+
+  @override
+  String get close => 'Chiudi';
+
+  @override
+  String get bibleVerse1Ref => 'Colossesi 3:17';
+
+  @override
+  String get bibleVerse1Text =>
+      'E qualunque cosa facciate, in parole o in opere, fate ogni cosa nel nome del Signore Gesù, rendendo grazie a Dio Padre per mezzo di lui.';
+
+  @override
+  String get bibleVerse2Ref => 'Giovanni 14:6';
+
+  @override
+  String get bibleVerse2Text =>
+      'Gesù gli disse: Io sono la via, la verità e la vita; nessuno viene al Padre se non per mezzo di me.';
+}

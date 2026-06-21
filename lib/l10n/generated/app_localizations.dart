@@ -7,6 +7,9 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_it.dart';
 
 // ignore_for_file: type=lint
 
@@ -95,7 +98,10 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('de'),
-    Locale('en')
+    Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('it')
   ];
 
   /// No description provided for @appTitle.
@@ -745,6 +751,30 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Schließen'**
   String get close;
+
+  /// No description provided for @bibleVerse1Ref.
+  ///
+  /// In de, this message translates to:
+  /// **'Kolosser 3,17'**
+  String get bibleVerse1Ref;
+
+  /// No description provided for @bibleVerse1Text.
+  ///
+  /// In de, this message translates to:
+  /// **'Und was immer ihr tut in Wort oder Werk, das tut alles im Namen des Herrn Jesus und dankt Gott, dem Vater, durch ihn.'**
+  String get bibleVerse1Text;
+
+  /// No description provided for @bibleVerse2Ref.
+  ///
+  /// In de, this message translates to:
+  /// **'Johannes 14,6'**
+  String get bibleVerse2Ref;
+
+  /// No description provided for @bibleVerse2Text.
+  ///
+  /// In de, this message translates to:
+  /// **'Jesus spricht zu ihm: Ich bin der Weg und die Wahrheit und das Leben; niemand kommt zum Vater als nur durch mich!'**
+  String get bibleVerse2Text;
 }
 
 class _AppLocalizationsDelegate
@@ -758,7 +788,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['de', 'en'].contains(locale.languageCode);
+      <String>['de', 'en', 'es', 'fr', 'it'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -771,6 +801,12 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsDe();
     case 'en':
       return AppLocalizationsEn();
+    case 'es':
+      return AppLocalizationsEs();
+    case 'fr':
+      return AppLocalizationsFr();
+    case 'it':
+      return AppLocalizationsIt();
   }
 
   throw FlutterError(

@@ -350,4 +350,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get close => 'Schließen';
+
+  @override
+  String get bibleVerse1Ref => 'Kolosser 3,17';
+
+  @override
+  String get bibleVerse1Text =>
+      'Und was immer ihr tut in Wort oder Werk, das tut alles im Namen des Herrn Jesus und dankt Gott, dem Vater, durch ihn.';
+
+  @override
+  String get bibleVerse2Ref => 'Johannes 14,6';
+
+  @override
+  String get bibleVerse2Text =>
+      'Jesus spricht zu ihm: Ich bin der Weg und die Wahrheit und das Leben; niemand kommt zum Vater als nur durch mich!';
 }

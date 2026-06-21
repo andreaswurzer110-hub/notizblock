@@ -285,26 +285,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Kolosser 3,17',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 4),
-              Text(
-                'Und was immer ihr tut in Wort oder Werk, das tut alles im '
-                'Namen des Herrn Jesus und dankt Gott, dem Vater, durch ihn.',
-              ),
-              SizedBox(height: 20),
-              Text('Johannes 14,6',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 4),
-              Text(
-                'Jesus spricht zu ihm: Ich bin der Weg und die Wahrheit und das '
-                'Leben; niemand kommt zum Vater als nur durch mich!',
-              ),
+              Text(l10n.bibleVerse1Ref,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(l10n.bibleVerse1Text),
+              const SizedBox(height: 20),
+              Text(l10n.bibleVerse2Ref,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text(l10n.bibleVerse2Text),
             ],
           ),
         ),
