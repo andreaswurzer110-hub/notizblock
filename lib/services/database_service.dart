@@ -68,13 +68,22 @@ class DatabaseService {
   /// einer Notiz, paralleler Sync im Hauptmenü scheitert mit „database is locked"
   /// schon beim `PRAGMA user_version`).
   Future<void> _onConfigure(Database db) async {
+    // WICHTIG – rawQuery, NICHT execute: Beide PRAGMAs LIEFERN einen Wert zurück
+    // (busy_timeout den gesetzten Wert, journal_mode den neuen Modus). Androids
+    // SQLite weist sie über execute()/execSQL() ab ("Queries can be performed
+    // using SQLiteDatabase query or rawQuery methods only.") → die DB ließ sich
+    // auf Android gar nicht mehr öffnen: keine Notizen, jeder Sync scheiterte
+    // schon beim Öffnen (war real ein Bug 1.25.7.1–1.25.9.1, nur auf Windows
+    // getestet). rawQuery FÜHRT das Statement genauso aus (setzt den Wert) und
+    // funktioniert auf ALLEN Plattformen (Android + Desktop-ffi). NICHT zurück
+    // auf execute ändern.
     // Bei belegter Sperre bis zu 5 s warten statt sofort zu scheitern. MUSS pro
     // Verbindung gesetzt werden (nicht persistent) → daher hier.
-    await db.execute('PRAGMA busy_timeout = 5000');
+    await db.rawQuery('PRAGMA busy_timeout = 5000');
     // WAL: nebenläufige Leser blockieren den Schreiber nicht mehr und umgekehrt
     // (prozessübergreifend). Einmal gesetzt, bleibt der Modus in der Datei. Muss
     // NACH busy_timeout kommen, damit der Moduswechsel selbst ggf. warten kann.
-    await db.execute('PRAGMA journal_mode = WAL');
+    await db.rawQuery('PRAGMA journal_mode = WAL');
   }
 
   /// Verschiebt eine alte DB aus dem Dokumente-Ordner an den neuen Ort

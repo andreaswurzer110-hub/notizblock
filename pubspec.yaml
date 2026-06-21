@@ -8,7 +8,7 @@ publish_to: 'none'
 # auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
 # nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
 # gesetzt, da pubspec keine 4. Stelle führen kann.
-version: 1.25.9+12591
+version: 1.25.9+12592
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
