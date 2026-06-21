@@ -14,6 +14,7 @@ import '../widgets/autopool_table.dart';
 import '../widgets/color_picker.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
+import 'settings_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 /// Vollbild-Editor für eine Autopool-Tabellen-Notiz. Nutzt das wiederverwendbare
@@ -400,6 +401,17 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _showColorPicker();
+                  },
+                ),
+                // Einstellungen direkt aus dem Editor öffnen (wie im Text-Editor).
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined),
+                  title: Text(l10n.settings),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
                   },
                 ),
                 if (!isNewNote)
