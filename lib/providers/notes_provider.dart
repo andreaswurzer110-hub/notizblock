@@ -1,11 +1,11 @@
 ﻿import 'dart:async';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
 import '../services/widget_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/settings_store.dart';
 import 'settings_provider.dart';
 
 class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
@@ -89,8 +89,8 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   Future<void> _runAutoSync() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool(SettingsProvider.autoSyncKey) ?? false)) return;
+    await SettingsStore.load();
+    if (!(SettingsStore.getBool(SettingsProvider.autoSyncKey) ?? false)) return;
     // Sicherheitsnetz: Ging die Anmeldung verloren (z.B. App lange im Hintergrund),
     // still neu anmelden, bevor synchronisiert wird – sonst bliebe der Status bis
     // zum nächsten App-Start auf "abgemeldet".

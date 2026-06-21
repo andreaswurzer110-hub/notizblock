@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/note.dart';
 import '../providers/notes_provider.dart';
 import '../services/google_drive_service.dart';
+import 'read_only_note_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 /// Archiv & Wiederherstellen: zwei Tabs – archivierte Notizen (lokal) und
@@ -121,6 +122,13 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     }
   }
 
+  // Notiz nur anzeigen (kein Bearbeiten) – archivierte wie gelöschte.
+  void _openReadOnly(Note note) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReadOnlyNoteScreen(note: note)),
+    );
+  }
+
   Future<void> _restoreDeleted(DeletedNote item) async {
     final l10n = AppLocalizations.of(context)!;
     final ok = await context.read<NotesProvider>().restoreDeletedNote(item.note);
@@ -175,6 +183,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           return _NoteRestoreCard(
             note: note,
             subtitle: l10n.modifiedAt(_formatDate(note.modifiedAt)),
+            onOpen: () => _openReadOnly(note),
             onRestore: () => _restoreArchived(note),
             onDeletePermanently: () => _deleteArchivedPermanently(note),
             restoreTooltip: l10n.restore,
@@ -216,6 +225,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           return _NoteRestoreCard(
             note: item.note,
             subtitle: l10n.deletedOn(_formatDate(item.deletedAt)),
+            onOpen: () => _openReadOnly(item.note),
             onRestore: () => _restoreDeleted(item),
             restoreTooltip: l10n.restore,
           );
@@ -260,6 +270,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 class _NoteRestoreCard extends StatelessWidget {
   final Note note;
   final String subtitle;
+  final VoidCallback onOpen;
   final VoidCallback onRestore;
   final VoidCallback? onDeletePermanently;
   final String restoreTooltip;
@@ -268,6 +279,7 @@ class _NoteRestoreCard extends StatelessWidget {
   const _NoteRestoreCard({
     required this.note,
     required this.subtitle,
+    required this.onOpen,
     required this.onRestore,
     required this.restoreTooltip,
     this.onDeletePermanently,
@@ -293,7 +305,11 @@ class _NoteRestoreCard extends StatelessWidget {
       color: backgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Padding(
+      // Tippen öffnet die Notiz im reinen Anzeige-Modus (kein Bearbeiten).
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,6 +360,7 @@ class _NoteRestoreCard extends StatelessWidget {
                 onPressed: onDeletePermanently,
               ),
           ],
+          ),
         ),
       ),
     );

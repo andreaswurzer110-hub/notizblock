@@ -1,6 +1,6 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/background_sync_service.dart';
+import '../services/settings_store.dart';
 
 class SettingsProvider with ChangeNotifier {
   static const String _localeKey = 'locale';
@@ -59,30 +59,33 @@ class SettingsProvider with ChangeNotifier {
 
   // Einstellungen laden
   Future<void> loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    // Auf Desktop aus der eigenen settings.json (prozesssicher), auf Mobil aus
+    // shared_preferences – siehe SettingsStore.
+    await SettingsStore.load();
 
     // Sprache
-    final localeCode = prefs.getString(_localeKey) ?? 'de';
+    final localeCode = SettingsStore.getString(_localeKey) ?? 'de';
     _locale = Locale(localeCode);
 
     // Theme
-    final themeIndex = prefs.getInt(_themeKey) ?? 0;
+    final themeIndex = SettingsStore.getInt(_themeKey) ?? 0;
     _themeMode = ThemeMode.values[themeIndex];
 
     // Standard-Notizfarbe
-    _defaultNoteColor = prefs.getString(_defaultColorKey) ?? '#FFFDE7';
+    _defaultNoteColor = SettingsStore.getString(_defaultColorKey) ?? '#FFFDE7';
 
     // Ansicht
-    _isGridView = prefs.getBool(_gridViewKey) ?? true;
+    _isGridView = SettingsStore.getBool(_gridViewKey) ?? true;
 
     // Auto-Sync
-    _autoSync = prefs.getBool(autoSyncKey) ?? false;
+    _autoSync = SettingsStore.getBool(autoSyncKey) ?? false;
 
     // Hauptfenster beim Start (Desktop)
-    _showMainWindowOnStart = prefs.getBool(showMainWindowOnStartKey) ?? false;
+    _showMainWindowOnStart =
+        SettingsStore.getBool(showMainWindowOnStartKey) ?? false;
 
     // Schriftgröße der Notizen
-    _noteFontScale = prefs.getDouble(noteFontScaleKey) ?? 1.0;
+    _noteFontScale = SettingsStore.getDouble(noteFontScaleKey) ?? 1.0;
 
     notifyListeners();
   }
@@ -92,40 +95,35 @@ class SettingsProvider with ChangeNotifier {
     if (!supportedLocales.contains(locale)) return;
 
     _locale = locale;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_localeKey, locale.languageCode);
+    await SettingsStore.setString(_localeKey, locale.languageCode);
     notifyListeners();
   }
 
   // Theme ändern
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_themeKey, mode.index);
+    await SettingsStore.setInt(_themeKey, mode.index);
     notifyListeners();
   }
 
   // Standard-Notizfarbe ändern
   Future<void> setDefaultNoteColor(String color) async {
     _defaultNoteColor = color;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_defaultColorKey, color);
+    await SettingsStore.setString(_defaultColorKey, color);
     notifyListeners();
   }
 
   // Ansicht umschalten
   Future<void> toggleViewMode() async {
     _isGridView = !_isGridView;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_gridViewKey, _isGridView);
+    await SettingsStore.setBool(_gridViewKey, _isGridView);
     notifyListeners();
   }
 
   // Auto-Sync umschalten
   Future<void> setAutoSync(bool value) async {
     _autoSync = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(autoSyncKey, value);
+    await SettingsStore.setBool(autoSyncKey, value);
     notifyListeners();
     // Android-Hintergrund-Sync passend mitschalten (no-op auf anderen Plattformen).
     if (value) {
@@ -138,16 +136,14 @@ class SettingsProvider with ChangeNotifier {
   // Hauptfenster beim Start umschalten (Desktop)
   Future<void> setShowMainWindowOnStart(bool value) async {
     _showMainWindowOnStart = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(showMainWindowOnStartKey, value);
+    await SettingsStore.setBool(showMainWindowOnStartKey, value);
     notifyListeners();
   }
 
   // Schriftgröße der Notizen setzen (0.8–1.8)
   Future<void> setNoteFontScale(double value) async {
     _noteFontScale = value.clamp(0.8, 1.8);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(noteFontScaleKey, _noteFontScale);
+    await SettingsStore.setDouble(noteFontScaleKey, _noteFontScale);
     notifyListeners();
   }
 }

@@ -9,6 +9,7 @@ import '../widgets/color_picker.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_info.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -19,6 +20,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // Kontaktadresse für Feedback/Fragen (unter „Über" anzeigt; mailto-Link).
+  static const String _feedbackEmail = 'andi-w-apps@tuta.com';
+
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
   bool _autostartEnabled = false;
@@ -31,6 +35,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadLastSyncTime();
     _loadAutostart();
+    // Login-Status kann sich asynchron ändern (stiller Login läuft seit der
+    // Start-Optimierung NACH dem ersten Frame; außerdem Ab-/Anmelden) → neu
+    // bauen, sobald sich der Status ändert.
+    GoogleDriveService.instance.signedInNotifier.addListener(_onSignInChanged);
+  }
+
+  void _onSignInChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    GoogleDriveService.instance.signedInNotifier
+        .removeListener(_onSignInChanged);
+    super.dispose();
   }
 
   Future<void> _loadLastSyncTime() async {
@@ -239,10 +258,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.info_outline),
             title: Text(l10n.version),
             subtitle: Text(kAppVersionDisplay),
+            // Easter Egg: Tippen auf die Version zeigt zwei Bibelverse.
+            onTap: () => _showVersionVerses(l10n),
+          ),
+          // Ersteller
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: Text(l10n.creator),
+            subtitle: const Text('Andreas Wurzer'),
+          ),
+          // Feedback & Kontakt (Tippen öffnet das Mailprogramm)
+          ListTile(
+            leading: const Icon(Icons.mail_outline),
+            title: Text(l10n.feedback),
+            subtitle: const Text(_feedbackEmail),
+            onTap: _sendFeedbackMail,
           ),
         ],
       ),
     );
+  }
+
+  // Easter Egg: zwei Bibelverse beim Tippen auf die Versionsanzeige.
+  void _showVersionVerses(AppLocalizations l10n) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Kolosser 3,17',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(
+                'Und was immer ihr tut in Wort oder Werk, das tut alles im '
+                'Namen des Herrn Jesus und dankt Gott, dem Vater, durch ihn.',
+              ),
+              SizedBox(height: 20),
+              Text('Johannes 14,6',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 4),
+              Text(
+                'Jesus spricht zu ihm: Ich bin der Weg und die Wahrheit und das '
+                'Leben; niemand kommt zum Vater als nur durch mich!',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Mailprogramm mit der Feedback-Adresse öffnen; klappt das nicht, die Adresse
+  // als Hinweis einblenden (zum Abschreiben).
+  Future<void> _sendFeedbackMail() async {
+    final uri = Uri(scheme: 'mailto', path: _feedbackEmail);
+    var opened = false;
+    try {
+      opened = await launchUrl(uri);
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(_feedbackEmail),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Widget _buildSectionHeader(String title) {

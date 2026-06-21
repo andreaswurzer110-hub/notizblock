@@ -14,6 +14,7 @@ import 'services/background_sync_service.dart';
 import 'services/google_drive_service.dart';
 import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
+import 'services/settings_store.dart';
 import 'services/autostart_service.dart';
 import 'services/restart_on_update_service.dart';
 import 'screens/home_screen.dart';
@@ -32,6 +33,10 @@ void main(List<String> args) async {
   if (args.isNotEmpty && args[0] == '--sticky-note' && args.length > 1) {
     final noteId = args[1];
     if (_isDesktop) {
+      // Sticky-/Sekundärprozess: darf KEINE Credentials persistieren (sonst
+      // schreibt ein still erneuerter Token eine Abmeldung der Hauptapp wieder
+      // zurück) – siehe GoogleDriveService.
+      GoogleDriveService.isSecondaryProcess = true;
       await _initStickyWindow(noteId, _parsePosArg(args));
       // Nach einem App-Update (Windows/MSIX) dieses Sticky-Fenster automatisch
       // wieder öffnen – mit derselben Notiz, gespeicherte Lage wird beim Start
@@ -69,8 +74,22 @@ void main(List<String> args) async {
   final restartedByUpdate = args.contains('--updated');
   final forceMainWindow = args.contains('--show-main') || openSettings;
 
+  // Verzögerter Start (Desktop): Aus Performance-Gründen wird das Hauptfenster
+  // erst gezeigt und werden Login/Widget-Öffnen erst erledigt, NACHDEM Flutter
+  // den ersten Frame gezeichnet hat (erster Post-Frame-Callback in
+  // NotizblockApp). Sonst stünde ein schwarzes „reagiert nicht"-Fenster, während
+  // der stille Login (inkl. Netzwerk) den ersten Frame blockiert – auf schwacher
+  // Hardware ein 10–15-s-Hänger beim Öffnen von Hauptmenü/Einstellungen aus einem
+  // Widget.
+  var showWindowAfterFirstFrame = false;
+  var openWidgetsAfterFirstFrame = false;
+
   if (_isDesktop) {
     await windowManager.ensureInitialized();
+
+    // settings.json anlegen/lesen, BEVOR Sticky-Prozesse gespawnt werden (die
+    // lesen daraus Schriftgröße/Auto-Sync) – siehe SettingsStore.
+    await SettingsStore.load();
 
     // Einmalig nach einem Update die Autostart-Verknüpfung neu schreiben, damit
     // der Task-Manager/Autostart-Dialog den korrekten Anzeigenamen zeigt
@@ -78,14 +97,23 @@ void main(List<String> args) async {
     // noch nicht aufgefrischt ist (Flag) – sonst praktisch kostenlos.
     await AutostartService.instance.refreshShortcutIfNeeded();
 
-    // Angeheftete Widgets öffnen (gibt Anzahl NEU geöffneter Fenster zurück).
-    // Nach einem Update-Neustart NICHT öffnen – die Sticky-Prozesse starten sich
-    // selbst neu (jeder hat sich via RestartOnUpdateService registriert).
     final widgetIds = await StickyNoteService.instance.getWidgetNoteIds();
     final hasWidgets = widgetIds.isNotEmpty;
-    final openedCount = restartedByUpdate
-        ? 0
-        : await StickyNoteService.instance.openAllWidgets();
+
+    // Angeheftete Widgets öffnen. forceMainWindow (Home-/Einstellungen-Button
+    // eines Widgets): die Widgets laufen bereits → openAllWidgets erst NACH dem
+    // ersten Frame (die Prozess-Checks würden sonst den Fensteraufbau verzögern).
+    // Sonst (Autostart/manuell) jetzt, weil das Ergebnis in die showMain-/
+    // exit-Entscheidung einfließt. Nach einem Update-Neustart NICHT öffnen – die
+    // Sticky-Prozesse starten sich selbst neu (RestartOnUpdateService).
+    var openedCount = 0;
+    if (forceMainWindow) {
+      openWidgetsAfterFirstFrame = !restartedByUpdate;
+    } else {
+      openedCount = restartedByUpdate
+          ? 0
+          : await StickyNoteService.instance.openAllWidgets();
+    }
 
     // Standard: beim Start nur die angehefteten Widgets. Das Hauptfenster
     // erscheint nur, wenn:
@@ -94,9 +122,8 @@ void main(List<String> args) async {
     //  - keine Widgets angeheftet sind (sonst käme gar nichts),
     //  - ODER manuell gestartet und die Widgets liefen bereits (sonst liefe
     //    der Klick auf das App-Icon ins Leere).
-    final prefs = await SharedPreferences.getInstance();
     final showMainSetting =
-        prefs.getBool(SettingsProvider.showMainWindowOnStartKey) ?? false;
+        SettingsStore.getBool(SettingsProvider.showMainWindowOnStartKey) ?? false;
     final showMain = forceMainWindow ||
         showMainSetting ||
         !hasWidgets ||
@@ -111,13 +138,15 @@ void main(List<String> args) async {
       exit(0);
     }
 
+    // Fensteroptionen anwenden, aber NICHT vorzeitig zeigen – beide Desktop-
+    // Runner zeigen das Fenster selbst beim ersten Frame; show()/focus() folgen
+    // im Post-Frame-Callback (NotizblockApp), damit kein schwarzes Fenster
+    // erscheint und das Fenster trotzdem in den Vordergrund kommt.
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(title: 'Notizblock AW'),
-      () async {
-        await windowManager.show();
-        await windowManager.focus();
-      },
+      () async {},
     );
+    showWindowAfterFirstFrame = true;
 
     // Bleibt das Hauptfenster offen, soll es nach einem App-Update ebenfalls
     // wiederkommen. `--updated` lässt den neu gestarteten Hauptprozess das
@@ -125,9 +154,15 @@ void main(List<String> args) async {
     RestartOnUpdateService.register(['--show-main', '--updated']);
   }
 
-  // Stiller Login: Desktop nutzt gespeicherte OAuth-Token, Mobil google_sign_in.
-  // Service entscheidet plattformabhängig; Fehler werden intern abgefangen.
-  await GoogleDriveService.instance.signInSilently();
+  // Stiller Login: Auf DESKTOP nicht mehr vor runApp – der Netzwerk-GET
+  // (userinfo) blockierte sonst den ersten Frame (schwarzes Fenster); er läuft
+  // im ersten Post-Frame-Callback von NotizblockApp, die UI zieht über
+  // GoogleDriveService.signedInNotifier nach. Auf MOBIL weiterhin vor runApp
+  // (kein Fenster → kein Schwarzbild; der Login-Status soll ab dem ersten Frame
+  // stimmen).
+  if (!_isDesktop) {
+    await GoogleDriveService.instance.signInSilently();
+  }
 
   // Wurde die App per Homescreen-Widget gestartet? Dann die Ziel-Notiz JETZT
   // (vor runApp) laden und den Editor direkt als erste Seite bauen. So ist der
@@ -144,7 +179,12 @@ void main(List<String> args) async {
     } catch (_) {}
   }
 
-  runApp(NotizblockApp(initialNote: initialNote, openSettings: openSettings));
+  runApp(NotizblockApp(
+    initialNote: initialNote,
+    openSettings: openSettings,
+    showWindowAfterFirstFrame: showWindowAfterFirstFrame,
+    openWidgetsAfterFirstFrame: openWidgetsAfterFirstFrame,
+  ));
 }
 
 /// Fenster eines Sticky-Note-Prozesses einrichten: gespeicherte Bounds
@@ -216,8 +256,20 @@ class NotizblockApp extends StatefulWidget {
   // true, wenn die App vom Einstellungen-Button eines Sticky-Fensters
   // (--show-settings) gestartet wurde -> nach dem Start direkt Einstellungen.
   final bool openSettings;
+  // Desktop: Fenster erst nach dem ersten Frame zeigen/fokussieren (kein
+  // schwarzes Fenster) – siehe main().
+  final bool showWindowAfterFirstFrame;
+  // Desktop: angeheftete Widgets erst nach dem ersten Frame öffnen (nur im
+  // „aus Widget geöffnet"-Pfad, wo die Widgets ohnehin schon laufen).
+  final bool openWidgetsAfterFirstFrame;
 
-  const NotizblockApp({super.key, this.initialNote, this.openSettings = false});
+  const NotizblockApp({
+    super.key,
+    this.initialNote,
+    this.openSettings = false,
+    this.showWindowAfterFirstFrame = false,
+    this.openWidgetsAfterFirstFrame = false,
+  });
 
   @override
   State<NotizblockApp> createState() => _NotizblockAppState();
@@ -244,6 +296,33 @@ class _NotizblockAppState extends State<NotizblockApp> {
           MaterialPageRoute(builder: (_) => const SettingsScreen()),
         );
       });
+    }
+
+    // Verzögerter Start NACH dem ersten Frame (siehe main()): Fenster zeigen +
+    // fokussieren (Desktop), stiller Login und ggf. angeheftete Widgets öffnen.
+    // Bewusst nicht vor runApp – das blockierte sonst den ersten Frame (schwarzes
+    // Fenster / „reagiert nicht").
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runDeferredStartup());
+  }
+
+  Future<void> _runDeferredStartup() async {
+    // Fenster jetzt – mit fertig gezeichnetem Inhalt – in den Vordergrund holen.
+    if (widget.showWindowAfterFirstFrame) {
+      try {
+        await windowManager.show();
+        await windowManager.focus();
+      } catch (_) {}
+    }
+    // Desktop: stiller Login erst JETZT (nach dem ersten Frame). Der Netzwerk-GET
+    // (userinfo) würde sonst vor runApp den Frame blockieren → schwarzes Fenster.
+    // Mobil ist der Login bereits vor runApp passiert. Die UI zieht über
+    // GoogleDriveService.signedInNotifier nach.
+    if (_isDesktop) {
+      await GoogleDriveService.instance.signInSilently();
+    }
+    // Angeheftete Widgets (nur im „aus Widget"-Pfad zurückgestellt) öffnen.
+    if (widget.openWidgetsAfterFirstFrame) {
+      await StickyNoteService.instance.openAllWidgets();
     }
   }
 

@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/auth_io.dart' as auth;
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/note.dart';
@@ -60,7 +62,28 @@ class GoogleDriveService {
   static const String _lastSyncKey = 'last_sync_timestamp';
   static const String _lastRemoteSyncKey = 'last_remote_sync_time';
   static const String _migratedKey = 'delta_migrated';
+  // Alter prefs-Key – nur noch für die einmalige Migration in die eigene Datei.
   static const String _credentialsKey = 'drive_desktop_credentials';
+  // Desktop-OAuth-Credentials liegen in EINER eigenen Datei (NICHT in
+  // shared_preferences). Grund: jeder Prozess (Hauptapp + Sticky-Fenster)
+  // schreibt prefs (Sync-Zeitstempel, Token-Refresh) und kippt dabei mit
+  // seinem veralteten Gesamt-Snapshot z.B. eine Abmeldung wieder zurück
+  // („Abmelden hält nicht"). Schreiber ist NUR die Hauptapp; siehe
+  // [isSecondaryProcess]. (CLAUDE.md: „kein shared_preferences für
+  // prozessübergreifende Writes".)
+  static const String _credentialsFileName = 'drive_credentials.json';
+
+  /// true in Sticky-Note-Prozessen. Solche Prozesse dürfen Credentials NICHT
+  /// persistieren – sonst würde ein laufendes Sticky-Fenster eine Abmeldung der
+  /// Hauptapp durch einen still erneuerten Token wieder zurückschreiben. Wird in
+  /// `main()` für den `--sticky-note`-Zweig gesetzt.
+  static bool isSecondaryProcess = false;
+
+  /// Login-Status als beobachtbarer Wert. Nötig, weil der stille Login seit der
+  /// Start-Performance-Optimierung NICHT mehr vor `runApp` abgewartet wird
+  /// (siehe main.dart) – die UI (v.a. der Einstellungen-Screen) zieht über
+  /// diesen Notifier nach, sobald die Anmeldung asynchron fertig ist.
+  final ValueNotifier<bool> signedInNotifier = ValueNotifier<bool>(false);
 
   // Unterordner im Backup-Ordner
   static const String _notesFolderName = 'notes';
@@ -128,8 +151,7 @@ class GoogleDriveService {
   // Abmelden
   Future<void> signOut() async {
     if (_isDesktop) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_credentialsKey);
+      await _deleteStoredCredentials();
     } else {
       await _googleSignIn.signOut();
       _mobileUser = null;
@@ -139,6 +161,7 @@ class GoogleDriveService {
     _driveApi = null;
     _userEmail = null;
     _userName = null;
+    signedInNotifier.value = false;
   }
 
   // Erkennt Auth-/Token-Fehler: abgelaufenes Refresh-Token (im OAuth-"Testing"-
@@ -159,8 +182,7 @@ class GoogleDriveService {
   Future<void> _handleAuthFailure() async {
     debugPrint('Auth-Fehler erkannt – Anmeldung wird zurückgesetzt.');
     if (_isDesktop) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_credentialsKey);
+      await _deleteStoredCredentials();
     } else {
       try {
         await _googleSignIn.signOut();
@@ -172,6 +194,7 @@ class GoogleDriveService {
     _driveApi = null;
     _userEmail = null;
     _userName = null;
+    signedInNotifier.value = false;
   }
 
   // Mobil: abgelaufenes Access-Token (~1 h) still erneuern, statt den Nutzer
@@ -206,6 +229,7 @@ class GoogleDriveService {
     _userEmail = _mobileUser!.email;
     _userName = _mobileUser!.displayName ?? _mobileUser!.email;
     _driveApi = drive.DriveApi(_authClient!);
+    signedInNotifier.value = true;
     return true;
   }
 
@@ -222,10 +246,9 @@ class GoogleDriveService {
       GoogleDriveConfig.desktopClientId,
       GoogleDriveConfig.desktopClientSecret,
     );
-    final prefs = await SharedPreferences.getInstance();
 
     // 1) Gespeicherte Credentials → stiller Login ohne Browser
-    final stored = prefs.getString(_credentialsKey);
+    final stored = await _readStoredCredentials();
     if (stored != null) {
       try {
         final credentials = auth.AccessCredentials.fromJson(
@@ -238,7 +261,7 @@ class GoogleDriveService {
         return true;
       } catch (e) {
         debugPrint('Gespeicherte Credentials ungültig, neu anmelden: $e');
-        await prefs.remove(_credentialsKey);
+        await _deleteStoredCredentials();
       }
     }
 
@@ -264,11 +287,66 @@ class GoogleDriveService {
     _authClient = client;
     _driveApi = drive.DriveApi(client);
     await _loadUserInfo(client);
+    // Erst jetzt melden (E-Mail/Name stehen) → reaktive UI zeigt sie sofort.
+    signedInNotifier.value = true;
   }
 
   Future<void> _saveCredentials(auth.AccessCredentials credentials) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_credentialsKey, jsonEncode(credentials.toJson()));
+    // Sticky-/Sekundärprozesse persistieren Token-Refreshs NICHT – sonst würde
+    // ein laufendes Sticky-Fenster eine Abmeldung der Hauptapp durch einen still
+    // erneuerten Token wieder zurückschreiben. Der Refresh-Token bleibt gültig;
+    // die Hauptapp aktualisiert die Datei beim nächsten Refresh selbst.
+    if (isSecondaryProcess) return;
+    await _writeStoredCredentials(jsonEncode(credentials.toJson()));
+  }
+
+  // --- Desktop-Credentials in eigener Datei (siehe _credentialsFileName) ---
+
+  Future<File> _credentialsFile() async {
+    final base = await getApplicationSupportDirectory();
+    return File(p.join(base.path, _credentialsFileName));
+  }
+
+  /// Gespeicherte Credentials lesen. Einmalige Migration: liegen sie noch im
+  /// alten prefs-Key, in die Datei übernehmen und aus prefs entfernen.
+  Future<String?> _readStoredCredentials() async {
+    try {
+      final f = await _credentialsFile();
+      if (await f.exists()) return await f.readAsString();
+      final prefs = await SharedPreferences.getInstance();
+      final legacy = prefs.getString(_credentialsKey);
+      if (legacy != null) {
+        await f.writeAsString(legacy);
+        await prefs.remove(_credentialsKey);
+        return legacy;
+      }
+    } catch (e) {
+      debugPrint('Credentials lesen fehlgeschlagen: $e');
+    }
+    return null;
+  }
+
+  Future<void> _writeStoredCredentials(String json) async {
+    try {
+      final f = await _credentialsFile();
+      await f.writeAsString(json);
+    } catch (e) {
+      debugPrint('Credentials speichern fehlgeschlagen: $e');
+    }
+  }
+
+  Future<void> _deleteStoredCredentials() async {
+    try {
+      final f = await _credentialsFile();
+      if (await f.exists()) await f.delete();
+    } catch (e) {
+      debugPrint('Credentials löschen fehlgeschlagen: $e');
+    }
+    // Auch einen evtl. noch vorhandenen Alt-prefs-Key aufräumen.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_credentialsKey);
+    } catch (_) {}
   }
 
   Future<void> _loadUserInfo(http.Client client) async {

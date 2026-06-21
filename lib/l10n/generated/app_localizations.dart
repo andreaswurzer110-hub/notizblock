@@ -721,6 +721,30 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Einfügen'**
   String get ctxPaste;
+
+  /// No description provided for @readOnly.
+  ///
+  /// In de, this message translates to:
+  /// **'Nur Lesen'**
+  String get readOnly;
+
+  /// No description provided for @creator.
+  ///
+  /// In de, this message translates to:
+  /// **'Ersteller'**
+  String get creator;
+
+  /// No description provided for @feedback.
+  ///
+  /// In de, this message translates to:
+  /// **'Feedback und Fragen'**
+  String get feedback;
+
+  /// No description provided for @close.
+  ///
+  /// In de, this message translates to:
+  /// **'Schließen'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate

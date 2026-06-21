@@ -337,4 +337,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ctxPaste => 'Paste';
+
+  @override
+  String get readOnly => 'Read only';
+
+  @override
+  String get creator => 'Creator';
+
+  @override
+  String get feedback => 'Feedback & questions';
+
+  @override
+  String get close => 'Close';
 }

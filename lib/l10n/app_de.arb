@@ -110,5 +110,9 @@
   "searchWeb": "Im Web suchen",
   "linkOpenFailed": "Link konnte nicht geöffnet werden",
   "ctxCut": "cut",
-  "ctxPaste": "Einfügen"
+  "ctxPaste": "Einfügen",
+  "readOnly": "Nur Lesen",
+  "creator": "Ersteller",
+  "feedback": "Feedback und Fragen",
+  "close": "Schließen"
 }

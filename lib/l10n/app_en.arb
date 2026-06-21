@@ -110,5 +110,9 @@
   "searchWeb": "Search the web",
   "linkOpenFailed": "Could not open link",
   "ctxCut": "Cut",
-  "ctxPaste": "Paste"
+  "ctxPaste": "Paste",
+  "readOnly": "Read only",
+  "creator": "Creator",
+  "feedback": "Feedback & questions",
+  "close": "Close"
 }

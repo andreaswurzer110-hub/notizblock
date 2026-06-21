@@ -4,12 +4,12 @@ import 'dart:ui' show BoxWidthStyle;
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note.dart';
 import '../models/autopool.dart';
 import '../services/database_service.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/settings_store.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/autopool_table.dart';
 import '../widgets/note_context_menu.dart';
@@ -93,18 +93,18 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   }
 
   Future<void> _loadFontScale() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload();
-    final scale = prefs.getDouble(SettingsProvider.noteFontScaleKey) ?? 1.0;
+    // Prozesssicher aus settings.json (Hauptapp ist der Schreiber). reload() für
+    // den aktuellen Stand – die Hauptapp kann die Schriftgröße geändert haben.
+    await SettingsStore.reload();
+    final scale = SettingsStore.getDouble(SettingsProvider.noteFontScaleKey) ?? 1.0;
     if (mounted && scale != _fontScale) setState(() => _fontScale = scale);
   }
 
   // Automatischer Sync aus dem Sticky-Fenster (nur bei aktivem Auto-Sync).
   Future<void> _runStickyAutoSync() async {
     if (!_isDesktop || _syncing) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload();
-    if (!(prefs.getBool(SettingsProvider.autoSyncKey) ?? false)) return;
+    await SettingsStore.reload();
+    if (!(SettingsStore.getBool(SettingsProvider.autoSyncKey) ?? false)) return;
     if (!GoogleDriveService.instance.isSignedIn) return;
     await _saveNote();
     final result = await GoogleDriveService.instance.synchronize();
