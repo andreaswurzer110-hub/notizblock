@@ -1,0 +1,127 @@
+# Lädt die an ein GitHub-Release angehängten Artefakte automatisch in die Stores:
+#   - Google Play   <-  die  *.aab
+#   - Microsoft Store <- die *-Store.msix
+#
+# WARUM Release-Assets statt CI-Build: So bleibt die Signierung LOKAL (dein
+# Upload-Keystore + die Store-MSIX-Identität müssen NICHT als GitHub-Secret rein).
+# Du baust wie bisher lokal und hängst die zwei Dateien ans Release.
+#
+# AUSLÖSER
+#   - Empfohlen: ein veröffentlichtes GitHub-Release mit den zwei Artefakten, z.B.
+#       gh release create v1.26.0.0 ^
+#         "E:\Notizblock-1.26.0.0.aab" "E:\Notizblock-1.26.0.0-Store.msix" ^
+#         --title v1.26.0.0 --notes "Release 1.26.0.0"
+#     (Der Tag v* löst zusätzlich wie gehabt den Snap-stable-Build aus – snap.yml.)
+#   - workflow_dispatch (manuell) mit Tag-Eingabe, falls das Release schon existiert
+#     (z.B. weil der Tag fürs Snap-Release schon gepusht war).
+#
+# OHNE die jeweiligen Secrets wird der Store ÜBERSPRUNGEN (kein Fehlschlag) →
+# man kann Play und Store unabhängig/schrittweise scharf schalten.
+#
+# Benötigte Repo-Secrets (Einrichtung Schritt für Schritt: docs/store-upload.md):
+#   Google Play:    PLAY_SERVICE_ACCOUNT_JSON
+#   Microsoft Store: STORE_TENANT_ID, STORE_CLIENT_ID, STORE_CLIENT_SECRET,
+#                    STORE_SELLER_ID, STORE_PRODUCT_ID
+
+name: Store-Upload
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-Tag, dessen Artefakte hochgeladen werden (z.B. v1.26.0.0)'
+        required: true
+      play_track:
+        description: 'Google-Play-Track (internal/alpha/beta/production)'
+        required: false
+        default: internal
+
+# Tag aus Release-Event ODER manueller Eingabe.
+env:
+  REL_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+concurrency:
+  group: store-upload-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- Google Play
+  play:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secret vorhanden?
+        id: creds
+        env:
+          C: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$C" ]; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "PLAY_SERVICE_ACCOUNT_JSON fehlt -> Google Play wird übersprungen."
+            echo "has=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: AAB aus dem Release holen
+        if: steps.creds.outputs.has == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$REL_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.aab' --dir dist
+          ls -l dist
+
+      - name: Nach Google Play hochladen
+        if: steps.creds.outputs.has == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: at.aw.notizblock
+          releaseFiles: dist/*.aab
+          track: ${{ inputs.play_track || 'internal' }}
+          status: completed
+
+  # -------------------------------------------------------------- Microsoft Store
+  # HINWEIS: Die Store-Submission-API ist fummeliger als Play. Diese Job-Vorlage
+  # nutzt die offizielle store-submission-Action; die genauen Eingaben/Schritte
+  # beim ERSTEN scharfen Lauf gegen das README der Action prüfen (siehe
+  # docs/store-upload.md, Abschnitt „Erstlauf prüfen"). Bis dahin überspringt der
+  # Job ohne Secrets sauber.
+  store:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets vorhanden?
+        id: creds
+        env:
+          T: ${{ secrets.STORE_TENANT_ID }}
+          C: ${{ secrets.STORE_CLIENT_ID }}
+          S: ${{ secrets.STORE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$T" ] && [ -n "$C" ] && [ -n "$S" ]; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Store-Secrets fehlen -> Microsoft Store wird übersprungen."
+            echo "has=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: MSIX aus dem Release holen
+        if: steps.creds.outputs.has == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$REL_TAG" --repo "$GITHUB_REPOSITORY" --pattern '*-Store.msix' --dir dist
+          ls -l dist
+
+      # Aktualisiert die Pakete der ausstehenden Submission mit dem hochgeladenen
+      # MSIX und committet/veröffentlicht sie. command/Eingaben beim Erstlauf
+      # gegen das Action-README verifizieren.
+      - name: Neue Store-Submission veröffentlichen
+        if: steps.creds.outputs.has == 'true'
+        uses: microsoft/store-submission@v1
+        with:
+          command: publish
+          product-id: ${{ secrets.STORE_PRODUCT_ID }}
+          seller-id: ${{ secrets.STORE_SELLER_ID }}
+          tenant-id: ${{ secrets.STORE_TENANT_ID }}
+          client-id: ${{ secrets.STORE_CLIENT_ID }}
+          client-secret: ${{ secrets.STORE_CLIENT_SECRET }}
