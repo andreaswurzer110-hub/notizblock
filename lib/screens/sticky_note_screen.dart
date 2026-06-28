@@ -8,6 +8,7 @@ import '../models/note.dart';
 import '../models/autopool.dart';
 import '../services/database_service.dart';
 import '../services/sticky_note_service.dart';
+import '../services/main_instance_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/settings_store.dart';
 import '../providers/settings_provider.dart';
@@ -385,6 +386,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Widgets) sofort wieder beenden.
   Future<void> _openMainApp() async {
     if (!_isDesktop) return;
+    // Linux: Läuft schon eine warme Hauptinstanz, holt sie ihr Fenster sofort
+    // nach vorne (kein Kaltstart). Sonst (und auf Windows immer) neuen Prozess.
+    if (await MainInstanceService.instance.signalShow(settings: false)) return;
     try {
       await Process.start(
         Platform.resolvedExecutable,
@@ -402,6 +406,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Hauptapp überschreiben – siehe CLAUDE.md).
   Future<void> _openSettings() async {
     if (!_isDesktop) return;
+    // Linux: schon laufende warme Hauptinstanz wiederverwenden (sofort, kein
+    // Kaltstart). Sonst (und auf Windows immer) neuen Prozess mit --show-settings.
+    if (await MainInstanceService.instance.signalShow(settings: true)) return;
     try {
       await Process.start(
         Platform.resolvedExecutable,
