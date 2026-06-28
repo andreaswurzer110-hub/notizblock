@@ -40,6 +40,16 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<NotesProvider>().loadNotes();
     });
     _loadWidgetIds();
+    // Der stille Login läuft auf Desktop erst NACH dem ersten Frame (siehe
+    // main.dart) – die AppBar baut also zunächst mit isSignedIn==false. Ohne
+    // diesen Listener bliebe das Sync-Icon dauerhaft „nicht angemeldet"
+    // durchgestrichen, obwohl der Login längst durch ist (war real ein Bug auf
+    // Linux). Bei Statuswechsel neu bauen.
+    GoogleDriveService.instance.signedInNotifier.addListener(_onSignInChanged);
+  }
+
+  void _onSignInChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadWidgetIds() async {
@@ -50,6 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    GoogleDriveService.instance.signedInNotifier
+        .removeListener(_onSignInChanged);
     _searchController.dispose();
     super.dispose();
   }

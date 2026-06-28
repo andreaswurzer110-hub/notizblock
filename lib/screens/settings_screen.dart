@@ -475,16 +475,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _signIn(AppLocalizations l10n) async {
     final success = await GoogleDriveService.instance.signIn();
-    if (mounted) {
-      setState(() {});
-      if (!success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.syncFailed),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    if (!mounted) return;
+    if (success) {
+      // Nach erfolgreicher Anmeldung den Auto-Sync gleich aktivieren. Auf einem
+      // frisch installierten Client erwartet der Nutzer, dass ab dem Anmelden
+      // ohne weiteren Handgriff synchronisiert wird.
+      await context.read<SettingsProvider>().setAutoSync(true);
+      if (!mounted) return;
+    }
+    setState(() {});
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.syncFailed),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 

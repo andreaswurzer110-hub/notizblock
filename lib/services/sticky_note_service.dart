@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 import '../models/note.dart';
+import 'autostart_service.dart';
 import 'database_service.dart';
 
 /// Verwaltet die Sticky-Note-Fenster auf Desktop (Windows/Linux/macOS).
@@ -216,6 +217,14 @@ class StickyNoteService {
       ids.remove(noteId);
     }
     await _writeWidgetNoteIds(ids);
+    // Beim Anheften eines Widgets den Desktop-Autostart automatisch aktivieren,
+    // damit das angeheftete Widget nach einem Neustart von selbst wieder
+    // erscheint (auf Android bleiben Homescreen-Widgets ohnehin erhalten). Nur
+    // einschalten, wenn noch nicht aktiv – spart den wiederholten PowerShell-/
+    // Datei-Aufruf bei jedem erneuten Anheften.
+    if (enabled && !await AutostartService.instance.isEnabled()) {
+      await AutostartService.instance.setEnabled(true);
+    }
   }
 
   // --- Fenster-Bounds (Position + Groesse), pro-Notiz-Datei ---
