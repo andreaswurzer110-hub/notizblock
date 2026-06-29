@@ -59,6 +59,16 @@ Play und Store lassen sich unabhängig scharf schalten.
 
 ### B) Microsoft Store  →  Secrets `STORE_*`
 
+> ⚠️ **NICHT machbar mit einem „Einzelpersonen"-Store-Konto (real getestet 2026-06-29, Sackgasse).**
+> Die Store-Submission-API verlangt, eine **Azure-AD-App** in Partner Center unter
+> *Kontoeinstellungen → Benutzerverwaltung* mit **Manager-Rolle** zu verknüpfen.
+> Bei **Kontotyp „Einzelperson"** bietet Partner Center diese Verknüpfung GAR NICHT
+> an (nur „Neue Benutzer erstellen", kein „Azure AD-Anwendungen"). Selbst mit
+> angelegtem Entra-Verzeichnis + App-Registrierung + Global-Admin schlägt die API
+> dann mit 403 fehl. → **MS Store für dieses Konto manuell hochladen** (Store-MSIX
+> liegt auf `E:`). Die Schritte unten gelten nur für ein **Unternehmenskonto**.
+> NICHT erneut versuchen, solange das Konto „Einzelperson" ist.
+
 1. **Partner Center** → *Account settings → User management →
    **Azure AD applications*** → Azure-AD-App hinzufügen/verknüpfen und ihr eine
    Rolle (mind. *Developer/Manager*) geben. Daraus: **Tenant-ID**, **Client-ID**;
