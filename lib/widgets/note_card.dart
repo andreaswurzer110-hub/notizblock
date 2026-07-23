@@ -49,8 +49,12 @@ class NoteCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Indikatoren: angeheftet, als Widget angeheftet und/oder Autopool
-              if (note.isPinned || isWidget || note.isAutopool) ...[
+              // Indikatoren: angeheftet, als Widget angeheftet, Autopool und/oder
+              // Einkaufsliste
+              if (note.isPinned ||
+                  isWidget ||
+                  note.isAutopool ||
+                  note.isShopping) ...[
                 Wrap(
                   spacing: 12,
                   children: [
@@ -60,6 +64,9 @@ class NoteCard extends StatelessWidget {
                       _badge(Icons.widgets, 'Widget', subtitleColor),
                     if (note.isAutopool)
                       _badge(Icons.table_chart, 'Autopool', subtitleColor),
+                    if (note.isShopping)
+                      _badge(Icons.shopping_cart, 'Einkaufsliste',
+                          subtitleColor),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -190,7 +197,10 @@ class NoteListTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        leading: (note.isPinned || isWidget || note.isAutopool)
+        leading: (note.isPinned ||
+                isWidget ||
+                note.isAutopool ||
+                note.isShopping)
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -200,6 +210,8 @@ class NoteListTile extends StatelessWidget {
                     Icon(Icons.widgets, size: 20, color: subtitleColor),
                   if (note.isAutopool)
                     Icon(Icons.table_chart, size: 20, color: subtitleColor),
+                  if (note.isShopping)
+                    Icon(Icons.shopping_cart, size: 20, color: subtitleColor),
                 ],
               )
             : null,

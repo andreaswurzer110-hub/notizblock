@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:intl/intl.dart';
 import '../models/note.dart';
 import '../models/autopool.dart';
+import '../models/shopping_list.dart';
 import '../services/database_service.dart';
 import '../services/sticky_note_service.dart';
 import '../services/main_instance_service.dart';
@@ -13,6 +14,7 @@ import '../services/google_drive_service.dart';
 import '../services/settings_store.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/autopool_table.dart';
+import '../widgets/shopping_list_view.dart';
 import '../widgets/note_context_menu.dart';
 
 class StickyNoteScreen extends StatefulWidget {
@@ -34,6 +36,12 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   final GlobalKey<AutopoolTableState> _autopoolKey =
       GlobalKey<AutopoolTableState>();
   String _autopoolJson = '';
+  // Einkaufsliste (nur bei type=='shopping'), analog zur Autopool-Tabelle:
+  // gleiche Key-API (currentJson/setData/hasFocus). Beide strukturierten Typen
+  // liegen im selben Feld note.autopoolData.
+  final GlobalKey<ShoppingListViewState> _shoppingKey =
+      GlobalKey<ShoppingListViewState>();
+  String _shoppingJson = '';
   Note? _note;
   bool _isLoading = true;
   bool _syncing = false;
@@ -153,6 +161,26 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       return;
     }
 
+    // Einkaufsliste: analog zur Autopool-Tabelle die Struktur extern übernehmen
+    // (nur wenn nicht gerade getippt), plus Farbe/Titel.
+    if (note.isShopping) {
+      final dataChanged = note.autopoolData != _note?.autopoolData;
+      final colorChanged = note.color != _note?.color;
+      final titleChanged = note.title != _note?.title;
+      if (!dataChanged && !colorChanged && !titleChanged) return;
+      if (dataChanged && !(_shoppingKey.currentState?.hasFocus ?? false)) {
+        _shoppingJson = note.autopoolData;
+        _shoppingKey.currentState?.setData(note.autopoolData);
+      }
+      if (titleChanged) _titleController.text = note.title;
+      setState(() => _note = note);
+      if (_isDesktop) {
+        await windowManager
+            .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+      }
+      return;
+    }
+
     final contentChanged = note.content != _contentController.text;
     final colorChanged = note.color != _note?.color;
     final titleChanged = note.title != _note?.title;
@@ -183,8 +211,10 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         _titleController.text = _note!.title;
         _contentController.text = _note!.content;
         _autopoolJson = _note!.autopoolData;
-        _lastCheckpoint =
-            _note!.isAutopool ? _note!.autopoolData : _note!.content;
+        _shoppingJson = _note!.autopoolData;
+        _lastCheckpoint = (_note!.isAutopool || _note!.isShopping)
+            ? _note!.autopoolData
+            : _note!.content;
         if (_isDesktop) {
           final title = _note!.title.isNotEmpty ? _note!.title : 'Notiz';
           await windowManager.setTitle(title);
@@ -263,10 +293,17 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (mounted) setState(() {});
   }
 
-  // Aktueller Stand für Undo: bei Autopool die Tabellen-JSON, sonst der Text.
-  String get _currentSnapshot => _note?.isAutopool == true
-      ? (_autopoolKey.currentState?.currentJson ?? _autopoolJson)
-      : _contentController.text;
+  // Aktueller Stand für Undo: bei Autopool/Einkaufsliste die jeweilige JSON,
+  // sonst der Text.
+  String get _currentSnapshot {
+    if (_note?.isAutopool == true) {
+      return _autopoolKey.currentState?.currentJson ?? _autopoolJson;
+    }
+    if (_note?.isShopping == true) {
+      return _shoppingKey.currentState?.currentJson ?? _shoppingJson;
+    }
+    return _contentController.text;
+  }
 
   // Aktuellen Stand als Undo-Schritt ablegen (vorigen Checkpoint stapeln).
   void _commitCheckpoint() {
@@ -316,11 +353,16 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // bei programmatischer Änderung nicht von selbst).
   void _applySnapshot(String target) {
     _restoringSnapshot = true;
-    if (_note?.isAutopool == true) {
-      // Autopool: Tabellenstand setzen (setData feuert kein onChanged) und
-      // Speichern + Sync selbst anstoßen.
-      _autopoolJson = target;
-      _autopoolKey.currentState?.setData(target);
+    if (_note?.isAutopool == true || _note?.isShopping == true) {
+      // Autopool/Einkaufsliste: Struktur-Stand setzen (setData feuert kein
+      // onChanged) und Speichern + Sync selbst anstoßen.
+      if (_note?.isAutopool == true) {
+        _autopoolJson = target;
+        _autopoolKey.currentState?.setData(target);
+      } else {
+        _shoppingJson = target;
+        _shoppingKey.currentState?.setData(target);
+      }
       _saveTimer?.cancel();
       _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
       _stickyAutoSyncTimer?.cancel();
@@ -354,6 +396,19 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       _note = updated;
       return;
     }
+    // Einkaufsliste: Quelle ist die Liste (JSON); content wird daraus als
+    // lesbarer Text erzeugt. Ohne echte Änderung NICHT speichern.
+    if (_note!.isShopping) {
+      final json = _shoppingKey.currentState?.currentJson ?? _shoppingJson;
+      _shoppingJson = json;
+      if (newTitle == _note!.title && json == _note!.autopoolData) return;
+      final content = ShoppingListData.fromJsonString(json).toDisplayText();
+      final updated = _note!
+          .copyWith(title: newTitle, content: content, autopoolData: json);
+      await DatabaseService.instance.updateNote(updated);
+      _note = updated;
+      return;
+    }
     final newContent = _contentController.text;
     // Ohne echte Änderung NICHT speichern – sonst würde modifiedAt unnötig auf
     // "jetzt" gesetzt (verfälscht die Änderungszeit und gewinnt fälschlich beim
@@ -367,6 +422,24 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Tabellenänderung (Autopool): entprellt speichern + syncen + Undo-Checkpoint.
   void _onAutopoolChanged(String json) {
     _autopoolJson = json;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
+    _stickyAutoSyncTimer?.cancel();
+    _stickyAutoSyncTimer =
+        Timer(const Duration(seconds: 2), _runStickyAutoSync);
+    if (!_restoringSnapshot) {
+      if (_redoStack.isNotEmpty) _redoStack.clear();
+      _undoCheckpointTimer?.cancel();
+      _undoCheckpointTimer =
+          Timer(const Duration(milliseconds: 600), _commitCheckpoint);
+    }
+    if (mounted) setState(() {});
+  }
+
+  // Listenänderung (Einkaufsliste): identisch zu _onAutopoolChanged, nur die
+  // Quelle ist die Einkaufsliste.
+  void _onShoppingChanged(String json) {
+    _shoppingJson = json;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
     _stickyAutoSyncTimer?.cancel();
@@ -501,7 +574,18 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                       fontScale: _fontScale,
                     ),
                   )
-                : Padding(
+                : _note!.isShopping
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                        child: ShoppingListView(
+                          key: _shoppingKey,
+                          initialData: _shoppingJson,
+                          onChanged: _onShoppingChanged,
+                          textColor: _textColor,
+                          fontScale: _fontScale,
+                        ),
+                      )
+                    : Padding(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                     child: TextField(
                       controller: _contentController,

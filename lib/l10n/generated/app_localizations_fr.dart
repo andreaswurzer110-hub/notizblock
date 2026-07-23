@@ -265,6 +265,56 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noteTypeAutopoolSubtitle => 'Tableau (liste d’appareils)';
 
   @override
+  String get noteTypeShoppingSubtitle =>
+      'Cocher des articles, compter les quantités';
+
+  @override
+  String get shoppingList => 'Liste de courses';
+
+  @override
+  String get shoppingItemHint => 'Article';
+
+  @override
+  String get shoppingAddItem => 'Ajouter un article';
+
+  @override
+  String shoppingCompleted(int count) {
+    return 'Terminé ($count)';
+  }
+
+  @override
+  String get shoppingDeleteItem => 'Supprimer l’article';
+
+  @override
+  String get allNotes => 'Toutes les notes';
+
+  @override
+  String get folders => 'Dossiers';
+
+  @override
+  String get newFolder => 'Nouveau dossier';
+
+  @override
+  String get folderName => 'Nom du dossier';
+
+  @override
+  String get renameFolder => 'Renommer le dossier';
+
+  @override
+  String get deleteFolder => 'Supprimer le dossier';
+
+  @override
+  String deleteFolderConfirm(String name) {
+    return 'Supprimer le dossier « $name » ? Les notes qu’il contient sont conservées et ne seront plus dans aucun dossier.';
+  }
+
+  @override
+  String get moveToFolder => 'Déplacer vers un dossier';
+
+  @override
+  String get noFolder => 'Aucun dossier';
+
+  @override
   String get autopoolColName => 'Désignation';
 
   @override

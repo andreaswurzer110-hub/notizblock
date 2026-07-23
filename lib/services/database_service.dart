@@ -12,7 +12,7 @@ class DatabaseService {
   static Database? _database;
   static String? _databasePath;
   static const String _databaseName = 'notizblock.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   // Singleton Pattern
   DatabaseService._privateConstructor();
@@ -126,7 +126,8 @@ class DatabaseService {
         isPinned INTEGER NOT NULL DEFAULT 0,
         isArchived INTEGER NOT NULL DEFAULT 0,
         type TEXT NOT NULL DEFAULT 'text',
-        autopoolData TEXT NOT NULL DEFAULT ''
+        autopoolData TEXT NOT NULL DEFAULT '',
+        folder TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -148,6 +149,11 @@ class DatabaseService {
           "ALTER TABLE notes ADD COLUMN type TEXT NOT NULL DEFAULT 'text'");
       await db.execute(
           "ALTER TABLE notes ADD COLUMN autopoolData TEXT NOT NULL DEFAULT ''");
+    }
+    // v4: Ordner/Kategorie pro Notiz
+    if (oldVersion < 4) {
+      await db.execute(
+          "ALTER TABLE notes ADD COLUMN folder TEXT NOT NULL DEFAULT ''");
     }
   }
 

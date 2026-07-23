@@ -578,6 +578,96 @@ abstract class AppLocalizations {
   /// **'Tabelle (Geräteliste)'**
   String get noteTypeAutopoolSubtitle;
 
+  /// No description provided for @noteTypeShoppingSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Artikel abhaken, Mengen zählen'**
+  String get noteTypeShoppingSubtitle;
+
+  /// No description provided for @shoppingList.
+  ///
+  /// In de, this message translates to:
+  /// **'Einkaufsliste'**
+  String get shoppingList;
+
+  /// No description provided for @shoppingItemHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Artikel'**
+  String get shoppingItemHint;
+
+  /// No description provided for @shoppingAddItem.
+  ///
+  /// In de, this message translates to:
+  /// **'Artikel hinzufügen'**
+  String get shoppingAddItem;
+
+  /// No description provided for @shoppingCompleted.
+  ///
+  /// In de, this message translates to:
+  /// **'Erledigt ({count})'**
+  String shoppingCompleted(int count);
+
+  /// No description provided for @shoppingDeleteItem.
+  ///
+  /// In de, this message translates to:
+  /// **'Artikel löschen'**
+  String get shoppingDeleteItem;
+
+  /// No description provided for @allNotes.
+  ///
+  /// In de, this message translates to:
+  /// **'Alle Notizen'**
+  String get allNotes;
+
+  /// No description provided for @folders.
+  ///
+  /// In de, this message translates to:
+  /// **'Ordner'**
+  String get folders;
+
+  /// No description provided for @newFolder.
+  ///
+  /// In de, this message translates to:
+  /// **'Neuer Ordner'**
+  String get newFolder;
+
+  /// No description provided for @folderName.
+  ///
+  /// In de, this message translates to:
+  /// **'Ordnername'**
+  String get folderName;
+
+  /// No description provided for @renameFolder.
+  ///
+  /// In de, this message translates to:
+  /// **'Ordner umbenennen'**
+  String get renameFolder;
+
+  /// No description provided for @deleteFolder.
+  ///
+  /// In de, this message translates to:
+  /// **'Ordner löschen'**
+  String get deleteFolder;
+
+  /// No description provided for @deleteFolderConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Ordner „{name}“ löschen? Die enthaltenen Notizen bleiben erhalten und sind dann keinem Ordner mehr zugeordnet.'**
+  String deleteFolderConfirm(String name);
+
+  /// No description provided for @moveToFolder.
+  ///
+  /// In de, this message translates to:
+  /// **'In Ordner verschieben'**
+  String get moveToFolder;
+
+  /// No description provided for @noFolder.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein Ordner'**
+  String get noFolder;
+
   /// No description provided for @autopoolColName.
   ///
   /// In de, this message translates to:

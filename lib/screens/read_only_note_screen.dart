@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/note.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/autopool_table.dart';
+import '../widgets/shopping_list_view.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 /// Reiner Anzeige-Screen für eine Notiz (kein Bearbeiten, „nur anzeigen").
@@ -88,6 +89,17 @@ class ReadOnlyNoteScreen extends StatelessWidget {
                 // (Tippen/Kontextmenü/Drag) → keine Bearbeitung möglich.
                 IgnorePointer(
                   child: AutopoolTable(
+                    initialData: note.autopoolData,
+                    onChanged: (_) {},
+                    textColor: noteTextColor,
+                    fontScale: fontScale,
+                  ),
+                )
+              else if (note.isShopping)
+                // Einkaufsliste rein anzeigend (wie Autopool): IgnorePointer
+                // blockt jede Interaktion → nur ansehen, nicht abhaken/ändern.
+                IgnorePointer(
+                  child: ShoppingListView(
                     initialData: note.autopoolData,
                     onChanged: (_) {},
                     textColor: noteTextColor,

@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
 import '../models/note.dart';
@@ -9,9 +10,16 @@ import '../services/settings_store.dart';
 import 'settings_provider.dart';
 
 class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
+  // SettingsStore-Key für die explizite Ordner-Liste (lokal, JSON-Array).
+  static const String foldersKey = 'folders';
+
   List<Note> _notes = [];
-  List<Note> _filteredNotes = [];
   String _searchQuery = '';
+  // Aktueller Ordner-Filter; leer = "Alle Notizen".
+  String _selectedFolder = '';
+  // Vom Nutzer angelegte Ordner (Reihenfolge/leere Ordner). Im Drawer vereint mit
+  // den Ordnern, die tatsächlich in Notizen vorkommen (siehe [folders]).
+  List<String> _folders = [];
   bool _isLoading = false;
   String? _error;
   Timer? _autoSyncTimer;
@@ -44,6 +52,8 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Einmaliger Sync kurz nach Start: holt Änderungen anderer Geräte herein.
     Timer(const Duration(seconds: 2), _runAutoSync);
+    // Explizite Ordner-Liste laden.
+    _loadFolders();
   }
 
   @override
@@ -112,13 +122,143 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Getters
-  List<Note> get notes => _searchQuery.isEmpty ? _notes : _filteredNotes;
+  // Getters. Die sichtbare Liste kombiniert Ordner-Filter UND Suche (live
+  // berechnet – kein separater _filteredNotes-Cache mehr).
+  List<Note> get notes {
+    Iterable<Note> result = _notes;
+    if (_selectedFolder.isNotEmpty) {
+      result = result.where((n) => n.folder == _selectedFolder);
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((n) =>
+          n.title.toLowerCase().contains(q) ||
+          n.content.toLowerCase().contains(q));
+    }
+    return result.toList();
+  }
+
   List<Note> get pinnedNotes => notes.where((n) => n.isPinned).toList();
   List<Note> get unpinnedNotes => notes.where((n) => !n.isPinned).toList();
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get searchQuery => _searchQuery;
+
+  // --- Ordner ---
+
+  String get selectedFolder => _selectedFolder;
+
+  /// Alle sichtbaren Ordnernamen: explizit angelegte + solche, die tatsächlich in
+  /// (nicht archivierten) Notizen vorkommen. Alphabetisch sortiert.
+  List<String> get folders {
+    final set = <String>{..._folders};
+    for (final n in _notes) {
+      if (n.folder.isNotEmpty) set.add(n.folder);
+    }
+    final list = set.toList();
+    list.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return list;
+  }
+
+  /// Anzahl Notizen in einem Ordner (aus der aktuell geladenen, nicht
+  /// archivierten Liste).
+  int folderCount(String folder) =>
+      _notes.where((n) => n.folder == folder).length;
+
+  /// Gesamtzahl (für „Alle Notizen").
+  int get totalCount => _notes.length;
+
+  void selectFolder(String folder) {
+    if (_selectedFolder == folder) return;
+    _selectedFolder = folder;
+    notifyListeners();
+  }
+
+  Future<void> _loadFolders() async {
+    try {
+      await SettingsStore.load();
+      final raw = SettingsStore.getString(foldersKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          _folders = decoded
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Ordner laden fehlgeschlagen: $e');
+    }
+  }
+
+  Future<void> _saveFolders() async {
+    try {
+      await SettingsStore.setString(foldersKey, jsonEncode(_folders));
+    } catch (e) {
+      debugPrint('Ordner speichern fehlgeschlagen: $e');
+    }
+  }
+
+  /// Neuen (leeren) Ordner anlegen.
+  Future<void> createFolder(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || _folders.contains(trimmed)) return;
+    _folders.add(trimmed);
+    await _saveFolders();
+    notifyListeners();
+  }
+
+  /// Ordner umbenennen: explizite Liste anpassen und alle Notizen umhängen.
+  Future<void> renameFolder(String oldName, String newName) async {
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == oldName) return;
+    final idx = _folders.indexOf(oldName);
+    if (idx != -1) {
+      _folders[idx] = trimmed;
+    } else {
+      _folders.add(trimmed);
+    }
+    _folders = _folders.toSet().toList(); // eventuelles Duplikat mergen
+    await _saveFolders();
+
+    for (final n in _notes.where((n) => n.folder == oldName).toList()) {
+      final updated = n.copyWith(folder: trimmed, modifiedAt: DateTime.now());
+      await DatabaseService.instance.updateNote(updated);
+      final i = _notes.indexWhere((x) => x.id == n.id);
+      if (i != -1) _notes[i] = updated;
+    }
+    if (_selectedFolder == oldName) _selectedFolder = trimmed;
+    notifyListeners();
+    await WidgetService.instance.updateWidget();
+    await _afterLocalWrite();
+  }
+
+  /// Ordner löschen: aus der Liste entfernen; enthaltene Notizen bleiben erhalten
+  /// und wandern zu „kein Ordner" (folder = '').
+  Future<void> deleteFolder(String name) async {
+    _folders.remove(name);
+    await _saveFolders();
+
+    for (final n in _notes.where((n) => n.folder == name).toList()) {
+      final updated = n.copyWith(folder: '', modifiedAt: DateTime.now());
+      await DatabaseService.instance.updateNote(updated);
+      final i = _notes.indexWhere((x) => x.id == n.id);
+      if (i != -1) _notes[i] = updated;
+    }
+    if (_selectedFolder == name) _selectedFolder = '';
+    notifyListeners();
+    await WidgetService.instance.updateWidget();
+    await _afterLocalWrite();
+  }
+
+  /// Eine Notiz einem Ordner zuordnen (leer = kein Ordner).
+  Future<bool> setNoteFolder(String id, String folder) async {
+    final note = _notes.firstWhere((n) => n.id == id);
+    if (note.folder == folder) return true;
+    return await updateNote(note.copyWith(folder: folder));
+  }
 
   // Notizen laden
   Future<void> loadNotes({bool silent = false}) async {
@@ -131,9 +271,6 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     try {
       _notes = await DatabaseService.instance.getAllNotes();
       _lastDbMtime = await DatabaseService.instance.getLastModified();
-      if (_searchQuery.isNotEmpty) {
-        _filterNotes();
-      }
     } catch (e) {
       _error = e.toString();
       debugPrint('Fehler beim Laden der Notizen: $e');
@@ -150,6 +287,7 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     String color = '#FFFDE7',
     String type = 'text',
     String autopoolData = '',
+    String? folder,
   }) async {
     try {
       final note = Note(
@@ -158,15 +296,14 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
         color: color,
         type: type,
         autopoolData: autopoolData,
+        // Ohne explizite Angabe im aktuell gewählten Ordner anlegen (leer = kein
+        // Ordner), damit eine neue Notiz dort erscheint, wo man gerade ist.
+        folder: folder ?? _selectedFolder,
       );
 
       await DatabaseService.instance.insertNote(note);
       _notes.insert(0, note);
-      
-      if (_searchQuery.isNotEmpty) {
-        _filterNotes();
-      }
-      
+
       notifyListeners();
       
       // Widget aktualisieren
@@ -192,10 +329,6 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
       if (index != -1) {
         _notes[index] = updatedNote;
         _sortNotes();
-
-        if (_searchQuery.isNotEmpty) {
-          _filterNotes();
-        }
       }
 
       notifyListeners();
@@ -218,10 +351,6 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     try {
       await DatabaseService.instance.deleteNote(id);
       _notes.removeWhere((n) => n.id == id);
-
-      if (_searchQuery.isNotEmpty) {
-        _filterNotes();
-      }
 
       notifyListeners();
 
@@ -254,10 +383,6 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
       await DatabaseService.instance.updateNote(updatedNote);
       _notes.removeWhere((n) => n.id == id);
 
-      if (_searchQuery.isNotEmpty) {
-        _filterNotes();
-      }
-
       notifyListeners();
 
       await _afterLocalWrite();
@@ -288,7 +413,6 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
       _notes.removeWhere((n) => n.id == id);
       _notes.insert(0, updated);
       _sortNotes();
-      if (_searchQuery.isNotEmpty) _filterNotes();
 
       notifyListeners();
       await WidgetService.instance.updateWidget();
@@ -332,29 +456,15 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     return await updateNote(updatedNote);
   }
 
-  // Suche
+  // Suche (Filterung passiert live im notes-Getter, kombiniert mit dem Ordner).
   void search(String query) {
     _searchQuery = query;
-    if (query.isEmpty) {
-      _filteredNotes = [];
-    } else {
-      _filterNotes();
-    }
     notifyListeners();
   }
 
   void clearSearch() {
     _searchQuery = '';
-    _filteredNotes = [];
     notifyListeners();
-  }
-
-  void _filterNotes() {
-    final query = _searchQuery.toLowerCase();
-    _filteredNotes = _notes.where((note) {
-      return note.title.toLowerCase().contains(query) ||
-          note.content.toLowerCase().contains(query);
-    }).toList();
   }
 
   void _sortNotes() {

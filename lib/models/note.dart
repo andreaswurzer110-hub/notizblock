@@ -9,11 +9,21 @@ class Note {
   String color;
   bool isPinned;
   bool isArchived;
-  // Notiz-Typ: 'text' (Standard) oder 'autopool' (Tabellen-Notiz). Bei 'autopool'
-  // steht die strukturierte Tabelle in `autopoolData` (JSON); `content` enthält
-  // zusätzlich eine lesbare Textfassung (für Liste/Suche/Widget/Sticky-Anzeige).
+  // Notiz-Typ: 'text' (Standard), 'autopool' (Tabellen-Notiz) oder 'shopping'
+  // (Einkaufsliste). Bei 'autopool'/'shopping' steht die strukturierte Form in
+  // `autopoolData` (JSON); `content` enthält zusätzlich eine lesbare Textfassung
+  // (für Liste/Suche/Widget/Sticky-Anzeige und für ältere App-Versionen).
   final String type;
+  // Generisches Struktur-Datenfeld (JSON). Historisch für 'autopool' eingeführt,
+  // wird auch von 'shopping' (Einkaufsliste) genutzt – bewusst dasselbe DB-/
+  // Sync-Feld, damit ältere Versionen, die einen Typ nicht rendern, die Daten
+  // beim Sync-Round-Trip nicht verlieren (der Feldname bleibt aus Kompatibilität).
   String autopoolData;
+  // Ordner/Kategorie (z.B. "Privat", "Arbeit"); leer = kein Ordner. Wird MIT der
+  // Notiz synchronisiert. Die Ordner-Liste selbst (Reihenfolge/leere Ordner) liegt
+  // lokal in den Einstellungen; im Drawer erscheint ein Ordner ohnehin, sobald
+  // eine synchronisierte Notiz ihn referenziert.
+  String folder;
 
   Note({
     String? id,
@@ -26,11 +36,13 @@ class Note {
     this.isArchived = false,
     this.type = 'text',
     this.autopoolData = '',
+    this.folder = '',
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         modifiedAt = modifiedAt ?? DateTime.now();
 
   bool get isAutopool => type == 'autopool';
+  bool get isShopping => type == 'shopping';
 
   // Kopie mit Änderungen erstellen
   Note copyWith({
@@ -42,6 +54,7 @@ class Note {
     bool? isArchived,
     String? type,
     String? autopoolData,
+    String? folder,
   }) {
     return Note(
       id: id,
@@ -54,6 +67,7 @@ class Note {
       isArchived: isArchived ?? this.isArchived,
       type: type ?? this.type,
       autopoolData: autopoolData ?? this.autopoolData,
+      folder: folder ?? this.folder,
     );
   }
 
@@ -70,6 +84,7 @@ class Note {
       'isArchived': isArchived ? 1 : 0,
       'type': type,
       'autopoolData': autopoolData,
+      'folder': folder,
     };
   }
 
@@ -86,6 +101,7 @@ class Note {
       isArchived: (map['isArchived'] as int) == 1,
       type: (map['type'] as String?) ?? 'text',
       autopoolData: (map['autopoolData'] as String?) ?? '',
+      folder: (map['folder'] as String?) ?? '',
     );
   }
 
@@ -102,6 +118,7 @@ class Note {
       'isArchived': isArchived,
       'type': type,
       'autopoolData': autopoolData,
+      'folder': folder,
     };
   }
 
@@ -117,6 +134,7 @@ class Note {
       isArchived: json['isArchived'] as bool,
       type: (json['type'] as String?) ?? 'text',
       autopoolData: (json['autopoolData'] as String?) ?? '',
+      folder: (json['folder'] as String?) ?? '',
     );
   }
 

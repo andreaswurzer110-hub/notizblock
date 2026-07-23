@@ -265,6 +265,55 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noteTypeAutopoolSubtitle => 'Tabelle (Geräteliste)';
 
   @override
+  String get noteTypeShoppingSubtitle => 'Artikel abhaken, Mengen zählen';
+
+  @override
+  String get shoppingList => 'Einkaufsliste';
+
+  @override
+  String get shoppingItemHint => 'Artikel';
+
+  @override
+  String get shoppingAddItem => 'Artikel hinzufügen';
+
+  @override
+  String shoppingCompleted(int count) {
+    return 'Erledigt ($count)';
+  }
+
+  @override
+  String get shoppingDeleteItem => 'Artikel löschen';
+
+  @override
+  String get allNotes => 'Alle Notizen';
+
+  @override
+  String get folders => 'Ordner';
+
+  @override
+  String get newFolder => 'Neuer Ordner';
+
+  @override
+  String get folderName => 'Ordnername';
+
+  @override
+  String get renameFolder => 'Ordner umbenennen';
+
+  @override
+  String get deleteFolder => 'Ordner löschen';
+
+  @override
+  String deleteFolderConfirm(String name) {
+    return 'Ordner „$name“ löschen? Die enthaltenen Notizen bleiben erhalten und sind dann keinem Ordner mehr zugeordnet.';
+  }
+
+  @override
+  String get moveToFolder => 'In Ordner verschieben';
+
+  @override
+  String get noFolder => 'Kein Ordner';
+
+  @override
   String get autopoolColName => 'Bezeichnung';
 
   @override

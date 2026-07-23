@@ -264,6 +264,55 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteTypeAutopoolSubtitle => 'Table (device list)';
 
   @override
+  String get noteTypeShoppingSubtitle => 'Check off items, count quantities';
+
+  @override
+  String get shoppingList => 'Shopping list';
+
+  @override
+  String get shoppingItemHint => 'Item';
+
+  @override
+  String get shoppingAddItem => 'Add item';
+
+  @override
+  String shoppingCompleted(int count) {
+    return 'Completed ($count)';
+  }
+
+  @override
+  String get shoppingDeleteItem => 'Delete item';
+
+  @override
+  String get allNotes => 'All notes';
+
+  @override
+  String get folders => 'Folders';
+
+  @override
+  String get newFolder => 'New folder';
+
+  @override
+  String get folderName => 'Folder name';
+
+  @override
+  String get renameFolder => 'Rename folder';
+
+  @override
+  String get deleteFolder => 'Delete folder';
+
+  @override
+  String deleteFolderConfirm(String name) {
+    return 'Delete folder “$name”? The notes inside are kept and will no longer be in any folder.';
+  }
+
+  @override
+  String get moveToFolder => 'Move to folder';
+
+  @override
+  String get noFolder => 'No folder';
+
+  @override
   String get autopoolColName => 'Name';
 
   @override
