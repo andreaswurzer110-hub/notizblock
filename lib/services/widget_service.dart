@@ -16,6 +16,11 @@ class WidgetService {
   // die applicationId ist aber at.aw.notizblock -> sonst trifft der Update-Broadcast nicht.
   static const String androidWidgetQualifiedName =
       'com.example.notizblock.NoteWidgetProvider';
+  // Ordner-Widget (öffnet die App im gewählten Ordner). Eigener Provider, gleicher
+  // Namespace-Trick wie beim Notiz-Widget.
+  static const String folderWidgetName = 'FolderWidgetProvider';
+  static const String folderWidgetQualifiedName =
+      'com.example.notizblock.FolderWidgetProvider';
   static const String _selectedNoteKey = 'widget_selected_note_';
 
   // Singleton
@@ -44,6 +49,21 @@ class WidgetService {
       );
     } catch (e) {
       debugPrint('Widget Update Fehler: $e');
+    }
+  }
+
+  // Ordner-Widget(s) neu zeichnen lassen (nach Ordner-/Zähler-Änderungen). Die
+  // Ordnerliste selbst liegt in app_flutter/folders.json (vom NotesProvider
+  // geschrieben); dieser Broadcast stößt nur die Neuberechnung an.
+  Future<void> updateFolderWidget() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await HomeWidget.updateWidget(
+        androidName: folderWidgetName,
+        qualifiedAndroidName: folderWidgetQualifiedName,
+      );
+    } catch (e) {
+      debugPrint('Ordner-Widget Update Fehler: $e');
     }
   }
 

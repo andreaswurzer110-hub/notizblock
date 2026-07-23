@@ -12,6 +12,7 @@ import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/autopool_table.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/folder_picker.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -42,6 +43,9 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
   late String _selectedColor;
   late String _autopoolJson;
   bool _isPinned = false;
+  // Ordner der Notiz (lokaler Zustand wie Farbe/Anheften). Neue Notiz startet im
+  // aktuell gewählten Ordner.
+  late String _folder;
   bool _hasChanges = false;
   bool _syncing = false;
   Timer? _saveDebounce;
@@ -67,6 +71,8 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     _selectedColor = widget.note?.color ?? '#FFFDE7';
     _isPinned = widget.note?.isPinned ?? false;
     _autopoolJson = widget.note?.autopoolData ?? '';
+    _folder = widget.note?.folder ??
+        context.read<NotesProvider>().selectedFolder;
     _currentNote = widget.note;
     _titleController.addListener(_onChanged);
     // Undo-Basis am tatsächlichen Anfangsstand der Tabelle ausrichten.
@@ -206,13 +212,15 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
         color: _selectedColor,
         type: 'autopool',
         autopoolData: json,
+        folder: _folder,
       );
       if (created != null) _currentNote = created;
     } else {
       if (title == _currentNote!.title &&
           json == _currentNote!.autopoolData &&
           _selectedColor == _currentNote!.color &&
-          _isPinned == _currentNote!.isPinned) {
+          _isPinned == _currentNote!.isPinned &&
+          _folder == _currentNote!.folder) {
         _hasChanges = false;
         return;
       }
@@ -222,6 +230,7 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
         color: _selectedColor,
         isPinned: _isPinned,
         autopoolData: json,
+        folder: _folder,
       );
       await notesProvider.updateNote(updated);
       _currentNote = updated;
@@ -279,6 +288,17 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
       });
       _onChanged();
     }
+  }
+
+  // Notiz einem Ordner zuordnen (lokaler Zustand, beim Speichern geschrieben).
+  Future<void> _moveToFolder() async {
+    final target = await showFolderPicker(context, currentFolder: _folder);
+    if (target == null || !mounted) return;
+    setState(() {
+      _folder = target;
+      _hasChanges = true;
+    });
+    _saveNote();
   }
 
   Future<void> _archiveNote() async {
@@ -401,6 +421,14 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _showColorPicker();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.drive_file_move_outlined),
+                  title: Text(l10n.moveToFolder),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _moveToFolder();
                   },
                 ),
                 // Einstellungen direkt aus dem Editor öffnen (wie im Text-Editor).

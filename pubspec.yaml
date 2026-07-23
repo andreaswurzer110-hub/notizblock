@@ -8,7 +8,7 @@ publish_to: 'none'
 # auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
 # nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
 # gesetzt, da pubspec keine 4. Stelle führen kann.
-version: 1.27.0+12700
+version: 1.28.0+12800
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -104,7 +104,7 @@ msix_config:
   # (Add-AppxPackage ohne vorheriges Remove) → Taskleisten-/Startmenü-Pin bleibt.
   # Bei jedem Release Minor/Patch hochzählen; bei schnellen lokalen Re-Builds
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
-  msix_version: 1.27.0.0
+  msix_version: 1.28.0.0
   logo_path: assets/icon/icon_full.png
   capabilities: internetClient
   architecture: x64
@@ -112,7 +112,7 @@ msix_config:
   certificate_password: notizblock
   install_certificate: false
   output_path: build/msix
-  output_name: Notizblock-1.27.0.0
+  output_name: Notizblock-1.28.0.0
   # Bewusst KEINE startup_task hier: der Autostart läuft über eine Startup-Ordner-
   # Verknüpfung (AutostartService, AppsFolder-Aktivierung), weil paketbasierte
   # StartupTasks auf manchen Systemen nicht im Task-Manager/in den Einstellungen

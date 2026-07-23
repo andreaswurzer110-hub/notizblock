@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/widgets.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/note.dart';
 import '../services/database_service.dart';
 import '../services/widget_service.dart';
@@ -85,6 +86,7 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   /// Auto-Sync planen.
   Future<void> _afterLocalWrite() async {
     _lastDbMtime = await DatabaseService.instance.getLastModified();
+    await _writeFoldersJson(); // Ordner-Widget aktuell halten (Android)
     _scheduleAutoSync();
   }
 
@@ -201,12 +203,37 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
+  // Zuletzt nach folders.json geschriebener Stand (Diff-Check, s. unten).
+  String? _lastFoldersJson;
+
+  /// Schreibt die Ordnerliste (Name + Notizanzahl) nach app_flutter/folders.json,
+  /// damit das Android-Homescreen-Ordner-Widget sie lesen kann, und stößt dessen
+  /// Neuzeichnen an. Nur bei tatsächlicher Änderung (spart I/O + Broadcasts).
+  /// Nur Android (Desktop hat kein solches Widget).
+  Future<void> _writeFoldersJson() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final list = [
+        for (final name in folders) {'name': name, 'count': folderCount(name)},
+      ];
+      final json = jsonEncode(list);
+      if (json == _lastFoldersJson) return; // unverändert -> nichts tun
+      _lastFoldersJson = json;
+      final dir = await getApplicationDocumentsDirectory();
+      await File('${dir.path}/folders.json').writeAsString(json);
+      await WidgetService.instance.updateFolderWidget();
+    } catch (e) {
+      debugPrint('folders.json schreiben fehlgeschlagen: $e');
+    }
+  }
+
   /// Neuen (leeren) Ordner anlegen.
   Future<void> createFolder(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty || _folders.contains(trimmed)) return;
     _folders.add(trimmed);
     await _saveFolders();
+    await _writeFoldersJson();
     notifyListeners();
   }
 
@@ -271,6 +298,7 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     try {
       _notes = await DatabaseService.instance.getAllNotes();
       _lastDbMtime = await DatabaseService.instance.getLastModified();
+      await _writeFoldersJson(); // Ordner-Widget nach (Sync-)Neuladen aktualisieren
     } catch (e) {
       _error = e.toString();
       debugPrint('Fehler beim Laden der Notizen: $e');

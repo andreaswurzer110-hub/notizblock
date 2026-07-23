@@ -11,6 +11,7 @@ import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/note_context_menu.dart';
+import '../widgets/folder_picker.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
@@ -36,6 +37,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   late TextEditingController _contentController;
   late String _selectedColor;
   late bool _isPinned;
+  // Ordner der Notiz (lokaler Zustand wie Farbe/Anheften). Beim Speichern
+  // geschrieben. Neue Notiz startet im aktuell gewählten Ordner.
+  late String _folder;
   bool _hasChanges = false;
   bool _syncing = false;
   bool _applyingExternal = false;
@@ -73,6 +77,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     _contentController = TextEditingController(text: widget.note?.content ?? '');
     _selectedColor = widget.note?.color ?? '#FFFDE7';
     _isPinned = widget.note?.isPinned ?? false;
+    _folder = widget.note?.folder ??
+        context.read<NotesProvider>().selectedFolder;
     _lastShownModified = widget.note?.modifiedAt;
     _currentNote = widget.note;
     _lastCheckpoint =
@@ -364,6 +370,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
         title: title,
         content: content,
         color: _selectedColor,
+        folder: _folder,
       );
       if (created != null) _currentNote = created;
     } else {
@@ -372,7 +379,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       if (title == _currentNote!.title &&
           content == _currentNote!.content &&
           _selectedColor == _currentNote!.color &&
-          _isPinned == _currentNote!.isPinned) {
+          _isPinned == _currentNote!.isPinned &&
+          _folder == _currentNote!.folder) {
         _hasChanges = false;
         return;
       }
@@ -381,6 +389,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
         content: content,
         color: _selectedColor,
         isPinned: _isPinned,
+        folder: _folder,
       );
       await notesProvider.updateNote(updated);
       _currentNote = updated;
@@ -407,6 +416,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       _isPinned = !_isPinned;
       _hasChanges = true;
     });
+  }
+
+  // Notiz einem Ordner zuordnen (lokaler Zustand, beim Speichern geschrieben).
+  Future<void> _moveToFolder() async {
+    final target = await showFolderPicker(context, currentFolder: _folder);
+    if (target == null || !mounted) return;
+    setState(() {
+      _folder = target;
+      _hasChanges = true;
+    });
+    _saveNote();
   }
 
   // Notiz als Desktop-Widget anheften/lösen (nur Desktop). Beim Anheften öffnet
@@ -542,6 +562,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   onTap: () {
                     Navigator.pop(context);
                     _showColorPicker();
+                  },
+                ),
+
+                // In Ordner verschieben
+                ListTile(
+                  leading: const Icon(Icons.drive_file_move_outlined),
+                  title: Text(l10n.moveToFolder),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _moveToFolder();
                   },
                 ),
 

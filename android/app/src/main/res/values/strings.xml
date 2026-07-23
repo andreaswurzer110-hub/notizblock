@@ -8,4 +8,9 @@
     <string name="no_notes">Keine Notizen vorhanden</string>
     <string name="widget_home">Hauptmenue oeffnen</string>
     <string name="widget_sync">Jetzt synchronisieren</string>
+    <string name="folder_widget_name">Ordner Widget</string>
+    <string name="folder_widget_description">Oeffnet die App direkt in einem Ordner</string>
+    <string name="select_folder">Ordner auswaehlen</string>
+    <string name="no_folders">Keine Ordner vorhanden</string>
+    <string name="all_notes">Alle Notizen</string>
 </resources>

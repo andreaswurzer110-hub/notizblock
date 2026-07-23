@@ -25,6 +25,12 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="notizblock" android:host="edit_note" />
             </intent-filter>
+            <!-- Deep Link für Ordner-Widget: öffnet die App im Ordner -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="notizblock" android:host="open_folder" />
+            </intent-filter>
         </activity>
 
         <!-- Widget Configuration Activity -->
@@ -48,6 +54,28 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/note_widget_info" />
+        </receiver>
+
+        <!-- Ordner-Widget: Konfiguration (Ordner wählen) + Provider -->
+        <activity
+            android:name=".FolderWidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Material.Light.Dialog">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".FolderWidgetProvider"
+            android:exported="true"
+            android:label="@string/folder_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/folder_widget_info" />
         </receiver>
 
         <!-- home_widget Hintergrund-Interaktion: nötig, damit der Klick auf die

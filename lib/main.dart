@@ -195,18 +195,25 @@ void main(List<String> args) async {
   // allererste Frame bereits das Bearbeiten-Fenster – kein weißer Platzhalter
   // und kein nachträglicher Push mehr, also auch kein Flackern.
   Note? initialNote;
+  // Per Ordner-Widget gestartet? Dann diesen Ordner beim Start vorselektieren.
+  String? initialFolder;
   if (Platform.isAndroid) {
     try {
-      final noteId = await const MethodChannel('notizblock/deeplink')
-          .invokeMethod<String>('getInitialNoteId');
+      const channel = MethodChannel('notizblock/deeplink');
+      final noteId = await channel.invokeMethod<String>('getInitialNoteId');
       if (noteId != null && noteId.isNotEmpty) {
         initialNote = await DatabaseService.instance.getNoteById(noteId);
+      }
+      final folder = await channel.invokeMethod<String>('getInitialFolder');
+      if (folder != null && folder.isNotEmpty) {
+        initialFolder = folder;
       }
     } catch (_) {}
   }
 
   runApp(NotizblockApp(
     initialNote: initialNote,
+    initialFolder: initialFolder,
     openSettings: openSettings,
     showWindowAfterFirstFrame: showWindowAfterFirstFrame,
     openWidgetsAfterFirstFrame: openWidgetsAfterFirstFrame,
@@ -283,6 +290,9 @@ class NotizblockApp extends StatefulWidget {
   // Ist sie gesetzt, wird der Editor direkt als erste Seite gebaut (kein
   // Platzhalter, kein nachträglicher Push -> kein Flackern).
   final Note? initialNote;
+  // Beim Start per Ordner-Widget: dieser Ordner wird nach dem ersten Frame in der
+  // Notizliste vorselektiert (Home zeigt dann direkt den Ordnerinhalt).
+  final String? initialFolder;
   // true, wenn die App vom Einstellungen-Button eines Sticky-Fensters
   // (--show-settings) gestartet wurde -> nach dem Start direkt Einstellungen.
   final bool openSettings;
@@ -300,6 +310,7 @@ class NotizblockApp extends StatefulWidget {
   const NotizblockApp({
     super.key,
     this.initialNote,
+    this.initialFolder,
     this.openSettings = false,
     this.showWindowAfterFirstFrame = false,
     this.openWidgetsAfterFirstFrame = false,
@@ -372,6 +383,15 @@ class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
     if (widget.openWidgetsAfterFirstFrame) {
       await StickyNoteService.instance.openAllWidgets();
     }
+    // Kaltstart per Ordner-Widget: den gewählten Ordner in der Notizliste
+    // vorselektieren (HomeScreen ist bereits gebaut -> NotesProvider existiert).
+    if (widget.initialFolder != null && widget.initialFolder!.isNotEmpty) {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx != null && ctx.mounted) {
+        Provider.of<NotesProvider>(ctx, listen: false)
+            .selectFolder(widget.initialFolder!);
+      }
+    }
   }
 
   @override
@@ -426,8 +446,21 @@ class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
         if (noteId != null) {
           _openNoteEditor(noteId);
         }
+      } else if (call.method == 'openFolder') {
+        final folder = call.arguments as String?;
+        if (folder != null) {
+          _openFolder(folder);
+        }
       }
     });
+  }
+
+  // Warmstart-Pfad (Ordner-Widget): zur Notizliste zurück und den Ordner wählen.
+  void _openFolder(String folder) {
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    Provider.of<NotesProvider>(ctx, listen: false).selectFolder(folder);
   }
 
   // Warmstart-Pfad: Editor über den laufenden Navigator öffnen.

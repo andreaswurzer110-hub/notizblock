@@ -9,4 +9,4 @@
 //
 // WICHTIG: Bei jedem Release mitziehen, zusammen mit pubspec `version:`
 // (versionCode), `msix_version` und dem `--build-name`-Flag des AAB-Builds.
-const String kAppVersionDisplay = '1.27.0.0';
+const String kAppVersionDisplay = '1.28.0.0';

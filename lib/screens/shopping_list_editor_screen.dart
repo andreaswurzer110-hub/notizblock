@@ -12,6 +12,7 @@ import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/shopping_list_view.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/folder_picker.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -44,6 +45,9 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
   late String _selectedColor;
   late String _shoppingJson;
   bool _isPinned = false;
+  // Ordner der Notiz (lokaler Zustand wie Farbe/Anheften). Neue Notiz startet im
+  // aktuell gewählten Ordner.
+  late String _folder;
   bool _hasChanges = false;
   bool _syncing = false;
   Timer? _saveDebounce;
@@ -62,6 +66,8 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
     _selectedColor = widget.note?.color ?? '#FFFDE7';
     _isPinned = widget.note?.isPinned ?? false;
     _shoppingJson = widget.note?.autopoolData ?? '';
+    _folder = widget.note?.folder ??
+        context.read<NotesProvider>().selectedFolder;
     _currentNote = widget.note;
     _titleController.addListener(_onChanged);
   }
@@ -135,13 +141,15 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
         color: _selectedColor,
         type: 'shopping',
         autopoolData: json,
+        folder: _folder,
       );
       if (created != null) _currentNote = created;
     } else {
       if (title == _currentNote!.title &&
           json == _currentNote!.autopoolData &&
           _selectedColor == _currentNote!.color &&
-          _isPinned == _currentNote!.isPinned) {
+          _isPinned == _currentNote!.isPinned &&
+          _folder == _currentNote!.folder) {
         _hasChanges = false;
         return;
       }
@@ -151,6 +159,7 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
         color: _selectedColor,
         isPinned: _isPinned,
         autopoolData: json,
+        folder: _folder,
       );
       await notesProvider.updateNote(updated);
       _currentNote = updated;
@@ -208,6 +217,17 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
       });
       _onChanged();
     }
+  }
+
+  // Notiz einem Ordner zuordnen (lokaler Zustand, beim Speichern geschrieben).
+  Future<void> _moveToFolder() async {
+    final target = await showFolderPicker(context, currentFolder: _folder);
+    if (target == null || !mounted) return;
+    setState(() {
+      _folder = target;
+      _hasChanges = true;
+    });
+    _saveNote();
   }
 
   Future<void> _archiveNote() async {
@@ -330,6 +350,14 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _showColorPicker();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.drive_file_move_outlined),
+                  title: Text(l10n.moveToFolder),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _moveToFolder();
                   },
                 ),
                 ListTile(
