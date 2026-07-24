@@ -99,6 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // Beim + zuerst den Notiz-Typ wählen: normale Notiz oder Autopool-Tabelle.
   void _createNote() {
     final l10n = AppLocalizations.of(context)!;
+    // Steht man in einem Ordner, zusätzlich „vorhandene Notiz hinzufügen"
+    // anbieten (nicht nur eine neue Notiz erstellen).
+    final folder = context.read<NotesProvider>().selectedFolder;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -124,6 +127,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const Divider(height: 1),
+              if (folder.isNotEmpty) ...[
+                ListTile(
+                  leading: const Icon(Icons.playlist_add),
+                  title: Text(l10n.addExistingNote),
+                  subtitle: Text(folder,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _addExistingNotesToFolder(folder);
+                  },
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: const Icon(Icons.notes),
                 title: Text(l10n.noteTypeNote),
@@ -163,6 +179,122 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openAsStickyNote(Note note) {
     StickyNoteService.instance.openStickyNote(note);
+  }
+
+  // Vorhandene Notizen in den [folder] verschieben (Mehrfachauswahl). Kandidaten
+  // sind alle nicht archivierten Notizen, die nicht schon in diesem Ordner sind.
+  Future<void> _addExistingNotesToFolder(String folder) async {
+    final l10n = AppLocalizations.of(context)!;
+    final provider = context.read<NotesProvider>();
+    final candidates =
+        provider.allNotes.where((n) => n.folder != folder).toList();
+    final selectedIds = <String>{};
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: StatefulBuilder(
+            builder: (stCtx, setSheetState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      l10n.addNotesToFolderTitle(folder),
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                if (candidates.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(l10n.noNotesToAdd,
+                        style:
+                            TextStyle(color: Theme.of(sheetContext).hintColor)),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: candidates.length,
+                      itemBuilder: (ctx, i) {
+                        final n = candidates[i];
+                        return CheckboxListTile(
+                          controlAffinity: ListTileControlAffinity.leading,
+                          value: selectedIds.contains(n.id),
+                          onChanged: (v) => setSheetState(() {
+                            if (v == true) {
+                              selectedIds.add(n.id);
+                            } else {
+                              selectedIds.remove(n.id);
+                            }
+                          }),
+                          title: Text(
+                            n.title.isNotEmpty ? n.title : l10n.emptyNote,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: n.folder.isNotEmpty
+                              ? Text(n.folder,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)
+                              : null,
+                        );
+                      },
+                    ),
+                  ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext, false),
+                        child: Text(l10n.cancel),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: selectedIds.isEmpty
+                            ? null
+                            : () => Navigator.pop(sheetContext, true),
+                        child: Text(l10n.add),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || selectedIds.isEmpty || !mounted) return;
+    for (final id in selectedIds) {
+      await provider.setNoteFolder(id, folder);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.addedToFolderSnack(folder)),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _syncNow() async {
@@ -332,12 +464,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showNoteOptions(Note note) {
     final l10n = AppLocalizations.of(context)!;
 
+    // WICHTIG: Der Builder-Context des Sheets ist NACH Navigator.pop nicht mehr
+    // gemountet. Zum Schließen daher `sheetContext`, für Folgeaktionen aber den
+    // Screen-Context (`context` dieses States). Sonst bricht z.B. der
+    // context.mounted-Check in showFolderPicker ab und die Verschiebung passiert
+    // nicht – das war der Android-„erst nach ein paar Versuchen"-Bug (Desktop war
+    // nie betroffen, weil das Rechtsklick-Menü schon den Screen-Context nutzt).
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -348,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     note.title.isNotEmpty ? note.title : l10n.emptyNote,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -363,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: const Text('Als Sticky Note öffnen'),
                     subtitle: const Text('Öffnet in eigenem Fenster'),
                     onTap: () {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       _openAsStickyNote(note);
                     },
                   ),
@@ -372,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: Icon(note.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
                   title: Text(note.isPinned ? l10n.unpin : l10n.pin),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     context.read<NotesProvider>().togglePin(note.id);
                   },
                 ),
@@ -380,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: const Icon(Icons.palette_outlined),
                   title: Text(l10n.color),
                   onTap: () async {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     final newColor = await showColorPickerSheet(context, currentColor: note.color);
                     if (newColor != null && mounted) {
                       context.read<NotesProvider>().changeColor(note.id, newColor);
@@ -391,7 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: const Icon(Icons.drive_file_move_outlined),
                   title: Text(l10n.moveToFolder),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     showMoveToFolderSheet(context,
                         noteId: note.id, currentFolder: note.folder);
                   },
@@ -400,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: const Icon(Icons.archive_outlined),
                   title: Text(l10n.archive),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     context.read<NotesProvider>().archiveNote(note.id);
                   },
                 ),
@@ -408,7 +546,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: const Icon(Icons.unarchive_outlined),
                   title: Text(l10n.archiveAndRestore),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     _openArchive();
                   },
                 ),
@@ -416,7 +554,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   leading: const Icon(Icons.delete_outlined, color: Colors.red),
                   title: Text(l10n.delete, style: const TextStyle(color: Colors.red)),
                   onTap: () {
-                    Navigator.pop(context);
+                    Navigator.pop(sheetContext);
                     _confirmDelete(note);
                   },
                 ),
@@ -510,7 +648,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Consumer<NotesProvider>(
         builder: (context, notesProvider, child) {
           if (notesProvider.isLoading) return const Center(child: CircularProgressIndicator());
-          if (notesProvider.notes.isEmpty) return _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty);
+          if (notesProvider.notes.isEmpty) return _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty, notesProvider.selectedFolder);
           return settings.isGridView ? _buildGridView(notesProvider.notes) : _buildListView(notesProvider.notes);
         },
       ),
@@ -749,7 +887,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (confirmed == true) await provider.deleteFolder(folder);
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n, bool isSearchResult) {
+  Widget _buildEmptyState(
+      AppLocalizations l10n, bool isSearchResult, String folder) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -766,6 +905,16 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!isSearchResult) ...[
               const SizedBox(height: 8),
               Text(l10n.noNotesHint, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade500), textAlign: TextAlign.center),
+            ],
+            // In einem (z.B. neu angelegten, leeren) Ordner: vorhandene Notiz
+            // hinzufügen, nicht nur eine neue erstellen.
+            if (!isSearchResult && folder.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              FilledButton.tonalIcon(
+                onPressed: () => _addExistingNotesToFolder(folder),
+                icon: const Icon(Icons.playlist_add),
+                label: Text(l10n.addExistingNote),
+              ),
             ],
           ],
         ),

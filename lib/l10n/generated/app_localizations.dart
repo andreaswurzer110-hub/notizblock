@@ -668,6 +668,42 @@ abstract class AppLocalizations {
   /// **'Kein Ordner'**
   String get noFolder;
 
+  /// No description provided for @addExistingNote.
+  ///
+  /// In de, this message translates to:
+  /// **'Vorhandene Notiz hinzufügen'**
+  String get addExistingNote;
+
+  /// No description provided for @addNotesToFolderTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Notizen zu „{folder}“ hinzufügen'**
+  String addNotesToFolderTitle(String folder);
+
+  /// No description provided for @addedToFolderSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'Zu „{folder}“ hinzugefügt'**
+  String addedToFolderSnack(String folder);
+
+  /// No description provided for @removedFromFolderSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'Aus Ordner entfernt'**
+  String get removedFromFolderSnack;
+
+  /// No description provided for @noNotesToAdd.
+  ///
+  /// In de, this message translates to:
+  /// **'Keine weiteren Notizen zum Hinzufügen'**
+  String get noNotesToAdd;
+
+  /// No description provided for @add.
+  ///
+  /// In de, this message translates to:
+  /// **'Hinzufügen'**
+  String get add;
+
   /// No description provided for @autopoolColName.
   ///
   /// In de, this message translates to:

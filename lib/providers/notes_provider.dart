@@ -13,6 +13,9 @@ import 'settings_provider.dart';
 class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   // SettingsStore-Key für die explizite Ordner-Liste (lokal, JSON-Array).
   static const String foldersKey = 'folders';
+  // Zeitstempel (ISO-UTC) der letzten lokalen Ordnerlisten-Änderung. Basis für
+  // den last-write-wins-Abgleich der Ordnerliste über Drive (GoogleDriveService).
+  static const String foldersModifiedAtKey = 'folders_modified_at';
 
   List<Note> _notes = [];
   String _searchQuery = '';
@@ -142,6 +145,11 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
 
   List<Note> get pinnedNotes => notes.where((n) => n.isPinned).toList();
   List<Note> get unpinnedNotes => notes.where((n) => !n.isPinned).toList();
+
+  /// Alle (nicht archivierten) Notizen OHNE Ordner-/Suchfilter. Für „vorhandene
+  /// Notiz zu Ordner hinzufügen", wo der aktive Ordnerfilter gerade NICHT greifen
+  /// soll (sonst wären die Kandidaten leer, sobald man im Zielordner steht).
+  List<Note> get allNotes => List.unmodifiable(_notes);
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get searchQuery => _searchQuery;
@@ -177,19 +185,36 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   }
 
   Future<void> _loadFolders() async {
+    await _reloadFoldersFromStore();
+    notifyListeners();
+  }
+
+  /// Ordnerliste frisch aus dem SettingsStore lesen (ohne notify – Aufrufer
+  /// benachrichtigen selbst). Wird auch nach jedem Sync über [loadNotes]
+  /// aufgerufen, damit vom Drive adoptierte Fremd-Ordner im Drawer erscheinen.
+  ///
+  /// Mobil `reload()`, damit auch Ordner-Änderungen des Hintergrund-Sync-Isolates
+  /// (eigene shared_preferences-Sicht) sichtbar werden – dort per-Key-Store, also
+  /// unkritisch. Desktop `load()`: der Ordner-Sync läuft im selben Prozess
+  /// (Hauptapp) und hat den Cache bereits aktualisiert; ein `reload()` würde nur
+  /// mit den eigenen setString-Schreibvorgängen um settings.json konkurrieren.
+  Future<void> _reloadFoldersFromStore() async {
     try {
-      await SettingsStore.load();
+      if (Platform.isAndroid || Platform.isIOS) {
+        await SettingsStore.reload();
+      } else {
+        await SettingsStore.load();
+      }
       final raw = SettingsStore.getString(foldersKey);
+      final list = <String>[];
       if (raw != null && raw.isNotEmpty) {
         final decoded = jsonDecode(raw);
         if (decoded is List) {
-          _folders = decoded
-              .map((e) => e.toString())
-              .where((e) => e.isNotEmpty)
-              .toList();
+          list.addAll(
+              decoded.map((e) => e.toString()).where((e) => e.isNotEmpty));
         }
       }
-      notifyListeners();
+      _folders = list;
     } catch (e) {
       debugPrint('Ordner laden fehlgeschlagen: $e');
     }
@@ -198,6 +223,9 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
   Future<void> _saveFolders() async {
     try {
       await SettingsStore.setString(foldersKey, jsonEncode(_folders));
+      // Zeitstempel für den last-write-wins-Abgleich der Ordnerliste über Drive.
+      await SettingsStore.setString(
+          foldersModifiedAtKey, DateTime.now().toUtc().toIso8601String());
     } catch (e) {
       debugPrint('Ordner speichern fehlgeschlagen: $e');
     }
@@ -280,9 +308,17 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     await _afterLocalWrite();
   }
 
-  /// Eine Notiz einem Ordner zuordnen (leer = kein Ordner).
+  /// Eine Notiz einem Ordner zuordnen (leer = kein Ordner). Holt den Stand frisch
+  /// aus der DB (nicht die evtl. veraltete In-Memory-Notiz), damit ein gleichzeitiger
+  /// Sync-Pull die Zuordnung nicht auf altem Inhalt vornimmt und die Operation
+  /// nicht ins Leere läuft, falls die Liste gerade neu geladen wurde.
   Future<bool> setNoteFolder(String id, String folder) async {
-    final note = _notes.firstWhere((n) => n.id == id);
+    Note? note = await DatabaseService.instance.getNoteById(id);
+    if (note == null) {
+      final i = _notes.indexWhere((n) => n.id == id);
+      if (i == -1) return false;
+      note = _notes[i];
+    }
     if (note.folder == folder) return true;
     return await updateNote(note.copyWith(folder: folder));
   }
@@ -298,6 +334,9 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     try {
       _notes = await DatabaseService.instance.getAllNotes();
       _lastDbMtime = await DatabaseService.instance.getLastModified();
+      // Ordnerliste mitziehen: der Sync kann eine Fremd-Ordnerliste adoptiert
+      // haben. Vor _writeFoldersJson, damit dessen JSON die neuen Ordner enthält.
+      await _reloadFoldersFromStore();
       await _writeFoldersJson(); // Ordner-Widget nach (Sync-)Neuladen aktualisieren
     } catch (e) {
       _error = e.toString();

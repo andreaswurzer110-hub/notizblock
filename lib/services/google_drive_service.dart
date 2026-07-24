@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/note.dart';
 import 'database_service.dart';
 import 'google_drive_config.dart';
+import 'settings_store.dart';
 
 /// Maximale Dauer eines einzelnen Drive-HTTP-Requests (Verbindung + Senden +
 /// Antwort-Header) bzw. einer Stillstands-Pause im Download-Stream. Schutz gegen
@@ -89,6 +90,14 @@ class GoogleDriveService {
   static const String _notesFolderName = 'notes';
   static const String _tombstonesFolderName = 'tombstones';
   static const String _historyFolderName = 'history';
+
+  // Ordnerliste als eigene Datei im Backup-Root (last-write-wins per Zeitstempel).
+  // Ohne sie erscheinen LEERE Ordner nie auf anderen Geräten (bisher zeigte sich
+  // ein Ordner nur, wenn eine synchronisierte Notiz ihn referenziert). Keys müssen
+  // zu NotesProvider.foldersKey/foldersModifiedAtKey passen.
+  static const String _foldersFileName = 'folders.json';
+  static const String _foldersKey = 'folders';
+  static const String _foldersModifiedKey = 'folders_modified_at';
 
   // Historie-Aufbewahrung
   static const int _historyPerNote = 30; // Versionen pro Notiz
@@ -633,6 +642,9 @@ class GoogleDriveService {
         uploaded++;
       }
 
+      // ---- Ordnerliste abgleichen (leere/Reihenfolge-Ordner) ----
+      await _syncFolderList(rootId);
+
       // ---- Historie kürzen (nur wenn sich etwas getan hat) ----
       if (uploaded > 0 || downloaded > 0) {
         await _pruneHistory(historyFolderId, tombFolderId);
@@ -668,6 +680,108 @@ class GoogleDriveService {
       return SyncResult(
           success: false, message: 'Synchronisierung fehlgeschlagen: $e');
     }
+  }
+
+  // ---- Ordnerliste-Abgleich ----
+
+  /// Ordnerliste (explizit angelegte Ordner, inkl. leerer) über die kleine
+  /// Drive-Datei `folders.json` abgleichen – last-write-wins über den Zeitstempel
+  /// [_foldersModifiedKey]. Ohne das erscheinen leere Ordner nie auf anderen
+  /// Geräten. Läuft NICHT in Sticky-/Sekundärprozessen: die verwalten keine
+  /// Ordner und dürfen die settings.json der Hauptapp nicht schreiben
+  /// (SettingsStore-Invariante, s. CLAUDE.md).
+  Future<void> _syncFolderList(String rootId) async {
+    if (isSecondaryProcess) return;
+    try {
+      // Lokalen Stand frisch lesen. Mobil reload() (auch Hintergrund-Isolate-
+      // Sicht; per-Key-Store, unkritisch); Desktop load() – dort ist die Hauptapp
+      // einziger Schreiber, ein reload() würde nur mit eigenen Writes konkurrieren.
+      if (!_isDesktop) {
+        await SettingsStore.reload();
+      } else {
+        await SettingsStore.load();
+      }
+      final localRaw = SettingsStore.getString(_foldersKey);
+      final localList = _parseFolderList(localRaw);
+      final localTsRaw = SettingsStore.getString(_foldersModifiedKey);
+      var localTs = DateTime.tryParse(localTsRaw ?? '')?.toUtc() ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+      // Ordner aus einer Version VOR diesem Feature haben noch keinen Zeitstempel.
+      final neverStamped = localTsRaw == null;
+
+      // Remote lesen
+      List<String>? remoteList;
+      DateTime? remoteTs;
+      final fileId = await _findFile(rootId, _foldersFileName);
+      if (fileId != null) {
+        final content = await _downloadFile(fileId);
+        if (content != null) {
+          try {
+            final m = jsonDecode(content) as Map<String, dynamic>;
+            final fl = m['folders'];
+            if (fl is List) {
+              remoteList = fl
+                  .map((e) => e.toString())
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+            }
+            remoteTs =
+                DateTime.tryParse(m['modifiedAt'] as String? ?? '')?.toUtc();
+          } catch (_) {}
+        }
+      }
+
+      // Übergang (einmalig pro Gerät): lokale Alt-Ordner ohne Zeitstempel.
+      if (neverStamped && localList.isNotEmpty) {
+        final now = DateTime.now().toUtc();
+        // Existiert schon eine Remote-Liste, VEREINEN – so gehen weder lokale noch
+        // fremde (leere) Alt-Ordner verloren, egal welches Gerät zuerst synct.
+        final merged = remoteList == null
+            ? localList
+            : <String>{...remoteList, ...localList}.toList();
+        await SettingsStore.setString(_foldersKey, jsonEncode(merged));
+        await SettingsStore.setString(
+            _foldersModifiedKey, now.toIso8601String());
+        await _putFile(
+            rootId,
+            _foldersFileName,
+            jsonEncode({'folders': merged, 'modifiedAt': now.toIso8601String()}));
+        return;
+      }
+
+      if (remoteList != null && remoteTs != null && remoteTs.isAfter(localTs)) {
+        // Remote neuer -> lokal übernehmen (mit dem REMOTE-Zeitstempel, nicht now).
+        await SettingsStore.setString(_foldersKey, jsonEncode(remoteList));
+        await SettingsStore.setString(
+            _foldersModifiedKey, remoteTs.toIso8601String());
+      } else if (localRaw != null &&
+          (remoteTs == null || localTs.isAfter(remoteTs))) {
+        // Lokal neuer (oder Remote fehlt) -> hochladen.
+        await _putFile(
+            rootId,
+            _foldersFileName,
+            jsonEncode({
+              'folders': localList,
+              'modifiedAt': localTs.toIso8601String(),
+            }));
+      }
+    } catch (e) {
+      debugPrint('Ordnerliste-Sync Fehler: $e');
+    }
+  }
+
+  List<String> _parseFolderList(String? raw) {
+    if (raw == null || raw.isEmpty) return <String>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+    return <String>[];
   }
 
   // ---- Gelöschte Notizen (Papierkorb) ----

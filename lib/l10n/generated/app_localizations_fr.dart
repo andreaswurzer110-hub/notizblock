@@ -315,6 +315,28 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noFolder => 'Aucun dossier';
 
   @override
+  String get addExistingNote => 'Ajouter une note existante';
+
+  @override
+  String addNotesToFolderTitle(String folder) {
+    return 'Ajouter des notes à « $folder »';
+  }
+
+  @override
+  String addedToFolderSnack(String folder) {
+    return 'Ajouté à « $folder »';
+  }
+
+  @override
+  String get removedFromFolderSnack => 'Retiré du dossier';
+
+  @override
+  String get noNotesToAdd => 'Aucune autre note à ajouter';
+
+  @override
+  String get add => 'Ajouter';
+
+  @override
   String get autopoolColName => 'Désignation';
 
   @override

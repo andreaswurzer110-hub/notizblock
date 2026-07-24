@@ -126,6 +126,22 @@ Future<void> showMoveToFolderSheet(
   required String currentFolder,
 }) async {
   final provider = context.read<NotesProvider>();
+  // Messenger + l10n VOR dem await greifen (danach ist context evtl. nicht mehr
+  // gültig – Lint use_build_context_synchronously).
+  final messenger = ScaffoldMessenger.of(context);
+  final l10n = AppLocalizations.of(context)!;
   final target = await showFolderPicker(context, currentFolder: currentFolder);
-  if (target != null) await provider.setNoteFolder(noteId, target);
+  if (target == null) return;
+  final ok = await provider.setNoteFolder(noteId, target);
+  if (!ok) return;
+  // Kurze Rückmeldung „wurde hinzugefügt / entfernt".
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(target.isEmpty
+          ? l10n.removedFromFolderSnack
+          : l10n.addedToFolderSnack(target)),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
