@@ -37,13 +37,12 @@ class MainActivity : FlutterActivity() {
                 }
             }
             "open_folder" -> {
-                // Ordner-Widget: öffnet die App im gewählten Ordner (leer = Alle).
-                val folder = data.getQueryParameter("name") ?: ""
-                initialFolder = folder
-                flutterEngine?.dartExecutor?.let {
-                    MethodChannel(it.binaryMessenger, CHANNEL)
-                        .invokeMethod("openFolder", folder)
-                }
+                // Ordner-Widget: den gewählten Ordner nur vormerken (leer = Alle).
+                // KEIN sofortiges invokeMethod: beim Warm-Resume aus dem Hintergrund
+                // ist die Zustellung unzuverlässig (erst der 2. Tap kam an). Flutter
+                // fragt den Ordner stattdessen bei JEDEM Resume via getInitialFolder
+                // ab (siehe _checkPendingFolder) – das greift auch beim 1. Tap.
+                initialFolder = data.getQueryParameter("name") ?: ""
             }
         }
     }

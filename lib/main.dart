@@ -321,7 +321,8 @@ class NotizblockApp extends StatefulWidget {
   State<NotizblockApp> createState() => _NotizblockAppState();
 }
 
-class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
+class _NotizblockAppState extends State<NotizblockApp>
+    with WindowListener, WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   static const _channel = MethodChannel('notizblock/deeplink');
   // Linux (warme Instanz): pollt Öffnen-Kommandos von Widget-Prozessen.
@@ -334,6 +335,10 @@ class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
     // MainActivity per onNewIntent ein 'openNote' über diesen Channel.
     if (Platform.isAndroid) {
       _setupDeepLinkListener();
+      // Ordner-Widget: bei jedem Resume prüfen, ob ein Ordner-Deep-Link ansteht
+      // (zuverlässiger als das sofortige invokeMethod, das beim Warm-Resume aus
+      // dem Hintergrund erst beim 2. Tap ankam).
+      WidgetsBinding.instance.addObserver(this);
     }
 
     // Warme Hauptinstanz (Linux): Fenster beim Schließen nur verstecken statt
@@ -397,10 +402,32 @@ class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
   @override
   void dispose() {
     _mainCmdTimer?.cancel();
+    if (Platform.isAndroid) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
     if (widget.warmMainInstance) {
       windowManager.removeListener(this);
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Zurück im Vordergrund (z.B. nach Tipp aufs Ordner-Widget): anstehenden
+    // Ordner-Deep-Link einlösen. getInitialFolder liefert den Wert genau einmal
+    // (MainActivity setzt ihn danach auf null zurück).
+    if (state == AppLifecycleState.resumed && Platform.isAndroid) {
+      _checkPendingFolder();
+    }
+  }
+
+  Future<void> _checkPendingFolder() async {
+    try {
+      final folder = await _channel.invokeMethod<String>('getInitialFolder');
+      if (folder != null && folder.isNotEmpty) {
+        _openFolder(folder);
+      }
+    } catch (_) {}
   }
 
   // Warme Instanz: Ein Widget hat „Hauptmenü/Einstellungen öffnen" angefordert
@@ -446,21 +473,27 @@ class _NotizblockAppState extends State<NotizblockApp> with WindowListener {
         if (noteId != null) {
           _openNoteEditor(noteId);
         }
-      } else if (call.method == 'openFolder') {
-        final folder = call.arguments as String?;
-        if (folder != null) {
-          _openFolder(folder);
-        }
       }
     });
   }
 
-  // Warmstart-Pfad (Ordner-Widget): zur Notizliste zurück und den Ordner wählen.
+  // Ordner-Widget: zur Notizliste (als EINZIGEN Screen) und den Ordner wählen.
+  // pushAndRemoveUntil ist robust – ein bloßes popUntil(isFirst) würde NICHT zur
+  // Liste zurückführen, falls gerade ein Editor als Wurzel-Screen offen ist (z.B.
+  // aus einem Notiz-Widget geöffnet) → es bliebe die letzte Notiz sichtbar.
   void _openFolder(String folder) {
+    final nav = _navigatorKey.currentState;
     final ctx = _navigatorKey.currentContext;
-    if (ctx == null || !ctx.mounted) return;
-    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    if (nav == null || ctx == null || !ctx.mounted) return;
     Provider.of<NotesProvider>(ctx, listen: false).selectFolder(folder);
+    nav.pushAndRemoveUntil(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeScreen(),
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
+      (route) => false,
+    );
   }
 
   // Warmstart-Pfad: Editor über den laufenden Navigator öffnen.
