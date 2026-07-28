@@ -93,6 +93,8 @@
   "shoppingCompleted": "Completed ({count})",
   "@shoppingCompleted": { "placeholders": { "count": { "type": "int" } } },
   "shoppingDeleteItem": "Delete item",
+  "shoppingOpenCount": "{open}/{total} open",
+  "@shoppingOpenCount": { "placeholders": { "open": { "type": "int" }, "total": { "type": "int" } } },
   "allNotes": "All notes",
   "folders": "Folders",
   "newFolder": "New folder",

@@ -285,6 +285,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get shoppingDeleteItem => 'Eliminar artículo';
 
   @override
+  String shoppingOpenCount(int open, int total) {
+    return '$open/$total pendientes';
+  }
+
+  @override
   String get allNotes => 'Todas las notas';
 
   @override

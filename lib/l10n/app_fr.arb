@@ -85,6 +85,7 @@
   "shoppingAddItem": "Ajouter un article",
   "shoppingCompleted": "Terminé ({count})",
   "shoppingDeleteItem": "Supprimer l’article",
+  "shoppingOpenCount": "{open}/{total} à acheter",
   "allNotes": "Toutes les notes",
   "folders": "Dossiers",
   "newFolder": "Nouveau dossier",

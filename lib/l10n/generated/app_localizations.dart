@@ -614,6 +614,12 @@ abstract class AppLocalizations {
   /// **'Artikel löschen'**
   String get shoppingDeleteItem;
 
+  /// No description provided for @shoppingOpenCount.
+  ///
+  /// In de, this message translates to:
+  /// **'{open}/{total} offen'**
+  String shoppingOpenCount(int open, int total);
+
   /// No description provided for @allNotes.
   ///
   /// In de, this message translates to:

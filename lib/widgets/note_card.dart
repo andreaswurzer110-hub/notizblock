@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../models/note.dart';
+import '../models/shopping_list.dart';
 import 'package:intl/intl.dart';
 
 class NoteCard extends StatelessWidget {
@@ -224,14 +226,7 @@ class NoteListTile extends StatelessWidget {
             color: textColor,
           ),
         ),
-        subtitle: note.title.isNotEmpty && note.content.isNotEmpty
-            ? Text(
-                note.content,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: subtitleColor),
-              )
-            : null,
+        subtitle: _buildSubtitle(context, textColor, subtitleColor),
         trailing: Text(
           _formatDate(note.modifiedAt),
           style: TextStyle(
@@ -240,6 +235,52 @@ class NoteListTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  /// Untertitel der Listen-Zeile: bei einer Einkaufsliste steht vorne, wie viele
+  /// Artikel noch offen sind („1/4 offen"), danach – wie bei allen anderen
+  /// Notizen – die Inhalts-Vorschau. Bewusst NUR in der Listen-Ansicht: in der
+  /// Kachel-Ansicht ([NoteCard]) sieht man die Artikel ohnehin.
+  Widget? _buildSubtitle(
+      BuildContext context, Color textColor, Color subtitleColor) {
+    final preview =
+        note.title.isNotEmpty && note.content.isNotEmpty ? note.content : null;
+
+    Widget? previewText() => preview == null
+        ? null
+        : Text(
+            preview,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: subtitleColor),
+          );
+
+    if (!note.isShopping) return previewText();
+
+    // Leere Artikel (z.B. die noch nicht ausgefüllte letzte Zeile) zählen nicht.
+    final items = [
+      for (final i in ShoppingListData.fromJsonString(note.autopoolData).items)
+        if (i.name.trim().isNotEmpty) i
+    ];
+    if (items.isEmpty) return previewText();
+
+    final open = items.where((i) => !i.done).length;
+    final label = Text(
+      AppLocalizations.of(context)!.shoppingOpenCount(open, items.length),
+      style: TextStyle(
+        color: open > 0 ? textColor : subtitleColor,
+        fontWeight: open > 0 ? FontWeight.w600 : FontWeight.w400,
+      ),
+    );
+
+    if (preview == null) return label;
+    return Row(
+      children: [
+        label,
+        const SizedBox(width: 8),
+        Expanded(child: previewText()!),
+      ],
     );
   }
 

@@ -93,6 +93,8 @@
   "shoppingCompleted": "Erledigt ({count})",
   "@shoppingCompleted": { "placeholders": { "count": { "type": "int" } } },
   "shoppingDeleteItem": "Artikel löschen",
+  "shoppingOpenCount": "{open}/{total} offen",
+  "@shoppingOpenCount": { "placeholders": { "open": { "type": "int" }, "total": { "type": "int" } } },
   "allNotes": "Alle Notizen",
   "folders": "Ordner",
   "newFolder": "Neuer Ordner",
