@@ -17,6 +17,7 @@ import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
 import 'services/main_instance_service.dart';
 import 'services/settings_store.dart';
+import 'services/prefs_repair_service.dart';
 import 'services/autostart_service.dart';
 import 'services/restart_on_update_service.dart';
 import 'screens/home_screen.dart';
@@ -31,6 +32,12 @@ bool get _isDesktop =>
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Ganz früh: eine nach einem Absturz/harten Ausschalten unlesbar gewordene
+  // shared_preferences-Datei verwerfen. Sonst wirft JEDER Prefs-Zugriff eine
+  // FormatException und damit scheitert dauerhaft jeder Sync (s. Service).
+  // Gilt für Hauptfenster UND Sticky-Prozesse, deshalb vor der Aufteilung.
+  await PrefsRepairService.ensureUsable();
 
   // Prüfen ob dies ein Sticky Note Fenster ist
   if (args.isNotEmpty && args[0] == '--sticky-note' && args.length > 1) {

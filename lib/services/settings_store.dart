@@ -77,14 +77,25 @@ class SettingsStore {
     try {
       final f = await _settingsFile();
       if (await f.exists()) {
-        final data = jsonDecode(await f.readAsString());
-        if (data is Map) {
-          _cache = data.map((k, v) => MapEntry(k.toString(), v));
-          return;
+        try {
+          final data = jsonDecode(await f.readAsString());
+          if (data is Map) {
+            _cache = data.map((k, v) => MapEntry(k.toString(), v));
+            return;
+          }
+          debugPrint('settings.json hat ein unerwartetes Format – neu aufbauen.');
+        } catch (e) {
+          // Unlesbar – etwa wenn ein Absturz/hartes Ausschalten die Datei mit
+          // Nullbytes hinterlassen hat (dasselbe Muster wie bei der kaputten
+          // shared_preferences-Datei, s. PrefsRepairService). Dann wie eine
+          // FEHLENDE Datei behandeln und neu aufbauen, statt bei jedem Start
+          // stumm mit leeren Einstellungen weiterzulaufen: sonst stünde z.B.
+          // der Auto-Sync-Schalter dauerhaft auf „aus".
+          debugPrint('settings.json unlesbar ($e) – wird neu aufgebaut.');
         }
       }
-      // Datei fehlt (erster Start nach Update) → Alt-Werte einmalig aus
-      // shared_preferences übernehmen und in die Datei schreiben.
+      // Datei fehlt (erster Start nach Update) oder war unlesbar → Alt-Werte
+      // einmalig aus shared_preferences übernehmen und in die Datei schreiben.
       _cache = await _readManagedFromPrefs();
       await _flush();
     } catch (e) {

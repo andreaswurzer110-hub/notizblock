@@ -243,18 +243,25 @@ class NoteListTile extends StatelessWidget {
                 isWidget ||
                 note.isAutopool ||
                 note.isShopping)
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (note.isPinned) Icon(Icons.push_pin, size: 20, color: textColor),
-                  if (isWidget)
-                    Icon(Icons.widgets, size: 20, color: subtitleColor),
-                  if (note.isAutopool)
-                    Icon(Icons.table_chart, size: 20, color: subtitleColor),
-                  if (note.isShopping)
-                    Icon(Icons.shopping_cart, size: 20, color: subtitleColor),
-                ],
+            // FittedBox: Ab drei Symbolen (angeheftet + Widget + Typ) ist die
+            // Spalte höher als die Zeile hergibt – ohne das Verkleinern ragt sie
+            // unten heraus (Debug: „RenderFlex overflowed by 12 pixels").
+            ? FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (note.isPinned)
+                      Icon(Icons.push_pin, size: 20, color: textColor),
+                    if (isWidget)
+                      Icon(Icons.widgets, size: 20, color: subtitleColor),
+                    if (note.isAutopool)
+                      Icon(Icons.table_chart, size: 20, color: subtitleColor),
+                    if (note.isShopping)
+                      Icon(Icons.shopping_cart, size: 20, color: subtitleColor),
+                  ],
+                ),
               )
             : null,
         title: Text(
