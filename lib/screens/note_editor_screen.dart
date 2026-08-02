@@ -12,6 +12,7 @@ import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/folder_picker.dart';
+import '../widgets/print_menu.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
@@ -24,8 +25,18 @@ class NoteEditorScreen extends StatefulWidget {
   // dann ist er der einzige Screen -> Zurück verlässt die App, Menü-Button führt
   // zur Hauptansicht.
   final bool openedFromWidget;
+  // Vorbelegung für eine NEUE Notiz (z.B. per „Teilen" aus einer anderen App
+  // übernommener Text samt Link). Bei [note] != null ohne Wirkung.
+  final String? initialTitle;
+  final String? initialContent;
 
-  const NoteEditorScreen({super.key, this.note, this.openedFromWidget = false});
+  const NoteEditorScreen({
+    super.key,
+    this.note,
+    this.openedFromWidget = false,
+    this.initialTitle,
+    this.initialContent,
+  });
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -73,8 +84,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.note?.title ?? '');
-    _contentController = TextEditingController(text: widget.note?.content ?? '');
+    _titleController = TextEditingController(
+        text: widget.note?.title ?? widget.initialTitle ?? '');
+    _contentController = TextEditingController(
+        text: widget.note?.content ?? widget.initialContent ?? '');
     _selectedColor = widget.note?.color ?? '#FFFDE7';
     _isPinned = widget.note?.isPinned ?? false;
     _folder = widget.note?.folder ??
@@ -87,6 +100,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     WidgetsBinding.instance.addObserver(this);
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
+
+    // Neue Notiz mit vorbelegtem Text (per „Teilen" übernommen): sofort anlegen,
+    // damit sie auch dann existiert, wenn der Nutzer die App direkt wieder
+    // verlässt. Die Listener oben feuern für den Startwert nicht.
+    if (isNewNote &&
+        ((widget.initialTitle?.isNotEmpty ?? false) ||
+            (widget.initialContent?.isNotEmpty ?? false))) {
+      _hasChanges = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _saveNote();
+      });
+    }
   }
 
   @override
@@ -447,6 +472,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     }
   }
 
+  // Drucken/Exportieren. Vorher den aktuellen Stand sichern, damit der Ausdruck
+  // das Getippte enthält (und nicht den Stand beim Öffnen).
+  Future<void> _printNote() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    // Frisch gespeicherten Stand nehmen (Titel/Inhalt/Ordner aktuell).
+    final current = _notesProvider?.getNoteById(note.id) ?? note;
+    await showPrintMenu(context, current);
+  }
+
   // Notiz archivieren und den Editor schließen (sie verschwindet aus der Liste).
   Future<void> _archiveNote() async {
     // Anstehenden Auto-Save abbrechen, sonst könnte er nach dem Archivieren den
@@ -572,6 +608,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   onTap: () {
                     Navigator.pop(context);
                     _moveToFolder();
+                  },
+                ),
+
+                // Drucken/Exportieren (PDF, Text, Word, Systemdruck)
+                ListTile(
+                  leading: const Icon(Icons.print_outlined),
+                  title: Text(l10n.printExport),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printNote();
                   },
                 ),
 
@@ -825,6 +871,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     fontWeight: FontWeight.bold,
                     color: noteTextColor,
                   ),
+                  // Zeilenhöhe an der eingestellten Schriftgröße festnageln –
+                  // siehe Inhalt-Feld unten.
+                  strutStyle: StrutStyle(
+                    fontSize: 24 * fontScale,
+                    forceStrutHeight: true,
+                  ),
                   decoration: InputDecoration(
                     hintText: l10n.titleHint,
                     hintStyle: TextStyle(
@@ -856,6 +908,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     fontSize: 16 * fontScale,
                     height: 1.6,
                     color: noteTextColor,
+                  ),
+                  // Zeilenhöhe fest an der eingestellten Schriftgröße ausrichten.
+                  // Ohne Strut bestimmt das JEWEILS größte Zeichen einer Zeile die
+                  // Zeilenhöhe: eingefügter Text mit Zeichen, die eine Fallback-
+                  // Schrift braucht (Emoji, Symbole aus Web/PDF), macht die Zeilen
+                  // höher und wirkt dadurch größer als der Rest der Notiz –
+                  // gemeldet als „eingefügter Text ist größer".
+                  strutStyle: StrutStyle(
+                    fontSize: 16 * fontScale,
+                    height: 1.6,
+                    forceStrutHeight: true,
                   ),
                   decoration: InputDecoration(
                     hintText: l10n.contentHint,

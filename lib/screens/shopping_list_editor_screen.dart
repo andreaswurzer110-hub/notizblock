@@ -13,6 +13,7 @@ import '../services/sticky_note_service.dart';
 import '../widgets/shopping_list_view.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
+import '../widgets/print_menu.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -230,6 +231,16 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
     _saveNote();
   }
 
+  // Drucken/Exportieren (die Einkaufsliste wird als Kästchenliste gedruckt).
+  // Vorher speichern, damit der Ausdruck den aktuellen Stand enthält.
+  Future<void> _printNote() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    final current = context.read<NotesProvider>().getNoteById(note.id) ?? note;
+    await showPrintMenu(context, current);
+  }
+
   Future<void> _archiveNote() async {
     _saveDebounce?.cancel();
     final note = _currentNote ?? widget.note;
@@ -358,6 +369,14 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _moveToFolder();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.print_outlined),
+                  title: Text(l10n.printExport),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printNote();
                   },
                 ),
                 ListTile(

@@ -8,7 +8,7 @@ publish_to: 'none'
 # auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
 # nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
 # gesetzt, da pubspec keine 4. Stelle führen kann.
-version: 1.28.3+12803
+version: 1.29.0+12900
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -57,6 +57,12 @@ dependencies:
   ffi: ^2.1.0 # Win32-API RegisterApplicationRestart (Neustart nach App-Update)
   package_info_plus: ^8.0.0 # App-Version dynamisch (überall identisch zur pubspec/Build-Version)
 
+  # Drucken & Exportieren einer Notiz (Kontextmenü „Drucken")
+  pdf: ^3.12.0 # PDF-Dokument erzeugen (auch Grundlage fürs Drucken)
+  printing: ^5.14.3 # System-Druckdialog (Android/Windows/Linux)
+  archive: ^4.0.9 # .docx = ZIP mit XML -> selbst gebaut, kein Word nötig
+  file_picker: ^11.0.3 # „Speichern unter"-Dialog (Desktop) bzw. SAF (Android)
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -104,7 +110,7 @@ msix_config:
   # (Add-AppxPackage ohne vorheriges Remove) → Taskleisten-/Startmenü-Pin bleibt.
   # Bei jedem Release Minor/Patch hochzählen; bei schnellen lokalen Re-Builds
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
-  msix_version: 1.28.3.0
+  msix_version: 1.29.0.0
   logo_path: assets/icon/icon_full.png
   capabilities: internetClient
   architecture: x64
@@ -112,7 +118,7 @@ msix_config:
   certificate_password: notizblock
   install_certificate: false
   output_path: build/msix
-  output_name: Notizblock-1.28.3.0
+  output_name: Notizblock-1.29.0.0
   # Bewusst KEINE startup_task hier: der Autostart läuft über eine Startup-Ordner-
   # Verknüpfung (AutostartService, AppsFolder-Aktivierung), weil paketbasierte
   # StartupTasks auf manchen Systemen nicht im Task-Manager/in den Einstellungen

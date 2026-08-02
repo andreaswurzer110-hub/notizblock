@@ -24,6 +24,7 @@ import 'screens/note_editor_screen.dart';
 import 'screens/autopool_editor_screen.dart';
 import 'screens/sticky_note_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/share_import.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -327,6 +328,9 @@ class _NotizblockAppState extends State<NotizblockApp>
   static const _channel = MethodChannel('notizblock/deeplink');
   // Linux (warme Instanz): pollt Öffnen-Kommandos von Widget-Prozessen.
   Timer? _mainCmdTimer;
+  // Läuft gerade die Übernahme eines per „Teilen" geschickten Textes? Verhindert,
+  // dass Kaltstart-Prüfung und Resume-Prüfung den Dialog doppelt öffnen.
+  bool _shareImportOpen = false;
 
   @override
   void initState() {
@@ -388,6 +392,11 @@ class _NotizblockAppState extends State<NotizblockApp>
     if (widget.openWidgetsAfterFirstFrame) {
       await StickyNoteService.instance.openAllWidgets();
     }
+    // Kaltstart über „Teilen": den mitgeschickten Text jetzt übernehmen (die
+    // Navigator-/Provider-Ebene steht erst nach dem ersten Frame).
+    if (Platform.isAndroid) {
+      await _checkSharedText();
+    }
     // Kaltstart per Ordner-Widget: den gewählten Ordner in der Notizliste
     // vorselektieren (HomeScreen ist bereits gebaut -> NotesProvider existiert).
     if (widget.initialFolder != null && widget.initialFolder!.isNotEmpty) {
@@ -418,7 +427,33 @@ class _NotizblockAppState extends State<NotizblockApp>
     // (MainActivity setzt ihn danach auf null zurück).
     if (state == AppLifecycleState.resumed && Platform.isAndroid) {
       _checkPendingFolder();
+      // Aus einer anderen App geteilter Text (ACTION_SEND) – gleiches Muster wie
+      // beim Ordner-Widget: bei jedem Resume abholen statt auf ein sofortiges
+      // invokeMethod zu vertrauen.
+      _checkSharedText();
     }
+  }
+
+  /// Per „Teilen" geschickten Text abholen und die Übernahme-Auswahl zeigen
+  /// (neue/bestehende Notiz, oberhalb/unterhalb). MainActivity liefert den Text
+  /// genau einmal aus.
+  Future<void> _checkSharedText() async {
+    if (_shareImportOpen) return;
+    try {
+      final data =
+          await _channel.invokeMapMethod<String, dynamic>('getSharedText');
+      final text = (data?['text'] ?? '').toString();
+      if (text.isEmpty) return;
+      final subject = (data?['subject'] ?? '').toString();
+      final ctx = _navigatorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      _shareImportOpen = true;
+      try {
+        await showSharedTextImport(ctx, text: text, subject: subject);
+      } finally {
+        _shareImportOpen = false;
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkPendingFolder() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
@@ -62,6 +63,85 @@ Future<void> _open(BuildContext context, String raw) async {
   if (!ok) {
     messenger?.showSnackBar(SnackBar(content: Text(failMsg)));
   }
+}
+
+// --- Einfügen: Text normalisieren ------------------------------------------
+
+// Zeichen, die beim Kopieren aus Web/PDF/Office regelmäßig mitkommen, im
+// Notizfeld aber nur Ärger machen. Sie sind unsichtbar bzw. sehen aus wie ein
+// Leerzeichen, gehören aber zu anderen Unicode-Blöcken -> Flutter rendert sie
+// mit einer ANDEREN (Fallback-)Schrift. Deren Metrik ist größer, wodurch die
+// ganze Zeile höher wird: der eingefügte Absatz wirkt größer als der Rest der
+// Notiz, obwohl die Schriftgröße identisch ist (gemeldeter Fehler „eingefügter
+// Text ist größer"). Beim Einfügen daher auf die normalen Entsprechungen
+// zurückführen.
+// Die Zeichen werden über ihren Code-Punkt geprüft und nicht als Literal in den
+// Quelltext geschrieben: unsichtbare Zeichen wären dort nicht erkennbar und beim
+// Bearbeiten der Datei schnell zerstört.
+
+// Sehen aus wie ein Leerzeichen, stammen aber aus anderen Unicode-Blöcken
+// (geschütztes, schmales, halbes, ideografisches Leerzeichen …).
+const List<int> _weirdSpaceCodes = <int>[
+  0x00A0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005,
+  0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x202F, 0x205F, 0x3000,
+];
+
+// Unsichtbar: Zero-Width-Space/Non-Joiner, Word-Joiner, BOM, weiches
+// Trennzeichen, Bidi-Steuerzeichen. Der Zero-Width-JOINER (0x200D) fehlt hier
+// bewusst: er hält zusammengesetzte Emoji zusammen und muss erhalten bleiben.
+const List<int> _invisibleCodes = <int>[
+  0x00AD, 0x180E, 0x200B, 0x200C, 0x2060, 0xFEFF,
+  0x202A, 0x202B, 0x202C, 0x202D, 0x202E,
+  0x2066, 0x2067, 0x2068, 0x2069,
+];
+
+// Unicode-Zeilen- und Absatztrenner.
+const List<int> _lineSepCodes = <int>[0x2028, 0x2029];
+
+/// Aus der Zwischenablage kommenden Text für ein Notizfeld aufbereiten:
+/// Zeilenenden vereinheitlichen, exotische Leerzeichen zu normalen machen und
+/// unsichtbare Steuerzeichen entfernen. Der sichtbare Text bleibt unverändert.
+String normalizePastedText(String raw) {
+  final normalized = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final buf = StringBuffer();
+  for (final rune in normalized.runes) {
+    if (_lineSepCodes.contains(rune)) {
+      buf.write('\n');
+    } else if (_weirdSpaceCodes.contains(rune)) {
+      buf.write(' ');
+    } else if (!_invisibleCodes.contains(rune)) {
+      buf.writeCharCode(rune);
+    }
+  }
+  return buf.toString();
+}
+
+// Einfügen mit normalisiertem Text (siehe normalizePastedText). Fällt bei
+// leerer Zwischenablage/ungültiger Auswahl auf das Standard-Einfügen zurück.
+Future<void> _pasteNormalized(
+    EditableTextState state, ContextMenuButtonItem original) async {
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
+  final raw = data?.text;
+  final value = state.textEditingValue;
+  if (raw == null || raw.isEmpty || !value.selection.isValid) {
+    original.onPressed?.call();
+    return;
+  }
+  final text = normalizePastedText(raw);
+  if (text == raw) {
+    original.onPressed?.call(); // nichts zu bereinigen -> Standardweg
+    return;
+  }
+  final sel = value.selection;
+  state.userUpdateTextEditingValue(
+    TextEditingValue(
+      text: value.text.replaceRange(sel.start, sel.end, text),
+      selection: TextSelection.collapsed(offset: sel.start + text.length),
+    ),
+    SelectionChangedCause.toolbar,
+  );
+  state.hideToolbar();
+  state.bringIntoView(TextPosition(offset: sel.start + text.length));
 }
 
 // Eigener „Link öffnen" / „Im Web suchen"-Eintrag – oder null, wenn weder eine
@@ -146,7 +226,15 @@ Widget buildNoteContextMenu(
     if (link != null) link,
     if (claude != null) claude,
     if (selectAll != null) selectAll,
-    if (paste != null) relabel(paste, l10n.ctxPaste),
+    // Einfügen über den eigenen Weg: der Text aus der Zwischenablage wird vorher
+    // normalisiert (siehe normalizePastedText), sonst schleppt eingefügter
+    // Web-/PDF-Text unsichtbare Sonderzeichen ein, die anders gerendert werden.
+    if (paste != null)
+      ContextMenuButtonItem(
+        onPressed: () => _pasteNormalized(editableTextState, paste),
+        type: paste.type,
+        label: l10n.ctxPaste,
+      ),
   ];
 
   return AdaptiveTextSelectionToolbar.buttonItems(

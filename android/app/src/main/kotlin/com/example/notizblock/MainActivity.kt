@@ -10,6 +10,11 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "notizblock/deeplink"
     private var initialNoteId: String? = null
     private var initialFolder: String? = null
+    // Per „Teilen" aus einer anderen App geschickter Text (+ optionaler Betreff,
+    // den z.B. Browser als Seitentitel mitschicken). Wird von Flutter beim Start
+    // und bei jedem Resume abgeholt (getSharedText) und dabei zurückgesetzt.
+    private var sharedText: String? = null
+    private var sharedSubject: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,7 +27,21 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        val data = intent?.data ?: return
+        if (intent == null) return
+
+        // „Teilen" aus einer anderen App (ACTION_SEND, text/plain). Nur merken –
+        // Flutter holt den Text ab (wie beim Ordner-Widget ist ein sofortiges
+        // invokeMethod beim Warm-Resume unzuverlässig).
+        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("text/") == true) {
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (!text.isNullOrEmpty()) {
+                sharedText = text
+                sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
+            }
+            return
+        }
+
+        val data = intent.data ?: return
         if (data.scheme != "notizblock") return
         when (data.host) {
             "edit_note" -> {
@@ -59,6 +78,20 @@ class MainActivity : FlutterActivity() {
                 "getInitialFolder" -> {
                     result.success(initialFolder)
                     initialFolder = null // Reset nach Abruf
+                }
+                "getSharedText" -> {
+                    val text = sharedText
+                    if (text == null) {
+                        result.success(null)
+                    } else {
+                        result.success(
+                            mapOf("text" to text, "subject" to (sharedSubject ?: ""))
+                        )
+                    }
+                    // Genau einmal ausliefern (sonst käme der Text bei jedem
+                    // Resume erneut).
+                    sharedText = null
+                    sharedSubject = null
                 }
                 else -> result.notImplemented()
             }

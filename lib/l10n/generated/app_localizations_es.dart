@@ -440,4 +440,68 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get bibleVerse2Text =>
       'Jesús le dijo: Yo soy el camino, y la verdad, y la vida; nadie viene al Padre, sino por mí.';
+
+  @override
+  String get printExport => 'Imprimir';
+
+  @override
+  String get printExportTitle => 'Imprimir y exportar';
+
+  @override
+  String get printSystem => 'Imprimir';
+
+  @override
+  String get printSystemSubtitle => 'Diálogo del sistema (impresora/PDF)';
+
+  @override
+  String get exportPdf => 'Guardar como PDF';
+
+  @override
+  String get exportTxt => 'Guardar como archivo de texto';
+
+  @override
+  String get exportWord => 'Guardar como documento de Word';
+
+  @override
+  String exportSaved(String file) {
+    return 'Guardado: $file';
+  }
+
+  @override
+  String exportFailed(String error) {
+    return 'Error al exportar: $error';
+  }
+
+  @override
+  String get shareImportTitle => 'Añadir texto compartido';
+
+  @override
+  String get shareImportNewNote => 'En una nota nueva';
+
+  @override
+  String get shareImportNewNoteSubtitle => 'Crea una nota nueva con el texto';
+
+  @override
+  String get shareImportExisting => 'En una nota existente';
+
+  @override
+  String get shareImportExistingSubtitle =>
+      'Insertar el texto en una nota existente';
+
+  @override
+  String get shareImportChooseNote => 'Elegir nota';
+
+  @override
+  String get shareInsertPositionTitle => '¿Dónde insertar?';
+
+  @override
+  String get shareInsertTop => 'Insertar arriba';
+
+  @override
+  String get shareInsertBottom => 'Insertar abajo';
+
+  @override
+  String shareInsertedSnack(String title) {
+    return 'Texto insertado en «$title»';
+  }
 }

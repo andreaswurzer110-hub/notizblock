@@ -31,6 +31,15 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="notizblock" android:host="open_folder" />
             </intent-filter>
+            <!-- „Teilen" aus anderen Apps: markierter Text (meist samt Link)
+                 wird an Notizblock geschickt. Damit erscheint die App in der
+                 System-Teilen-Auswahl; der Text landet dann per Auswahl in einer
+                 neuen oder einer bestehenden Notiz (siehe share_import.dart). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
         <!-- Widget Configuration Activity -->

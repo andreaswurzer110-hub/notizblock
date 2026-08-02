@@ -8,6 +8,7 @@ import '../providers/settings_provider.dart';
 import '../widgets/note_card.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
+import '../widgets/print_menu.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import 'note_editor_screen.dart';
@@ -400,6 +401,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'print',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.print_outlined),
+            title: Text(l10n.printExport),
+          ),
+        ),
+        PopupMenuItem(
           value: 'archive',
           child: ListTile(
             dense: true,
@@ -448,6 +458,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'folder':
         showMoveToFolderSheet(context,
             noteId: note.id, currentFolder: note.folder);
+        break;
+      case 'print':
+        showPrintMenu(context, note);
         break;
       case 'archive':
         context.read<NotesProvider>().archiveNote(note.id);
@@ -532,6 +545,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.pop(sheetContext);
                     showMoveToFolderSheet(context,
                         noteId: note.id, currentFolder: note.folder);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.print_outlined),
+                  title: Text(l10n.printExport),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showPrintMenu(context, note);
                   },
                 ),
                 ListTile(

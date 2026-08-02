@@ -13,6 +13,7 @@ import '../services/sticky_note_service.dart';
 import '../widgets/autopool_table.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
+import '../widgets/print_menu.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -301,6 +302,16 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     _saveNote();
   }
 
+  // Drucken/Exportieren. Vorher speichern, damit der Ausdruck den aktuellen
+  // Tabellenstand enthält.
+  Future<void> _printNote() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    final current = context.read<NotesProvider>().getNoteById(note.id) ?? note;
+    await showPrintMenu(context, current);
+  }
+
   Future<void> _archiveNote() async {
     _saveDebounce?.cancel();
     final note = _currentNote ?? widget.note;
@@ -429,6 +440,15 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     _moveToFolder();
+                  },
+                ),
+                // Drucken/Exportieren (PDF, Text, Word, Systemdruck)
+                ListTile(
+                  leading: const Icon(Icons.print_outlined),
+                  title: Text(l10n.printExport),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _printNote();
                   },
                 ),
                 // Einstellungen direkt aus dem Editor öffnen (wie im Text-Editor).

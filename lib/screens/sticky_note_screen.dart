@@ -595,6 +595,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                         color: _textColor,
                         height: 1.5,
                       ),
+                      // Zeilenhöhe an der eingestellten Schriftgröße festnageln
+                      // (wie im Editor), damit eingefügter Text mit Fallback-
+                      // Schrift-Zeichen die Zeilen nicht höher macht.
+                      strutStyle: StrutStyle(
+                        fontSize: 14 * _fontScale,
+                        height: 1.5,
+                        forceStrutHeight: true,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Notiz schreiben...',
                         hintStyle: TextStyle(

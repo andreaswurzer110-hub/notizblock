@@ -114,6 +114,14 @@ class ReadOnlyNoteScreen extends StatelessWidget {
                     height: 1.6,
                     color: noteTextColor,
                   ),
+                  // Zeilenhöhe an der eingestellten Schriftgröße festnageln (wie
+                  // im Editor), damit Zeichen mit Fallback-Schrift die Zeilen
+                  // nicht höher machen.
+                  strutStyle: StrutStyle(
+                    fontSize: 16 * fontScale,
+                    height: 1.6,
+                    forceStrutHeight: true,
+                  ),
                 ),
             ],
           ),

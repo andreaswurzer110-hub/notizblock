@@ -907,6 +907,120 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Jesus spricht zu ihm: Ich bin der Weg und die Wahrheit und das Leben; niemand kommt zum Vater als nur durch mich!'**
   String get bibleVerse2Text;
+
+  /// No description provided for @printExport.
+  ///
+  /// In de, this message translates to:
+  /// **'Drucken'**
+  String get printExport;
+
+  /// No description provided for @printExportTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Drucken & Exportieren'**
+  String get printExportTitle;
+
+  /// No description provided for @printSystem.
+  ///
+  /// In de, this message translates to:
+  /// **'Drucken'**
+  String get printSystem;
+
+  /// No description provided for @printSystemSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Systemdialog (Drucker/PDF)'**
+  String get printSystemSubtitle;
+
+  /// No description provided for @exportPdf.
+  ///
+  /// In de, this message translates to:
+  /// **'Als PDF speichern'**
+  String get exportPdf;
+
+  /// No description provided for @exportTxt.
+  ///
+  /// In de, this message translates to:
+  /// **'Als Textdatei speichern'**
+  String get exportTxt;
+
+  /// No description provided for @exportWord.
+  ///
+  /// In de, this message translates to:
+  /// **'Als Word-Dokument speichern'**
+  String get exportWord;
+
+  /// No description provided for @exportSaved.
+  ///
+  /// In de, this message translates to:
+  /// **'Gespeichert: {file}'**
+  String exportSaved(String file);
+
+  /// No description provided for @exportFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Export fehlgeschlagen: {error}'**
+  String exportFailed(String error);
+
+  /// No description provided for @shareImportTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Text übernehmen'**
+  String get shareImportTitle;
+
+  /// No description provided for @shareImportNewNote.
+  ///
+  /// In de, this message translates to:
+  /// **'In neue Notiz'**
+  String get shareImportNewNote;
+
+  /// No description provided for @shareImportNewNoteSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Legt eine neue Notiz mit dem Text an'**
+  String get shareImportNewNoteSubtitle;
+
+  /// No description provided for @shareImportExisting.
+  ///
+  /// In de, this message translates to:
+  /// **'In bestehende Notiz'**
+  String get shareImportExisting;
+
+  /// No description provided for @shareImportExistingSubtitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Text in eine vorhandene Notiz einfügen'**
+  String get shareImportExistingSubtitle;
+
+  /// No description provided for @shareImportChooseNote.
+  ///
+  /// In de, this message translates to:
+  /// **'Notiz auswählen'**
+  String get shareImportChooseNote;
+
+  /// No description provided for @shareInsertPositionTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Wo einfügen?'**
+  String get shareInsertPositionTitle;
+
+  /// No description provided for @shareInsertTop.
+  ///
+  /// In de, this message translates to:
+  /// **'Oberhalb einfügen'**
+  String get shareInsertTop;
+
+  /// No description provided for @shareInsertBottom.
+  ///
+  /// In de, this message translates to:
+  /// **'Unterhalb einfügen'**
+  String get shareInsertBottom;
+
+  /// No description provided for @shareInsertedSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'Text in „{title}“ eingefügt'**
+  String shareInsertedSnack(String title);
 }
 
 class _AppLocalizationsDelegate
