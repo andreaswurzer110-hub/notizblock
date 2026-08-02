@@ -10,6 +10,10 @@ class NoteCard extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool isCompact;
   final bool isWidget;
+  // Mehrfachauswahl im Hauptmenü: [selectable] schaltet das Häkchen ein,
+  // [selected] markiert die Karte.
+  final bool selectable;
+  final bool selected;
 
   const NoteCard({
     super.key,
@@ -18,6 +22,8 @@ class NoteCard extends StatelessWidget {
     this.onLongPress,
     this.isCompact = false,
     this.isWidget = false,
+    this.selectable = false,
+    this.selected = false,
   });
 
   Color _parseColor(String hexColor) {
@@ -33,12 +39,19 @@ class NoteCard extends StatelessWidget {
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtitleColor = isDark ? Colors.white70 : Colors.black54;
 
+    final accent = Theme.of(context).colorScheme.primary;
+
     return Card(
       elevation: 2,
       shadowColor: Colors.black26,
       color: backgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        // Ausgewählte Karte bekommt einen kräftigen Rahmen (die Notizfarbe
+        // bleibt sichtbar, ein Farbfilter würde sie verfälschen).
+        side: selected
+            ? BorderSide(color: accent, width: 3)
+            : BorderSide.none,
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -51,6 +64,17 @@ class NoteCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (selectable)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Icon(
+                    selected
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                    size: 20,
+                    color: selected ? accent : subtitleColor,
+                  ),
+                ),
               // Indikatoren: angeheftet, als Widget angeheftet, Autopool und/oder
               // Einkaufsliste
               if (note.isPinned ||
@@ -162,6 +186,9 @@ class NoteListTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final bool isWidget;
+  // Mehrfachauswahl im Hauptmenü (siehe NoteCard).
+  final bool selectable;
+  final bool selected;
 
   const NoteListTile({
     super.key,
@@ -169,6 +196,8 @@ class NoteListTile extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.isWidget = false,
+    this.selectable = false,
+    this.selected = false,
   });
 
   Color _parseColor(String hexColor) {
@@ -190,6 +219,10 @@ class NoteListTile extends StatelessWidget {
       color: backgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: selected
+            ? BorderSide(
+                color: Theme.of(context).colorScheme.primary, width: 3)
+            : BorderSide.none,
       ),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
@@ -199,7 +232,14 @@ class NoteListTile extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        leading: (note.isPinned ||
+        leading: selectable
+            ? Icon(
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : subtitleColor,
+              )
+            : (note.isPinned ||
                 isWidget ||
                 note.isAutopool ||
                 note.isShopping)

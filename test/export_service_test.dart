@@ -89,4 +89,38 @@ void main() {
     expect(bytes.length, greaterThan(500));
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
   });
+
+  // --- Mehrfachauswahl: mehrere Notizen in EINE Datei -----------------------
+
+  List<Note> twoNotes() => [
+        Note(title: 'Erste', content: 'Inhalt eins'),
+        Note(title: 'Zweite', content: 'Inhalt zwei'),
+      ];
+
+  test('Textexport mehrerer Notizen enthält alle, durch Trennlinie getrennt',
+      () {
+    final text = ExportService.buildPlainTextFor(twoNotes(),
+        autopoolHeaders: headers);
+    expect(text, contains('Inhalt eins'));
+    expect(text, contains('Inhalt zwei'));
+    expect(text, contains('-' * 60));
+  });
+
+  test('Word-Export mehrerer Notizen setzt einen Seitenumbruch dazwischen', () {
+    final bytes =
+        ExportService.buildDocxFor(twoNotes(), autopoolHeaders: headers);
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final doc = archive.files.firstWhere((f) => f.name == 'word/document.xml');
+    final xml = utf8.decode(doc.content as List<int>);
+    expect(xml, contains('Erste'));
+    expect(xml, contains('Zweite'));
+    expect(xml, contains('<w:br w:type="page"/>'));
+  });
+
+  test('PDF mehrerer Notizen wird erzeugt', () async {
+    final bytes =
+        await ExportService.buildPdfFor(twoNotes(), autopoolHeaders: headers);
+    expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+    expect(bytes.length, greaterThan(1000));
+  });
 }

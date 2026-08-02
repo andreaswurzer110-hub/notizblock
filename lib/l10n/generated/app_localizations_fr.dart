@@ -507,4 +507,30 @@ class AppLocalizationsFr extends AppLocalizations {
   String shareInsertedSnack(String title) {
     return 'Texte inséré dans « $title »';
   }
+
+  @override
+  String get selectNotes => 'Sélectionner';
+
+  @override
+  String selectedCount(int count) {
+    return '$count sélectionnées';
+  }
+
+  @override
+  String get selectAllNotes => 'Tout sélectionner';
+
+  @override
+  String deleteNotesConfirm(int count) {
+    return 'Supprimer $count notes ?';
+  }
+
+  @override
+  String notesMovedSnack(int count) {
+    return '$count notes déplacées';
+  }
+
+  @override
+  String notesArchivedSnack(int count) {
+    return '$count notes archivées';
+  }
 }

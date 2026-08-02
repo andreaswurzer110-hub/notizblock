@@ -39,41 +39,48 @@ class ExportService {
 
   // --- Öffentliche API ---------------------------------------------------
 
-  /// Notiz an den System-Druckdialog übergeben (Android/Windows/Linux).
+  /// Notiz(en) an den System-Druckdialog übergeben (Android/Windows/Linux).
   /// Liefert false, wenn der Nutzer abbricht.
-  static Future<bool> printNote(
-    Note note, {
+  static Future<bool> printNotes(
+    List<Note> notes, {
     required List<String> autopoolHeaders,
   }) async {
-    final bytes = await buildPdf(note, autopoolHeaders: autopoolHeaders);
+    final bytes = await buildPdfFor(notes, autopoolHeaders: autopoolHeaders);
     return Printing.layoutPdf(
       onLayout: (_) async => bytes,
-      name: _baseFileName(note),
+      name: _baseName(notes),
     );
   }
 
-  /// Notiz in eine Datei exportieren. Zeigt den „Speichern unter"-Dialog des
+  /// Notiz(en) in eine Datei exportieren. Zeigt den „Speichern unter"-Dialog des
   /// Systems und liefert den gespeicherten Pfad – oder null bei Abbruch.
-  static Future<String?> exportNote(
-    Note note,
+  /// Mehrere Notizen landen in EINER Datei (im PDF/Word jede auf einer neuen
+  /// Seite, im Textexport durch eine Trennlinie getrennt).
+  static Future<String?> exportNotes(
+    List<Note> notes,
     ExportFormat format, {
     required List<String> autopoolHeaders,
   }) async {
     final Uint8List bytes;
     switch (format) {
       case ExportFormat.pdf:
-        bytes = await buildPdf(note, autopoolHeaders: autopoolHeaders);
+        bytes = await buildPdfFor(notes, autopoolHeaders: autopoolHeaders);
         break;
       case ExportFormat.txt:
-        bytes = Uint8List.fromList(
-            utf8.encode(buildPlainText(note, autopoolHeaders: autopoolHeaders)));
+        bytes = Uint8List.fromList(utf8
+            .encode(buildPlainTextFor(notes, autopoolHeaders: autopoolHeaders)));
         break;
       case ExportFormat.docx:
-        bytes = buildDocx(note, autopoolHeaders: autopoolHeaders);
+        bytes = buildDocxFor(notes, autopoolHeaders: autopoolHeaders);
         break;
     }
-    return _save(bytes, '${_baseFileName(note)}.${extensionOf(format)}', format);
+    return _save(bytes, '${_baseName(notes)}.${extensionOf(format)}', format);
   }
+
+  /// Dateiname/Druckauftrag: bei einer Notiz deren Titel, sonst „Notizen (N)".
+  static String _baseName(List<Note> notes) => notes.length == 1
+      ? _baseFileName(notes.first)
+      : 'Notizen (${notes.length})';
 
   static String extensionOf(ExportFormat f) {
     switch (f) {
@@ -135,7 +142,17 @@ class ExportService {
     return note.folder.isEmpty ? date : '${note.folder} · $date';
   }
 
-  /// Reine Textfassung (auch die Grundlage des .txt-Exports).
+  /// Textfassung mehrerer Notizen, durch eine Trennlinie getrennt.
+  static String buildPlainTextFor(
+    List<Note> notes, {
+    required List<String> autopoolHeaders,
+  }) =>
+      [
+        for (final n in notes)
+          buildPlainText(n, autopoolHeaders: autopoolHeaders),
+      ].join('\n\n${'-' * 60}\n\n');
+
+  /// Reine Textfassung EINER Notiz (auch die Grundlage des .txt-Exports).
   static String buildPlainText(
     Note note, {
     required List<String> autopoolHeaders,
@@ -185,30 +202,58 @@ class ExportService {
 
   // --- PDF ---------------------------------------------------------------
 
-  /// PDF der Notiz (A4). Wird auch fürs Drucken verwendet.
+  /// PDF EINER Notiz (A4). Bequemlichkeits-Variante von [buildPdfFor].
   static Future<Uint8List> buildPdf(
     Note note, {
+    required List<String> autopoolHeaders,
+  }) =>
+      buildPdfFor([note], autopoolHeaders: autopoolHeaders);
+
+  /// PDF mehrerer Notizen (A4). Jede Notiz beginnt auf einer neuen Seite.
+  /// Wird auch fürs Drucken verwendet.
+  static Future<Uint8List> buildPdfFor(
+    List<Note> notes, {
     required List<String> autopoolHeaders,
   }) async {
     final base = await _pdfFont();
     final bold = await _pdfFont(bold: true);
     final theme = pw.ThemeData.withFont(base: base, bold: bold);
-    final doc = pw.Document(title: _baseFileName(note), theme: theme);
+    final doc = pw.Document(title: _baseName(notes), theme: theme);
+    for (final note in notes) {
+      _addPdfNote(doc, note, autopoolHeaders, base, bold);
+    }
+    return doc.save();
+  }
 
+  /// Hängt eine Notiz als eigenen Seitenblock an das Dokument.
+  static void _addPdfNote(pw.Document doc, Note note,
+      List<String> autopoolHeaders, pw.Font base, pw.Font bold) {
     final content = <pw.Widget>[];
     if (note.isAutopool) {
       content.add(_pdfAutopool(note, autopoolHeaders, bold));
     } else if (note.isShopping) {
       content.addAll(_pdfShopping(note));
     } else if (note.content.trim().isNotEmpty) {
-      content.add(pw.Text(note.content.trimRight(),
-          style: const pw.TextStyle(fontSize: 11, lineSpacing: 3)));
+      // WICHTIG – `overflow: span`: Ohne das kann der Text NICHT über mehrere
+      // Seiten umbrochen werden. Eine Notiz, die länger als eine Seite ist,
+      // scheiterte dann mit „Widget won't fit into the page" bzw. lief im
+      // Release-Build (dort ist die Seitenzahl-Bremse von MultiPage per assert
+      // deaktiviert) in eine Endlosschleife → „Out of Memory" (war real ein Bug
+      // in 1.29.0).
+      content.add(pw.Text(
+        note.content.trimRight(),
+        style: const pw.TextStyle(fontSize: 11, lineSpacing: 3),
+        overflow: pw.TextOverflow.span,
+      ));
     }
 
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
+        // Standard sind 20 Seiten – eine lange Notiz/Geräteliste kann mehr
+        // brauchen. Die Grenze bleibt als Notbremse gegen Endlosschleifen drin.
+        maxPages: 500,
         header: (ctx) => ctx.pageNumber == 1
             ? pw.SizedBox()
             : pw.Container(
@@ -236,7 +281,6 @@ class ExportService {
         ],
       ),
     );
-    return doc.save();
   }
 
   static pw.Widget _pdfAutopool(
@@ -387,7 +431,27 @@ class ExportService {
   static Uint8List buildDocx(
     Note note, {
     required List<String> autopoolHeaders,
+  }) =>
+      buildDocxFor([note], autopoolHeaders: autopoolHeaders);
+
+  /// Wie [buildDocx], aber mit mehreren Notizen – jede beginnt auf einer neuen
+  /// Seite (Seitenumbruch dazwischen).
+  static Uint8List buildDocxFor(
+    List<Note> notes, {
+    required List<String> autopoolHeaders,
   }) {
+    final body = StringBuffer();
+    for (var i = 0; i < notes.length; i++) {
+      if (i > 0) {
+        body.write('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+      }
+      body.write(_docxNoteBody(notes[i], autopoolHeaders));
+    }
+    return _docxPackage(body.toString());
+  }
+
+  /// Der Word-Inhalt EINER Notiz (ohne ZIP-Rahmen).
+  static String _docxNoteBody(Note note, List<String> autopoolHeaders) {
     final body = StringBuffer();
     if (note.title.trim().isNotEmpty) {
       body.write(_docxParagraph(note.title.trim(), bold: true, halfPt: 32));
@@ -427,7 +491,11 @@ class ExportService {
         body.write(_docxParagraph(line));
       }
     }
+    return body.toString();
+  }
 
+  /// Packt den fertigen Word-Inhalt in ein gültiges .docx (ZIP + Pflichtteile).
+  static Uint8List _docxPackage(String body) {
     const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/note.dart';
 import '../providers/notes_provider.dart';
+import '../widgets/sheet_body.dart';
 import 'note_editor_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
@@ -24,10 +25,11 @@ Future<void> showSharedTextImport(
 
   final target = await showModalBottomSheet<_ShareTarget>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) => SafeArea(
+    builder: (sheetContext) => SheetBody(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -246,10 +248,11 @@ Future<bool?> _pickPosition(BuildContext context) {
   final l10n = AppLocalizations.of(context)!;
   return showModalBottomSheet<bool>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) => SafeArea(
+    builder: (sheetContext) => SheetBody(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

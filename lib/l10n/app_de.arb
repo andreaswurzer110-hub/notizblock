@@ -167,5 +167,15 @@
   "shareInsertTop": "Oberhalb einfügen",
   "shareInsertBottom": "Unterhalb einfügen",
   "shareInsertedSnack": "Text in „{title}“ eingefügt",
-  "@shareInsertedSnack": { "placeholders": { "title": { "type": "String" } } }
+  "@shareInsertedSnack": { "placeholders": { "title": { "type": "String" } } },
+  "selectNotes": "Auswählen",
+  "selectedCount": "{count} ausgewählt",
+  "@selectedCount": { "placeholders": { "count": { "type": "int" } } },
+  "selectAllNotes": "Alle auswählen",
+  "deleteNotesConfirm": "Sollen {count} Notizen wirklich gelöscht werden?",
+  "@deleteNotesConfirm": { "placeholders": { "count": { "type": "int" } } },
+  "notesMovedSnack": "{count} Notizen verschoben",
+  "@notesMovedSnack": { "placeholders": { "count": { "type": "int" } } },
+  "notesArchivedSnack": "{count} Notizen archiviert",
+  "@notesArchivedSnack": { "placeholders": { "count": { "type": "int" } } }
 }

@@ -154,5 +154,11 @@
   "shareInsertPositionTitle": "Dove inserire?",
   "shareInsertTop": "Inserisci sopra",
   "shareInsertBottom": "Inserisci sotto",
-  "shareInsertedSnack": "Testo inserito in «{title}»"
+  "shareInsertedSnack": "Testo inserito in «{title}»",
+  "selectNotes": "Seleziona",
+  "selectedCount": "{count} selezionate",
+  "selectAllNotes": "Seleziona tutto",
+  "deleteNotesConfirm": "Eliminare {count} note?",
+  "notesMovedSnack": "{count} note spostate",
+  "notesArchivedSnack": "{count} note archiviate"
 }

@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'sheet_body.dart';
 import '../models/note.dart';
 
 class ColorPicker extends StatelessWidget {
@@ -80,12 +81,14 @@ Future<String?> showRowColorPickerSheet(
       Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
   return await showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (context) {
       final primary = Theme.of(context).colorScheme.primary;
-      return Padding(
+      return SheetBody(
+          child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -114,12 +117,14 @@ Future<String?> showRowColorPickerSheet(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: current == null ? primary : Colors.grey.shade400,
+                          color:
+                              current == null ? primary : Colors.grey.shade400,
                           width: current == null ? 3 : 1,
                         ),
                       ),
                       child: Icon(Icons.format_color_reset_outlined,
-                          color: current == null ? primary : Colors.grey.shade600),
+                          color:
+                              current == null ? primary : Colors.grey.shade600),
                     ),
                   ),
                 ),
@@ -149,7 +154,7 @@ Future<String?> showRowColorPickerSheet(
             const SizedBox(height: 16),
           ],
         ),
-      );
+      ));
     },
   );
 }
@@ -161,11 +166,13 @@ Future<String?> showColorPickerSheet(
 }) async {
   return await showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (context) {
-      return Padding(
+      return SheetBody(
+          child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -187,7 +194,7 @@ Future<String?> showColorPickerSheet(
             const SizedBox(height: 16),
           ],
         ),
-      );
+      ));
     },
   );
 }

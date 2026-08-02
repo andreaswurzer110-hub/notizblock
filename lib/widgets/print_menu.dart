@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/note.dart';
 import '../services/export_service.dart';
+import 'sheet_body.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 /// Auswahl hinter dem Kontextmenü-Eintrag „Drucken": PDF, Textdatei, Word oder
@@ -10,14 +11,22 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 ///
 /// [context] muss der Screen-Context sein (nicht der Builder-Context eines
 /// bereits geschlossenen Sheets) – sonst brechen die Folgeaktionen ab.
-Future<void> showPrintMenu(BuildContext context, Note note) async {
+Future<void> showPrintMenu(BuildContext context, Note note) =>
+    showPrintMenuForNotes(context, [note]);
+
+/// Wie [showPrintMenu], aber für mehrere ausgewählte Notizen: alle landen in
+/// EINER Datei bzw. in einem Druckauftrag (jede Notiz auf einer neuen Seite).
+Future<void> showPrintMenuForNotes(
+    BuildContext context, List<Note> notes) async {
+  if (notes.isEmpty) return;
   final l10n = AppLocalizations.of(context)!;
   final choice = await showModalBottomSheet<_PrintChoice>(
     context: context,
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) => SafeArea(
+    builder: (sheetContext) => SheetBody(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -73,13 +82,13 @@ Future<void> showPrintMenu(BuildContext context, Note note) async {
   );
 
   if (choice == null || !context.mounted) return;
-  await _run(context, note, choice);
+  await _run(context, notes, choice);
 }
 
 enum _PrintChoice { pdf, txt, docx, system }
 
 Future<void> _run(
-    BuildContext context, Note note, _PrintChoice choice) async {
+    BuildContext context, List<Note> notes, _PrintChoice choice) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
   // Spaltenüberschriften der Autopool-Tabelle in der App-Sprache mitgeben –
@@ -103,7 +112,7 @@ Future<void> _run(
 
   try {
     if (choice == _PrintChoice.system) {
-      await ExportService.printNote(note, autopoolHeaders: headers);
+      await ExportService.printNotes(notes, autopoolHeaders: headers);
       return;
     }
     final format = switch (choice) {
@@ -112,7 +121,7 @@ Future<void> _run(
       _PrintChoice.docx => ExportFormat.docx,
       _PrintChoice.system => ExportFormat.pdf, // nicht erreichbar
     };
-    final path = await ExportService.exportNote(note, format,
+    final path = await ExportService.exportNotes(notes, format,
         autopoolHeaders: headers);
     if (path == null) return; // Abbruch im Speichern-Dialog
     snack(l10n.exportSaved(path));

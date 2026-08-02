@@ -9,6 +9,7 @@ import '../widgets/note_card.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
+import '../widgets/sheet_body.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import 'note_editor_screen.dart';
@@ -32,6 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // Welche Notizen sind als Desktop-Widget angeheftet (Windows/Linux). Wird für
   // den Karten-Indikator gebraucht; nur die Hauptapp schreibt diese Liste.
   Set<String> _widgetIds = {};
+  // Mehrfachauswahl: im Auswahlmodus wählt ein Tipp die Notiz aus, statt sie zu
+  // öffnen. Die Sammelaktionen liegen in der Leiste unten.
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -91,6 +96,160 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- Mehrfachauswahl ----------------------------------------------------
+
+  void _startSelection([Note? first]) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds.clear();
+      if (first != null) _selectedIds.add(first.id);
+    });
+  }
+
+  void _endSelection() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelected(Note note) {
+    setState(() {
+      if (!_selectedIds.remove(note.id)) _selectedIds.add(note.id);
+    });
+  }
+
+  // Die ausgewählten Notizen in der Reihenfolge der Liste (für Druck/Export).
+  List<Note> _selectedNotes() {
+    final notes = context.read<NotesProvider>().notes;
+    return [for (final n in notes) if (_selectedIds.contains(n.id)) n];
+  }
+
+  Future<void> _selectAllVisible() async {
+    final notes = context.read<NotesProvider>().notes;
+    setState(() {
+      if (_selectedIds.length == notes.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds
+          ..clear()
+          ..addAll(notes.map((n) => n.id));
+      }
+    });
+  }
+
+  // Sammelaktion: ausgewählte Notizen in einen Ordner verschieben.
+  Future<void> _bulkMoveToFolder() async {
+    final l10n = AppLocalizations.of(context)!;
+    final provider = context.read<NotesProvider>();
+    final ids = _selectedIds.toList();
+    if (ids.isEmpty) return;
+    final target = await showFolderPicker(context, currentFolder: '');
+    if (target == null || !mounted) return;
+    for (final id in ids) {
+      await provider.setNoteFolder(id, target);
+    }
+    if (!mounted) return;
+    _endSelection();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(l10n.notesMovedSnack(ids.length)),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  // Sammelaktion: alle ausgewählten Notizen in EIN Dokument drucken/exportieren.
+  Future<void> _bulkPrint() async {
+    final notes = _selectedNotes();
+    if (notes.isEmpty) return;
+    await showPrintMenuForNotes(context, notes);
+    if (mounted) _endSelection();
+  }
+
+  Future<void> _bulkArchive() async {
+    final l10n = AppLocalizations.of(context)!;
+    final provider = context.read<NotesProvider>();
+    final ids = _selectedIds.toList();
+    if (ids.isEmpty) return;
+    for (final id in ids) {
+      await provider.archiveNote(id);
+    }
+    if (!mounted) return;
+    _endSelection();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(l10n.notesArchivedSnack(ids.length)),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  Future<void> _bulkDelete() async {
+    final l10n = AppLocalizations.of(context)!;
+    final provider = context.read<NotesProvider>();
+    final ids = _selectedIds.toList();
+    if (ids.isEmpty) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.deleteNote),
+        content: Text(l10n.deleteNotesConfirm(ids.length)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    for (final id in ids) {
+      await provider.deleteNote(id);
+    }
+    if (mounted) _endSelection();
+  }
+
+  // Aktionsleiste im Auswahlmodus (unten, damit sie auf dem Handy erreichbar
+  // ist). Ohne Auswahl sind die Aktionen deaktiviert.
+  Widget _buildSelectionBar() {
+    final l10n = AppLocalizations.of(context)!;
+    final enabled = _selectedIds.isNotEmpty;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.drive_file_move_outlined),
+              tooltip: l10n.moveToFolder,
+              onPressed: enabled ? _bulkMoveToFolder : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              tooltip: l10n.printExport,
+              onPressed: enabled ? _bulkPrint : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.archive_outlined),
+              tooltip: l10n.archive,
+              onPressed: enabled ? _bulkArchive : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outlined, color: Colors.red),
+              tooltip: l10n.delete,
+              onPressed: enabled ? _bulkDelete : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openArchive() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const ArchiveScreen()),
@@ -105,10 +264,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final folder = context.read<NotesProvider>().selectedFolder;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => SafeArea(
+      builder: (context) => SheetBody(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
@@ -410,6 +570,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'select',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.checklist),
+            title: Text(l10n.selectNotes),
+          ),
+        ),
+        PopupMenuItem(
           value: 'archive',
           child: ListTile(
             dense: true,
@@ -462,6 +631,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'print':
         showPrintMenu(context, note);
         break;
+      case 'select':
+        _startSelection(note);
+        break;
       case 'archive':
         context.read<NotesProvider>().archiveNote(note.id);
         break;
@@ -485,11 +657,12 @@ class _HomeScreenState extends State<HomeScreen> {
     // nie betroffen, weil das Rechtsklick-Menü schon den Screen-Context nutzt).
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        return SafeArea(
+        return SheetBody(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Column(
@@ -555,6 +728,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     showPrintMenu(context, note);
                   },
                 ),
+                // Mehrere Notizen gemeinsam bearbeiten – diese Notiz ist schon
+                // ausgewählt.
+                ListTile(
+                  leading: const Icon(Icons.checklist),
+                  title: Text(l10n.selectNotes),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _startSelection(note);
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.archive_outlined),
                   title: Text(l10n.archive),
@@ -616,6 +799,39 @@ class _HomeScreenState extends State<HomeScreen> {
     final settings = context.watch<SettingsProvider>();
     final selectedFolder = context.watch<NotesProvider>().selectedFolder;
 
+    // Auswahlmodus: eigene Leiste (Anzahl + Alle auswählen), kein Drawer/FAB.
+    if (_selectionMode) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: l10n.cancel,
+            onPressed: _endSelection,
+          ),
+          title: Text(l10n.selectedCount(_selectedIds.length)),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              tooltip: l10n.selectAllNotes,
+              onPressed: _selectAllVisible,
+            ),
+          ],
+        ),
+        body: Consumer<NotesProvider>(
+          builder: (context, notesProvider, child) {
+            if (notesProvider.notes.isEmpty) {
+              return _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty,
+                  notesProvider.selectedFolder);
+            }
+            return settings.isGridView
+                ? _buildGridView(notesProvider.notes)
+                : _buildListView(notesProvider.notes);
+          },
+        ),
+        bottomNavigationBar: _buildSelectionBar(),
+      );
+    }
+
     return Scaffold(
       // Beim Suchen keinen Drawer (das Suchfeld nutzt den Platz links).
       drawer: _isSearching ? null : _buildDrawer(context),
@@ -633,6 +849,13 @@ class _HomeScreenState extends State<HomeScreen> {
             IconButton(icon: const Icon(Icons.close), onPressed: _stopSearch)
           else ...[
             IconButton(icon: const Icon(Icons.search), onPressed: _startSearch),
+            // Mehrfachauswahl starten (Sammelaktionen: verschieben, drucken,
+            // archivieren, löschen).
+            IconButton(
+              icon: const Icon(Icons.checklist),
+              tooltip: l10n.selectNotes,
+              onPressed: () => _startSelection(),
+            ),
             // Sync-Button bleibt immer sichtbar. Nicht angemeldet ->
             // durchgestrichenes Icon (sync_disabled) + Hinweis statt Sync, damit
             // ein versehentliches Abmelden auffällt.
@@ -818,10 +1041,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => SheetBody(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -953,8 +1177,22 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final note = notes[index];
         return GestureDetector(
-          onSecondaryTapDown: (d) => _showContextMenu(note, d.globalPosition),
-          child: NoteCard(note: note, onTap: () => _openNote(note), onLongPress: () => _showNoteOptions(note), isWidget: _widgetIds.contains(note.id)),
+          onSecondaryTapDown: _selectionMode
+              ? null
+              : (d) => _showContextMenu(note, d.globalPosition),
+          child: NoteCard(
+            note: note,
+            // Im Auswahlmodus wählt ein Tipp aus, statt die Notiz zu öffnen.
+            onTap: _selectionMode
+                ? () => _toggleSelected(note)
+                : () => _openNote(note),
+            onLongPress: _selectionMode
+                ? () => _toggleSelected(note)
+                : () => _showNoteOptions(note),
+            isWidget: _widgetIds.contains(note.id),
+            selectable: _selectionMode,
+            selected: _selectedIds.contains(note.id),
+          ),
         );
       },
     );
@@ -967,8 +1205,21 @@ class _HomeScreenState extends State<HomeScreen> {
       itemBuilder: (context, index) {
         final note = notes[index];
         return GestureDetector(
-          onSecondaryTapDown: (d) => _showContextMenu(note, d.globalPosition),
-          child: NoteListTile(note: note, onTap: () => _openNote(note), onLongPress: () => _showNoteOptions(note), isWidget: _widgetIds.contains(note.id)),
+          onSecondaryTapDown: _selectionMode
+              ? null
+              : (d) => _showContextMenu(note, d.globalPosition),
+          child: NoteListTile(
+            note: note,
+            onTap: _selectionMode
+                ? () => _toggleSelected(note)
+                : () => _openNote(note),
+            onLongPress: _selectionMode
+                ? () => _toggleSelected(note)
+                : () => _showNoteOptions(note),
+            isWidget: _widgetIds.contains(note.id),
+            selectable: _selectionMode,
+            selected: _selectedIds.contains(note.id),
+          ),
         );
       },
     );

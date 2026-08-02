@@ -1021,6 +1021,42 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Text in „{title}“ eingefügt'**
   String shareInsertedSnack(String title);
+
+  /// No description provided for @selectNotes.
+  ///
+  /// In de, this message translates to:
+  /// **'Auswählen'**
+  String get selectNotes;
+
+  /// No description provided for @selectedCount.
+  ///
+  /// In de, this message translates to:
+  /// **'{count} ausgewählt'**
+  String selectedCount(int count);
+
+  /// No description provided for @selectAllNotes.
+  ///
+  /// In de, this message translates to:
+  /// **'Alle auswählen'**
+  String get selectAllNotes;
+
+  /// No description provided for @deleteNotesConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Sollen {count} Notizen wirklich gelöscht werden?'**
+  String deleteNotesConfirm(int count);
+
+  /// No description provided for @notesMovedSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'{count} Notizen verschoben'**
+  String notesMovedSnack(int count);
+
+  /// No description provided for @notesArchivedSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'{count} Notizen archiviert'**
+  String notesArchivedSnack(int count);
 }
 
 class _AppLocalizationsDelegate

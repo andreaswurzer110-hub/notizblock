@@ -14,6 +14,7 @@ import '../widgets/shopping_list_view.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
+import '../widgets/sheet_body.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -313,11 +314,13 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
 
     showModalBottomSheet(
       context: context,
+      // Scrollbar + volle Höhe erlauben (Desktop-Fenster kann klein sein).
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SafeArea(
+        return SheetBody(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Column(

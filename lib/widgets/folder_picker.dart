@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notes_provider.dart';
+import 'sheet_body.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 // Sentinel-Rückgabewert des internen Sheets für „Neuer Ordner".
@@ -60,10 +61,12 @@ Future<String?> showFolderPicker(
 
   final selected = await showModalBottomSheet<String>(
     context: context,
+    // Viele Ordner passen sonst nicht ins Sheet (v.a. kleines Desktop-Fenster).
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (ctx) => SafeArea(
+    builder: (ctx) => SheetBody(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

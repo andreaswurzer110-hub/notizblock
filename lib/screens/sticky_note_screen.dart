@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show BoxWidthStyle;
 import 'package:flutter/material.dart';
@@ -13,9 +14,13 @@ import '../services/main_instance_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/settings_store.dart';
 import '../providers/settings_provider.dart';
+import '../providers/notes_provider.dart' show NotesProvider;
 import '../widgets/autopool_table.dart';
 import '../widgets/shopping_list_view.dart';
+import '../widgets/color_picker.dart';
 import '../widgets/note_context_menu.dart';
+import '../widgets/print_menu.dart';
+import '../widgets/sheet_body.dart';
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -105,7 +110,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     // Prozesssicher aus settings.json (Hauptapp ist der Schreiber). reload() für
     // den aktuellen Stand – die Hauptapp kann die Schriftgröße geändert haben.
     await SettingsStore.reload();
-    final scale = SettingsStore.getDouble(SettingsProvider.noteFontScaleKey) ?? 1.0;
+    final scale =
+        SettingsStore.getDouble(SettingsProvider.noteFontScaleKey) ?? 1.0;
     if (mounted && scale != _fontScale) setState(() => _fontScale = scale);
   }
 
@@ -200,7 +206,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
 
     setState(() => _note = note); // Hintergrundfarbe aktualisieren
     if (_isDesktop) {
-      await windowManager.setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+      await windowManager
+          .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
     }
   }
 
@@ -280,7 +287,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
     // Nach dem Tippen automatisch syncen (entprellt).
     _stickyAutoSyncTimer?.cancel();
-    _stickyAutoSyncTimer = Timer(const Duration(seconds: 2), _runStickyAutoSync);
+    _stickyAutoSyncTimer =
+        Timer(const Duration(seconds: 2), _runStickyAutoSync);
     // Undo-Checkpoint nach kurzer Tipp-Pause (nicht bei jedem Zeichen).
     if (!_restoringSnapshot) {
       // Echte Eingabe verwirft die Wiederholen-Historie.
@@ -454,6 +462,329 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (mounted) setState(() {});
   }
 
+  // --- Optionen-Menü des Widget-Fensters ---------------------------------
+  //
+  // Gleiche Möglichkeiten wie das Dreipunkte-Menü des Editors in der Hauptapp.
+  // Erreichbar über den ⋮-Knopf der Leiste und per Rechtsklick auf die Leiste.
+  //
+  // Achtung: Das Sticky-Fenster ist ein EIGENER Prozess ohne NotesProvider – es
+  // schreibt direkt über den DatabaseService. Und es darf `settings.json` NICHT
+  // schreiben (siehe CLAUDE.md), deshalb lässt sich hier nur in EXISTIERENDE
+  // Ordner verschieben; neue Ordner legt man in der Hauptapp an.
+  Future<void> _showMoreOptions() async {
+    if (_note == null) return;
+    // Anstehende Eingaben sichern, damit das Menü auf dem aktuellen Stand
+    // arbeitet (z.B. Drucken).
+    _saveTimer?.cancel();
+    await _saveNote();
+    if (!mounted) return;
+    final note = _note!;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SheetBody(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  note.title.isNotEmpty ? note.title : 'Notiz',
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(
+                    note.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                title: Text(note.isPinned ? 'Nicht anheften' : 'Anheften'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _togglePin();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.widgets),
+                title: const Text('Widget lösen'),
+                subtitle: const Text('Schließt dieses Fenster'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _unpinWidget();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Farbe'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickColor();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: const Text('In Ordner verschieben'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _moveToFolder();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.print_outlined),
+                title: const Text('Drucken'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  showPrintMenu(context, _note ?? note);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined),
+                title: const Text('Einstellungen'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openSettings();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.home_outlined),
+                title: const Text('Hauptmenü öffnen'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openMainApp();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.archive_outlined),
+                title: const Text('Archivieren'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _archiveNote();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outlined, color: Colors.red),
+                title:
+                    const Text('Löschen', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _confirmDelete();
+                },
+              ),
+              const Divider(),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Erstellt: ${DateFormat('d. MMMM yyyy, HH:mm', 'de').format(note.createdAt)}',
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Geändert: ${DateFormat('d. MMMM yyyy, HH:mm', 'de').format(note.modifiedAt)}',
+                      style: Theme.of(sheetContext)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Notiz-Eigenschaft ändern und speichern (Farbe/Anheften/Ordner/Archiv).
+  // Der Sticky-Prozess schreibt direkt in die DB; der eigene Auto-Sync lädt die
+  // Änderung anschließend hoch.
+  Future<void> _applyNoteChange(Note updated) async {
+    await DatabaseService.instance.updateNote(updated);
+    if (!mounted) return;
+    setState(() => _note = updated);
+    _stickyAutoSyncTimer?.cancel();
+    _stickyAutoSyncTimer =
+        Timer(const Duration(seconds: 2), _runStickyAutoSync);
+  }
+
+  Future<void> _togglePin() async {
+    final note = _note;
+    if (note == null) return;
+    await _applyNoteChange(note.copyWith(isPinned: !note.isPinned));
+  }
+
+  Future<void> _pickColor() async {
+    final note = _note;
+    if (note == null) return;
+    final newColor =
+        await showColorPickerSheet(context, currentColor: note.color);
+    if (newColor == null || !mounted) return;
+    await _applyNoteChange((_note ?? note).copyWith(color: newColor));
+  }
+
+  // Widget lösen: aus der Widget-Liste nehmen und das Fenster schließen.
+  Future<void> _unpinWidget() async {
+    await StickyNoteService.instance.setWidget(widget.noteId, false);
+    await _closeWindow();
+  }
+
+  Future<void> _archiveNote() async {
+    final note = _note;
+    if (note == null) return;
+    _saveTimer?.cancel();
+    await DatabaseService.instance.updateNote(note.copyWith(isArchived: true));
+    // Archivierte Notiz gehört nicht mehr auf den Desktop.
+    await StickyNoteService.instance.setWidget(widget.noteId, false);
+    await _runStickyAutoSync();
+    await _closeWindow();
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Notiz löschen'),
+        content: const Text('Soll diese Notiz wirklich gelöscht werden?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    _saveTimer?.cancel();
+    await DatabaseService.instance.deleteNote(widget.noteId);
+    await StickyNoteService.instance.setWidget(widget.noteId, false);
+    await _runStickyAutoSync();
+    await _closeWindow();
+  }
+
+  // Fenster schließen (der Poll-Timer würde es sonst gleich wieder tun, wenn die
+  // Notiz weg ist – hier aber sofort und kontrolliert).
+  Future<void> _closeWindow() async {
+    _saveTimer?.cancel();
+    _pollTimer?.cancel();
+    try {
+      await windowManager.destroy();
+    } catch (e) {
+      debugPrint('Fenster schließen fehlgeschlagen: $e');
+    }
+  }
+
+  // In einen bestehenden Ordner verschieben. Die Ordnerliste kommt aus den
+  // Einstellungen (nur gelesen!) plus den Ordnern, die in Notizen vorkommen.
+  Future<void> _moveToFolder() async {
+    final note = _note;
+    if (note == null) return;
+    final folders = <String>{};
+    try {
+      await SettingsStore.reload();
+      final raw = SettingsStore.getString(NotesProvider.foldersKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          folders.addAll(
+              decoded.map((e) => e.toString()).where((e) => e.isNotEmpty));
+        }
+      }
+    } catch (e) {
+      debugPrint('Ordnerliste lesen fehlgeschlagen: $e');
+    }
+    try {
+      for (final n in await DatabaseService.instance.getAllNotes()) {
+        if (n.folder.isNotEmpty) folders.add(n.folder);
+      }
+    } catch (e) {
+      debugPrint('Ordner aus Notizen lesen fehlgeschlagen: $e');
+    }
+    final list = folders.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    if (!mounted) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SheetBody(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('In Ordner verschieben',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.folder_off_outlined),
+              title: const Text('Kein Ordner'),
+              trailing: note.folder.isEmpty ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(ctx, ''),
+            ),
+            for (final f in list)
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(f, maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: note.folder == f ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(ctx, f),
+              ),
+            if (list.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Noch keine Ordner. Neue Ordner legst du im Hauptfenster an.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final current = _note ?? note;
+    if (selected == current.folder) return;
+    await _applyNoteChange(current.copyWith(folder: selected));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(selected.isEmpty
+          ? 'Aus Ordner entfernt'
+          : 'Nach „$selected" verschoben'),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
   // Öffnet die Hauptapp (Notizliste) als eigenen Prozess. `--show-main` erzwingt
   // das Hauptfenster, sonst würde der neue Prozess sich gemäß Start-Logik (nur
   // Widgets) sofort wieder beenden.
@@ -586,40 +917,40 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                         ),
                       )
                     : Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                    child: TextField(
-                      controller: _contentController,
-                      focusNode: _contentFocus,
-                      style: TextStyle(
-                        fontSize: 14 * _fontScale,
-                        color: _textColor,
-                        height: 1.5,
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                        child: TextField(
+                          controller: _contentController,
+                          focusNode: _contentFocus,
+                          style: TextStyle(
+                            fontSize: 14 * _fontScale,
+                            color: _textColor,
+                            height: 1.5,
+                          ),
+                          // Zeilenhöhe an der eingestellten Schriftgröße festnageln
+                          // (wie im Editor), damit eingefügter Text mit Fallback-
+                          // Schrift-Zeichen die Zeilen nicht höher macht.
+                          strutStyle: StrutStyle(
+                            fontSize: 14 * _fontScale,
+                            height: 1.5,
+                            forceStrutHeight: true,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Notiz schreiben...',
+                            hintStyle: TextStyle(
+                                color: _textColor.withValues(alpha: 0.35)),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          maxLines: null,
+                          expands: true,
+                          // Markierung eng an den Text legen (Flutter-Default ist
+                          // .max → markiert sonst die ganze Zeile bis zum Rand mit).
+                          selectionWidthStyle: BoxWidthStyle.tight,
+                          contextMenuBuilder: buildNoteContextMenu,
+                          onChanged: (_) => _onTextChanged(),
+                        ),
                       ),
-                      // Zeilenhöhe an der eingestellten Schriftgröße festnageln
-                      // (wie im Editor), damit eingefügter Text mit Fallback-
-                      // Schrift-Zeichen die Zeilen nicht höher macht.
-                      strutStyle: StrutStyle(
-                        fontSize: 14 * _fontScale,
-                        height: 1.5,
-                        forceStrutHeight: true,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Notiz schreiben...',
-                        hintStyle: TextStyle(
-                            color: _textColor.withValues(alpha: 0.35)),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      maxLines: null,
-                      expands: true,
-                      // Markierung eng an den Text legen (Flutter-Default ist
-                      // .max → markiert sonst die ganze Zeile bis zum Rand mit).
-                      selectionWidthStyle: BoxWidthStyle.tight,
-                      contextMenuBuilder: buildNoteContextMenu,
-                      onChanged: (_) => _onTextChanged(),
-                    ),
-                  ),
           ),
         ],
       ),
@@ -630,45 +961,54 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Hauptmenü (rechts). Das Haus-Symbol bewusst ganz rechts, damit die Leiste
   // einheitlich rechtsbündig zu den Aktions-Buttons der übrigen Ansichten ist.
   Widget _buildToolbar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-      child: Row(
-        children: [
-          // Rückgängig/Wiederholen (für Text und Autopool-Tabelle).
-          _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
-          _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
-          const Spacer(),
-          // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
-          // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.
-          Tooltip(
-            message:
-                _isSignedIn ? 'Synchronisieren' : 'Nicht bei Google Drive angemeldet',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: _syncing
-                  ? null
-                  : (_isSignedIn ? _syncNow : _showNotSignedIn),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Text(
-                  DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _textColor.withValues(alpha: 0.6),
-                    decoration:
-                        _isSignedIn ? null : TextDecoration.lineThrough,
+    return GestureDetector(
+      // Rechtsklick auf die Leiste öffnet dasselbe Optionen-Menü wie der
+      // ⋮-Knopf. (Im Textfeld selbst bleibt das normale Text-Kontextmenü –
+      // Ausschneiden/Kopieren/Einfügen – erhalten.)
+      onSecondaryTap: _showMoreOptions,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+        child: Row(
+          children: [
+            // Rückgängig/Wiederholen (für Text und Autopool-Tabelle).
+            _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
+            _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
+            const Spacer(),
+            // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
+            // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.
+            Tooltip(
+              message: _isSignedIn
+                  ? 'Synchronisieren'
+                  : 'Nicht bei Google Drive angemeldet',
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: _syncing
+                    ? null
+                    : (_isSignedIn ? _syncNow : _showNotSignedIn),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Text(
+                    DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _textColor.withValues(alpha: 0.6),
+                      decoration:
+                          _isSignedIn ? null : TextDecoration.lineThrough,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 2),
-          _buildSyncButton(),
-          // Einstellungen (öffnet die Hauptapp-Einstellungen).
-          _toolButton(Icons.settings, 'Einstellungen', _openSettings),
-          // Hauptmenü ganz rechts (öffnet die Hauptapp-Notizliste).
-          _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
-        ],
+            const SizedBox(width: 2),
+            _buildSyncButton(),
+            // Hauptmenü (öffnet die Hauptapp-Notizliste).
+            _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
+            // Alle weiteren Aktionen (wie das Dreipunkte-Menü im Editor):
+            // Farbe, Ordner, Drucken, Archivieren, Löschen, Einstellungen …
+            _toolButton(Icons.more_vert, 'Weitere Optionen', _showMoreOptions),
+          ],
+        ),
       ),
     );
   }

@@ -13,6 +13,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
+import '../widgets/sheet_body.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
@@ -547,11 +548,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
 
     showModalBottomSheet(
       context: context,
+      // Scrollbar + volle Höhe erlauben, sonst ist das Menü auf dem Desktop
+      // (kleines Fenster) unten abgeschnitten – siehe SheetBody.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SafeArea(
+        return SheetBody(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Column(
