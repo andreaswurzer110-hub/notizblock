@@ -90,6 +90,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
         text: widget.note?.title ?? widget.initialTitle ?? '');
     _contentController = TextEditingController(
         text: widget.note?.content ?? widget.initialContent ?? '');
+    // Schreibmarke bewusst an den ANFANG: Ohne gesetzte Position stellt Flutter
+    // sie beim Fokussieren ans Textende und scrollt dorthin – eine lange Notiz
+    // stünde dann sofort am unteren Ende.
+    _titleController.selection = const TextSelection.collapsed(offset: 0);
+    _contentController.selection = const TextSelection.collapsed(offset: 0);
     _selectedColor = widget.note?.color ?? '#FFFDE7';
     _isPinned = widget.note?.isPinned ?? false;
     _folder = widget.note?.folder ??
@@ -163,17 +168,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
 
     // Titel/Inhalt nur ersetzen, wenn das Feld nicht fokussiert ist
     // (sonst würde es die gerade getippte Eingabe überschreiben).
+    //
+    // WICHTIG – die Schreibmarke NICHT ans Ende setzen: Das Textfeld steckt in
+    // einer scrollbaren Seite; sitzt die Marke am Ende, scrollt Flutter sie ins
+    // Bild und eine lange Notiz springt beim Öffnen ganz nach unten. Seit dem
+    // „Abgleich beim Öffnen" (1.30.0) trifft das regelmäßig, weil kurz nach dem
+    // Öffnen ein Sync durchläuft; auf Windows zusätzlich durch das 0,8-s-Polling
+    // auf Fremdänderungen (war real ein Bug). Stattdessen die bisherige Position
+    // behalten (auf die neue Länge begrenzt).
     _applyingExternal = true;
     if (!_titleFocus.hasFocus && note.title != _titleController.text) {
       _titleController.value = TextEditingValue(
         text: note.title,
-        selection: TextSelection.collapsed(offset: note.title.length),
+        selection: _keptSelection(_titleController, note.title),
       );
     }
     if (!_contentFocus.hasFocus && note.content != _contentController.text) {
       _contentController.value = TextEditingValue(
         text: note.content,
-        selection: TextSelection.collapsed(offset: note.content.length),
+        selection: _keptSelection(_contentController, note.content),
       );
     }
     _applyingExternal = false;
@@ -189,6 +202,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
         if (colorChanged) _selectedColor = note.color;
       });
     }
+  }
+
+  /// Bisherige Schreibmarke beibehalten, auf die neue Textlänge begrenzt.
+  /// Ist keine gesetzt (Feld noch nie angetippt), bleibt sie am Anfang – so
+  /// springt eine lange Notiz nicht nach unten.
+  static TextSelection _keptSelection(
+      TextEditingController controller, String newText) {
+    final offset = controller.selection.baseOffset;
+    if (offset < 0) return const TextSelection.collapsed(offset: 0);
+    return TextSelection.collapsed(
+        offset: offset.clamp(0, newText.length));
   }
 
   @override

@@ -197,7 +197,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (contentChanged && !_contentFocus.hasFocus) {
       _contentController.value = TextEditingValue(
         text: note.content,
-        selection: TextSelection.collapsed(offset: note.content.length),
+        // Schreibmarke NICHT ans Ende setzen – sonst scrollt eine lange Notiz
+        // bei jeder Fremdänderung nach unten (siehe NoteEditorScreen).
+        selection: _keptSelection(_contentController, note.content),
       );
       // Undo-Basis an externen Stand angleichen (kein Rückspringen auf Vor-Sync).
       _lastCheckpoint = note.content;
@@ -218,6 +220,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       if (_note != null) {
         _titleController.text = _note!.title;
         _contentController.text = _note!.content;
+        // Schreibmarke an den Anfang (siehe _keptSelection): sonst setzt Flutter
+        // sie beim Fokussieren ans Textende und scrollt dorthin.
+        _contentController.selection = const TextSelection.collapsed(offset: 0);
         _autopoolJson = _note!.autopoolData;
         _shoppingJson = _note!.autopoolData;
         _lastCheckpoint = (_note!.isAutopool || _note!.isShopping)
@@ -393,6 +398,15 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     );
     _onTextChanged();
     _restoringSnapshot = false;
+  }
+
+  /// Bisherige Schreibmarke beibehalten, auf die neue Textlänge begrenzt
+  /// (siehe NoteEditorScreen – verhindert das Springen ans Textende).
+  static TextSelection _keptSelection(
+      TextEditingController controller, String newText) {
+    final offset = controller.selection.baseOffset;
+    if (offset < 0) return const TextSelection.collapsed(offset: 0);
+    return TextSelection.collapsed(offset: offset.clamp(0, newText.length));
   }
 
   Future<void> _saveNote() async {
