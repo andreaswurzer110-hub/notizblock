@@ -8,9 +8,9 @@ import '../providers/notes_provider.dart';
 import '../widgets/color_picker.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app_info.dart';
+import '../utils/date_display.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -363,7 +363,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _formatDateTime(DateTime date) {
-    return DateFormat('d. MMM yyyy, HH:mm', 'de').format(date);
+    return DateDisplay.medium(context, date);
   }
 
   void _showLanguageDialog(

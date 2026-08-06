@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/autopool.dart';
@@ -8,6 +7,7 @@ import '../models/shopping_list.dart';
 import '../providers/notes_provider.dart';
 import '../services/google_drive_service.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
+import '../utils/date_display.dart';
 
 /// Versionsverlauf einer Notiz: die in Google Drive liegenden früheren Stände
 /// ansehen und bei Bedarf wiederherstellen.
@@ -66,7 +66,7 @@ class _VersionListState extends State<_VersionList> {
   }
 
   String _formatDate(DateTime d) =>
-      DateFormat('d. MMMM yyyy, HH:mm', 'de').format(d);
+      DateDisplay.long(context, d);
 
   @override
   Widget build(BuildContext context) {

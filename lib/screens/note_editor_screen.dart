@@ -19,7 +19,7 @@ import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
-import 'package:intl/intl.dart';
+import '../utils/date_display.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   final Note? note;
@@ -780,7 +780,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   }
 
   String _formatDateTime(DateTime date) {
-    return DateFormat('d. MMMM yyyy, HH:mm', 'de').format(date);
+    return DateDisplay.long(context, date);
   }
 
   @override
@@ -846,7 +846,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     // Zeit/Datum durchgestrichen, wenn nicht angemeldet – damit
                     // der abgemeldete Zustand sofort auffällt.
                     final timeText = Text(
-                      DateFormat('d.M. HH:mm', 'de').format(_currentModifiedAt),
+                      DateDisplay.shortDayTime(context, _currentModifiedAt),
                       style: TextStyle(
                         fontSize: 12,
                         color: foregroundColor.withValues(alpha: 0.6),

@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "en",
   "appTitle": "Notizblock AW",
   "newNote": "New Note",
@@ -21,9 +21,21 @@
   "titleHint": "Title",
   "contentHint": "Write a note...",
   "createdAt": "Created: {date}",
-  "@createdAt": { "placeholders": { "date": { "type": "String" } } },
+  "@createdAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "modifiedAt": "Modified: {date}",
-  "@modifiedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@modifiedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "language": "Language",
   "theme": "Theme",
   "themeSystem": "System",
@@ -34,18 +46,42 @@
   "signIn": "Sign in",
   "signOut": "Sign out",
   "signedInAs": "Signed in as {email}",
-  "@signedInAs": { "placeholders": { "email": { "type": "String" } } },
+  "@signedInAs": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
   "sync": "Sync",
   "autoSync": "Auto sync",
   "lastSync": "Last sync: {date}",
-  "@lastSync": { "placeholders": { "date": { "type": "String" } } },
+  "@lastSync": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "neverSynced": "Never synced",
   "syncSuccess": "Sync successful",
   "syncFailed": "Sync failed",
   "uploaded": "{count} uploaded",
-  "@uploaded": { "placeholders": { "count": { "type": "int" } } },
+  "@uploaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "downloaded": "{count} downloaded",
-  "@downloaded": { "placeholders": { "count": { "type": "int" } } },
+  "@downloaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "createBackup": "Create backup",
   "restoreBackup": "Restore backup",
   "restore": "Restore",
@@ -78,7 +114,13 @@
   "deletedLoadFailed": "Could not load deleted notes",
   "noteRestored": "Note restored",
   "deletedOn": "Deleted: {date}",
-  "@deletedOn": { "placeholders": { "date": { "type": "String" } } },
+  "@deletedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "deletePermanently": "Delete permanently",
   "deletePermanentlyConfirm": "Permanently delete this note? This cannot be undone.",
   "autopool": "Autopool",
@@ -91,10 +133,25 @@
   "shoppingItemHint": "Item",
   "shoppingAddItem": "Add item",
   "shoppingCompleted": "Completed ({count})",
-  "@shoppingCompleted": { "placeholders": { "count": { "type": "int" } } },
+  "@shoppingCompleted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shoppingDeleteItem": "Delete item",
   "shoppingOpenCount": "{open}/{total} open",
-  "@shoppingOpenCount": { "placeholders": { "open": { "type": "int" }, "total": { "type": "int" } } },
+  "@shoppingOpenCount": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "allNotes": "All notes",
   "folders": "Folders",
   "newFolder": "New folder",
@@ -102,14 +159,32 @@
   "renameFolder": "Rename folder",
   "deleteFolder": "Delete folder",
   "deleteFolderConfirm": "Delete folder “{name}”? The notes inside are kept and will no longer be in any folder.",
-  "@deleteFolderConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "@deleteFolderConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "moveToFolder": "Move to folder",
   "noFolder": "No folder",
   "addExistingNote": "Add existing note",
   "addNotesToFolderTitle": "Add notes to “{folder}”",
-  "@addNotesToFolderTitle": { "placeholders": { "folder": { "type": "String" } } },
+  "@addNotesToFolderTitle": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "addedToFolderSnack": "Added to “{folder}”",
-  "@addedToFolderSnack": { "placeholders": { "folder": { "type": "String" } } },
+  "@addedToFolderSnack": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "removedFromFolderSnack": "Removed from folder",
   "noNotesToAdd": "No other notes to add",
   "add": "Add",
@@ -180,5 +255,7 @@
   "versionRestoreConfirm": "Restore the version from {date}? The current version stays in the history.",
   "versionRestored": "Restored the version from {date}",
   "conflictDetected": "Conflict: “{title}” was changed on two devices. Please check the earlier version.",
-  "conflictDetectedMulti": "Conflict: {count} notes were changed on two devices. Please check the earlier versions."
+  "conflictDetectedMulti": "Conflict: {count} notes were changed on two devices. Please check the earlier versions.",
+  "yesterday": "Yesterday",
+  "pinned": "Pinned"
 }

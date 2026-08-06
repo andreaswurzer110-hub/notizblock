@@ -569,4 +569,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String conflictDetectedMulti(int count) {
     return 'Conflitto: $count note sono state modificate su due dispositivi. Controlla le versioni precedenti.';
   }
+
+  @override
+  String get yesterday => 'Ieri';
+
+  @override
+  String get pinned => 'Fissata';
 }

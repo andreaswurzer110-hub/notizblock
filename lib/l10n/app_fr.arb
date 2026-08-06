@@ -97,9 +97,21 @@
   "noFolder": "Aucun dossier",
   "addExistingNote": "Ajouter une note existante",
   "addNotesToFolderTitle": "Ajouter des notes à « {folder} »",
-  "@addNotesToFolderTitle": { "placeholders": { "folder": { "type": "String" } } },
+  "@addNotesToFolderTitle": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "addedToFolderSnack": "Ajouté à « {folder} »",
-  "@addedToFolderSnack": { "placeholders": { "folder": { "type": "String" } } },
+  "@addedToFolderSnack": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "removedFromFolderSnack": "Retiré du dossier",
   "noNotesToAdd": "Aucune autre note à ajouter",
   "add": "Ajouter",
@@ -170,5 +182,7 @@
   "versionRestoreConfirm": "Restaurer la version du {date} ? La version actuelle reste dans l’historique.",
   "versionRestored": "Version du {date} restaurée",
   "conflictDetected": "Conflit : « {title} » a été modifiée sur deux appareils. Vérifiez la version précédente.",
-  "conflictDetectedMulti": "Conflit : {count} notes ont été modifiées sur deux appareils. Vérifiez les versions précédentes."
+  "conflictDetectedMulti": "Conflit : {count} notes ont été modifiées sur deux appareils. Vérifiez les versions précédentes.",
+  "yesterday": "Hier",
+  "pinned": "Épinglée"
 }

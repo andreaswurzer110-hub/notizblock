@@ -1,4 +1,4 @@
-﻿{
+{
   "@@locale": "de",
   "appTitle": "Notizblock AW",
   "newNote": "Neue Notiz",
@@ -21,9 +21,21 @@
   "titleHint": "Titel",
   "contentHint": "Notiz schreiben...",
   "createdAt": "Erstellt: {date}",
-  "@createdAt": { "placeholders": { "date": { "type": "String" } } },
+  "@createdAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "modifiedAt": "Geändert: {date}",
-  "@modifiedAt": { "placeholders": { "date": { "type": "String" } } },
+  "@modifiedAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "language": "Sprache",
   "theme": "Design",
   "themeSystem": "System",
@@ -34,18 +46,42 @@
   "signIn": "Anmelden",
   "signOut": "Abmelden",
   "signedInAs": "Angemeldet als {email}",
-  "@signedInAs": { "placeholders": { "email": { "type": "String" } } },
+  "@signedInAs": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
   "sync": "Synchronisieren",
   "autoSync": "Automatisch synchronisieren",
   "lastSync": "Letzte Sync: {date}",
-  "@lastSync": { "placeholders": { "date": { "type": "String" } } },
+  "@lastSync": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "neverSynced": "Noch nie synchronisiert",
   "syncSuccess": "Synchronisierung erfolgreich",
   "syncFailed": "Synchronisierung fehlgeschlagen",
   "uploaded": "{count} hochgeladen",
-  "@uploaded": { "placeholders": { "count": { "type": "int" } } },
+  "@uploaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "downloaded": "{count} heruntergeladen",
-  "@downloaded": { "placeholders": { "count": { "type": "int" } } },
+  "@downloaded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "createBackup": "Backup erstellen",
   "restoreBackup": "Backup wiederherstellen",
   "restore": "Wiederherstellen",
@@ -78,7 +114,13 @@
   "deletedLoadFailed": "Gelöschte Notizen konnten nicht geladen werden",
   "noteRestored": "Notiz wiederhergestellt",
   "deletedOn": "Gelöscht: {date}",
-  "@deletedOn": { "placeholders": { "date": { "type": "String" } } },
+  "@deletedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "deletePermanently": "Endgültig löschen",
   "deletePermanentlyConfirm": "Diese Notiz endgültig löschen? Das kann nicht rückgängig gemacht werden.",
   "autopool": "Autopool",
@@ -91,10 +133,25 @@
   "shoppingItemHint": "Artikel",
   "shoppingAddItem": "Artikel hinzufügen",
   "shoppingCompleted": "Erledigt ({count})",
-  "@shoppingCompleted": { "placeholders": { "count": { "type": "int" } } },
+  "@shoppingCompleted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "shoppingDeleteItem": "Artikel löschen",
   "shoppingOpenCount": "{open}/{total} offen",
-  "@shoppingOpenCount": { "placeholders": { "open": { "type": "int" }, "total": { "type": "int" } } },
+  "@shoppingOpenCount": {
+    "placeholders": {
+      "open": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "allNotes": "Alle Notizen",
   "folders": "Ordner",
   "newFolder": "Neuer Ordner",
@@ -102,14 +159,32 @@
   "renameFolder": "Ordner umbenennen",
   "deleteFolder": "Ordner löschen",
   "deleteFolderConfirm": "Ordner „{name}“ löschen? Die enthaltenen Notizen bleiben erhalten und sind dann keinem Ordner mehr zugeordnet.",
-  "@deleteFolderConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "@deleteFolderConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "moveToFolder": "In Ordner verschieben",
   "noFolder": "Kein Ordner",
   "addExistingNote": "Vorhandene Notiz hinzufügen",
   "addNotesToFolderTitle": "Notizen zu „{folder}“ hinzufügen",
-  "@addNotesToFolderTitle": { "placeholders": { "folder": { "type": "String" } } },
+  "@addNotesToFolderTitle": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "addedToFolderSnack": "Zu „{folder}“ hinzugefügt",
-  "@addedToFolderSnack": { "placeholders": { "folder": { "type": "String" } } },
+  "@addedToFolderSnack": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
   "removedFromFolderSnack": "Aus Ordner entfernt",
   "noNotesToAdd": "Keine weiteren Notizen zum Hinzufügen",
   "add": "Hinzufügen",
@@ -154,9 +229,21 @@
   "exportTxt": "Als Textdatei speichern",
   "exportWord": "Als Word-Dokument speichern",
   "exportSaved": "Gespeichert: {file}",
-  "@exportSaved": { "placeholders": { "file": { "type": "String" } } },
+  "@exportSaved": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
   "exportFailed": "Export fehlgeschlagen: {error}",
-  "@exportFailed": { "placeholders": { "error": { "type": "String" } } },
+  "@exportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "shareImportTitle": "Text übernehmen",
   "shareImportNewNote": "In neue Notiz",
   "shareImportNewNoteSubtitle": "Legt eine neue Notiz mit dem Text an",
@@ -167,17 +254,47 @@
   "shareInsertTop": "Oberhalb einfügen",
   "shareInsertBottom": "Unterhalb einfügen",
   "shareInsertedSnack": "Text in „{title}“ eingefügt",
-  "@shareInsertedSnack": { "placeholders": { "title": { "type": "String" } } },
+  "@shareInsertedSnack": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "selectNotes": "Auswählen",
   "selectedCount": "{count} ausgewählt",
-  "@selectedCount": { "placeholders": { "count": { "type": "int" } } },
+  "@selectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "selectAllNotes": "Alle auswählen",
   "deleteNotesConfirm": "Sollen {count} Notizen wirklich gelöscht werden?",
-  "@deleteNotesConfirm": { "placeholders": { "count": { "type": "int" } } },
+  "@deleteNotesConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "notesMovedSnack": "{count} Notizen verschoben",
-  "@notesMovedSnack": { "placeholders": { "count": { "type": "int" } } },
+  "@notesMovedSnack": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "notesArchivedSnack": "{count} Notizen archiviert",
-  "@notesArchivedSnack": { "placeholders": { "count": { "type": "int" } } },
+  "@notesArchivedSnack": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "versionHistory": "Frühere Versionen",
   "versionHistoryHint": "Stände aus dem Google-Drive-Verlauf (die neuesten 30 je Notiz)",
   "versionHistoryEmpty": "Noch keine früheren Versionen vorhanden",
@@ -185,11 +302,37 @@
   "versionDeletedMarker": "gelöscht",
   "versionRestore": "Wiederherstellen",
   "versionRestoreConfirm": "Stand vom {date} wiederherstellen? Der aktuelle Stand bleibt im Verlauf erhalten.",
-  "@versionRestoreConfirm": { "placeholders": { "date": { "type": "String" } } },
+  "@versionRestoreConfirm": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "versionRestored": "Stand vom {date} wiederhergestellt",
-  "@versionRestored": { "placeholders": { "date": { "type": "String" } } },
+  "@versionRestored": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "conflictDetected": "Konflikt: „{title}“ wurde auf zwei Geräten geändert. Bitte die frühere Version prüfen.",
-  "@conflictDetected": { "placeholders": { "title": { "type": "String" } } },
+  "@conflictDetected": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "conflictDetectedMulti": "Konflikt: {count} Notizen wurden auf zwei Geräten geändert. Bitte die früheren Versionen prüfen.",
-  "@conflictDetectedMulti": { "placeholders": { "count": { "type": "int" } } }
+  "@conflictDetectedMulti": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yesterday": "Gestern",
+  "pinned": "Angeheftet"
 }

@@ -31,13 +31,30 @@ class SettingsProvider with ChangeNotifier {
   bool get showMainWindowOnStart => _showMainWindowOnStart;
   double get noteFontScale => _noteFontScale;
 
-  // Unterstützte Sprachen
+  // Unterstützte Sprachen.
+  //
+  // WICHTIG: Zu JEDER Sprache hier MUSS eine vollständige `lib/l10n/app_<code>.arb`
+  // existieren – sonst ist AppLocalizations für sie null und die App wird grau
+  // und unbedienbar (siehe CLAUDE.md). Abgesichert durch
+  // `test/l10n_locales_test.dart`.
+  //
+  // Die Auswahl folgt den tatsächlichen Store-Zahlen (Portugiesisch ist der
+  // größte Einzelmarkt im Microsoft Store) plus den großen Sprachen der
+  // Desktop-Märkte.
   static const List<Locale> supportedLocales = [
     Locale('de'), // Deutsch
     Locale('en'), // Englisch
     Locale('es'), // Spanisch
     Locale('fr'), // Französisch
     Locale('it'), // Italienisch
+    Locale('pt'), // Portugiesisch (Brasilien/Portugal)
+    Locale('nl'), // Niederländisch
+    Locale('pl'), // Polnisch
+    Locale('ru'), // Russisch
+    Locale('uk'), // Ukrainisch
+    Locale('tr'), // Türkisch
+    Locale('zh'), // Chinesisch (vereinfacht)
+    Locale('ja'), // Japanisch
   ];
 
   static String getLanguageName(String code) {
@@ -52,6 +69,22 @@ class SettingsProvider with ChangeNotifier {
         return 'Français';
       case 'it':
         return 'Italiano';
+      case 'pt':
+        return 'Português';
+      case 'nl':
+        return 'Nederlands';
+      case 'pl':
+        return 'Polski';
+      case 'ru':
+        return 'Русский';
+      case 'uk':
+        return 'Українська';
+      case 'tr':
+        return 'Türkçe';
+      case 'zh':
+        return '中文';
+      case 'ja':
+        return '日本語';
       default:
         return code;
     }

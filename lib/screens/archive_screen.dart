@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../models/note.dart';
 import '../providers/notes_provider.dart';
 import '../services/google_drive_service.dart';
 import 'read_only_note_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
+import '../utils/date_display.dart';
 
 /// Archiv & Wiederherstellen: zwei Tabs – archivierte Notizen (lokal) und
 /// gelöschte Notizen (aus dem Drive-Verlauf, geräteübergreifend, 30 Tage).
@@ -262,7 +262,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return DateFormat('d. MMM yyyy, HH:mm', 'de').format(date);
+    return DateDisplay.medium(context, date);
   }
 }
 

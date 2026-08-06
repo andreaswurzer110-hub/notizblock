@@ -2,7 +2,7 @@
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../models/note.dart';
 import '../models/shopping_list.dart';
-import 'package:intl/intl.dart';
+import '../utils/date_display.dart';
 
 class NoteCard extends StatelessWidget {
   final Note note;
@@ -85,14 +85,14 @@ class NoteCard extends StatelessWidget {
                   spacing: 12,
                   children: [
                     if (note.isPinned)
-                      _badge(Icons.push_pin, 'Angeheftet', subtitleColor),
+                      _badge(Icons.push_pin, AppLocalizations.of(context)!.pinned, subtitleColor),
                     if (isWidget)
                       _badge(Icons.widgets, 'Widget', subtitleColor),
                     if (note.isAutopool)
-                      _badge(Icons.table_chart, 'Autopool', subtitleColor),
+                      _badge(Icons.table_chart, AppLocalizations.of(context)!.autopool, subtitleColor),
                     if (note.isShopping)
-                      _badge(Icons.shopping_cart, 'Einkaufsliste',
-                          subtitleColor),
+                      _badge(Icons.shopping_cart,
+                          AppLocalizations.of(context)!.shoppingList, subtitleColor),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -132,7 +132,7 @@ class NoteCard extends StatelessWidget {
               if (!isCompact) ...[
                 const SizedBox(height: 12),
                 Text(
-                  _formatDate(note.modifiedAt),
+                  _formatDate(context, note.modifiedAt),
                   style: TextStyle(
                     fontSize: 11,
                     color: subtitleColor,
@@ -164,18 +164,18 @@ class NoteCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(BuildContext context, DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
 
     if (difference.inDays == 0) {
-      return DateFormat('HH:mm').format(date);
+      return DateDisplay.time(context, date);
     } else if (difference.inDays == 1) {
-      return 'Gestern';
+      return AppLocalizations.of(context)!.yesterday;
     } else if (difference.inDays < 7) {
-      return DateFormat('EEEE', 'de').format(date);
+      return DateDisplay.weekday(context, date);
     } else {
-      return DateFormat('d. MMM', 'de').format(date);
+      return DateDisplay.dayMonth(context, date);
     }
   }
 }
@@ -275,7 +275,7 @@ class NoteListTile extends StatelessWidget {
         ),
         subtitle: _buildSubtitle(context, textColor, subtitleColor),
         trailing: Text(
-          _formatDate(note.modifiedAt),
+          _formatDate(context, note.modifiedAt),
           style: TextStyle(
             fontSize: 12,
             color: subtitleColor,
@@ -331,16 +331,16 @@ class NoteListTile extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatDate(BuildContext context, DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
 
     if (difference.inDays == 0) {
-      return DateFormat('HH:mm').format(date);
+      return DateDisplay.time(context, date);
     } else if (difference.inDays < 7) {
-      return DateFormat('E', 'de').format(date);
+      return DateDisplay.weekdayShort(context, date);
     } else {
-      return DateFormat('d.M.', 'de').format(date);
+      return DateDisplay.dayMonthNumeric(context, date);
     }
   }
 }
