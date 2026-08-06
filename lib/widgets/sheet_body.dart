@@ -30,6 +30,51 @@ class SheetBody extends StatefulWidget {
   State<SheetBody> createState() => _SheetBodyState();
 }
 
+/// Dasselbe für den Inhalt eines [AlertDialog].
+///
+/// Ein Dialog wächst mit seinem Inhalt, bis der Platz ausgeht – danach wird
+/// **abgeschnitten**, ohne Scrollmöglichkeit. Bei der Sprachauswahl mit 13
+/// Einträgen waren die letzten dadurch auf Windows nicht mehr erreichbar (war
+/// real ein Bug in 1.31.0). Also: Auswahllisten in Dialogen immer hier
+/// einpacken – dann bleibt der Dialog innerhalb des Fensters und der Inhalt
+/// scrollt mit sichtbarer Scrollleiste.
+class DialogBody extends StatefulWidget {
+  final Widget child;
+
+  /// Feste Breite, damit der Dialog bei kurzen Einträgen nicht schmal wird.
+  final double width;
+
+  const DialogBody({super.key, required this.child, this.width = 320});
+
+  @override
+  State<DialogBody> createState() => _DialogBodyState();
+}
+
+class _DialogBodyState extends State<DialogBody> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: widget.width,
+      child: Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        child: SingleChildScrollView(
+          controller: _controller,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 class _SheetBodyState extends State<SheetBody> {
   final ScrollController _controller = ScrollController();
 

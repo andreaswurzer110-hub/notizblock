@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
@@ -6,6 +6,7 @@ import '../services/google_drive_service.dart';
 import '../services/autostart_service.dart';
 import '../providers/notes_provider.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/sheet_body.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -378,22 +379,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         title: Text(l10n.language),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: SettingsProvider.supportedLocales.map((locale) {
-            final isSelected = locale == settings.locale;
-            return ListTile(
-              title: Text(SettingsProvider.getLanguageName(locale.languageCode)),
-              trailing: isSelected ? const Icon(Icons.check) : null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              onTap: () {
-                settings.setLocale(locale);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
+        // Scrollbar + begrenzte Höhe: Bei 13 Sprachen passt die Liste sonst
+        // nicht ins Fenster und die letzten Einträge sind abgeschnitten.
+        content: DialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: SettingsProvider.supportedLocales.map((locale) {
+              final isSelected = locale == settings.locale;
+              return ListTile(
+                title:
+                    Text(SettingsProvider.getLanguageName(locale.languageCode)),
+                trailing: isSelected ? const Icon(Icons.check) : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onTap: () {
+                  settings.setLocale(locale);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
@@ -411,31 +417,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         title: Text(l10n.theme),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildThemeOption(
-              context,
-              l10n.themeSystem,
-              Icons.brightness_auto,
-              ThemeMode.system,
-              settings,
-            ),
-            _buildThemeOption(
-              context,
-              l10n.themeLight,
-              Icons.light_mode,
-              ThemeMode.light,
-              settings,
-            ),
-            _buildThemeOption(
-              context,
-              l10n.themeDark,
-              Icons.dark_mode,
-              ThemeMode.dark,
-              settings,
-            ),
-          ],
+        content: DialogBody(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThemeOption(
+                context,
+                l10n.themeSystem,
+                Icons.brightness_auto,
+                ThemeMode.system,
+                settings,
+              ),
+              _buildThemeOption(
+                context,
+                l10n.themeLight,
+                Icons.light_mode,
+                ThemeMode.light,
+                settings,
+              ),
+              _buildThemeOption(
+                context,
+                l10n.themeDark,
+                Icons.dark_mode,
+                ThemeMode.dark,
+                settings,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -463,7 +471,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showDefaultColorPicker(BuildContext context, SettingsProvider settings) async {
+  void _showDefaultColorPicker(
+      BuildContext context, SettingsProvider settings) async {
     final newColor = await showColorPickerSheet(
       context,
       currentColor: settings.defaultNoteColor,
