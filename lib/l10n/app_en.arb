@@ -170,5 +170,15 @@
   "selectAllNotes": "Select all",
   "deleteNotesConfirm": "Delete {count} notes?",
   "notesMovedSnack": "{count} notes moved",
-  "notesArchivedSnack": "{count} notes archived"
+  "notesArchivedSnack": "{count} notes archived",
+  "versionHistory": "Earlier versions",
+  "versionHistoryHint": "Versions from the Google Drive history (the latest 30 per note)",
+  "versionHistoryEmpty": "No earlier versions yet",
+  "versionHistoryFailed": "Could not load the history",
+  "versionDeletedMarker": "deleted",
+  "versionRestore": "Restore",
+  "versionRestoreConfirm": "Restore the version from {date}? The current version stays in the history.",
+  "versionRestored": "Restored the version from {date}",
+  "conflictDetected": "Conflict: “{title}” was changed on two devices. Please check the earlier version.",
+  "conflictDetectedMulti": "Conflict: {count} notes were changed on two devices. Please check the earlier versions."
 }

@@ -15,6 +15,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
+import '../widgets/version_history.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -80,6 +81,8 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     // Undo-Basis am tatsächlichen Anfangsstand der Tabelle ausrichten.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _lastCheckpoint = _tableKey.currentState?.currentJson ?? _autopoolJson;
+      // Beim Öffnen sofort abgleichen (siehe NotesProvider.syncOnOpen).
+      if (mounted && !isNewNote) context.read<NotesProvider>().syncOnOpen();
     });
   }
 
@@ -313,6 +316,14 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
     await showPrintMenu(context, current);
   }
 
+  // Frühere Versionen dieser Notiz aus dem Drive-Verlauf ansehen/zurückholen.
+  Future<void> _showVersions() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    await showVersionHistory(context, note);
+  }
+
   Future<void> _archiveNote() async {
     _saveDebounce?.cancel();
     final note = _currentNote ?? widget.note;
@@ -454,6 +465,16 @@ class _AutopoolEditorScreenState extends State<AutopoolEditorScreen> {
                     _printNote();
                   },
                 ),
+                // Frühere Versionen aus dem Drive-Verlauf
+                if (!isNewNote)
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text(l10n.versionHistory),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showVersions();
+                    },
+                  ),
                 // Einstellungen direkt aus dem Editor öffnen (wie im Text-Editor).
                 ListTile(
                   leading: const Icon(Icons.settings_outlined),

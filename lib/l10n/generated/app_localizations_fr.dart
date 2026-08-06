@@ -533,4 +533,43 @@ class AppLocalizationsFr extends AppLocalizations {
   String notesArchivedSnack(int count) {
     return '$count notes archivées';
   }
+
+  @override
+  String get versionHistory => 'Versions précédentes';
+
+  @override
+  String get versionHistoryHint =>
+      'Versions issues de l’historique Google Drive (les 30 dernières par note)';
+
+  @override
+  String get versionHistoryEmpty => 'Aucune version précédente pour l’instant';
+
+  @override
+  String get versionHistoryFailed => 'Impossible de charger l’historique';
+
+  @override
+  String get versionDeletedMarker => 'supprimée';
+
+  @override
+  String get versionRestore => 'Restaurer';
+
+  @override
+  String versionRestoreConfirm(String date) {
+    return 'Restaurer la version du $date ? La version actuelle reste dans l’historique.';
+  }
+
+  @override
+  String versionRestored(String date) {
+    return 'Version du $date restaurée';
+  }
+
+  @override
+  String conflictDetected(String title) {
+    return 'Conflit : « $title » a été modifiée sur deux appareils. Vérifiez la version précédente.';
+  }
+
+  @override
+  String conflictDetectedMulti(int count) {
+    return 'Conflit : $count notes ont été modifiées sur deux appareils. Vérifiez les versions précédentes.';
+  }
 }

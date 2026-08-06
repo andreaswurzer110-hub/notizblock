@@ -14,6 +14,7 @@ import '../widgets/note_context_menu.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
+import '../widgets/version_history.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'archive_screen.dart';
@@ -101,6 +102,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     WidgetsBinding.instance.addObserver(this);
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
+
+    // Beim Öffnen einer bestehenden Notiz sofort abgleichen, damit Änderungen
+    // vom anderen Gerät möglichst noch vor dem eigenen Tippen ankommen (der
+    // Editor übernimmt sie live, solange das Feld nicht fokussiert ist).
+    if (!isNewNote) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<NotesProvider>().syncOnOpen();
+      });
+    }
 
     // Neue Notiz mit vorbelegtem Text (per „Teilen" übernommen): sofort anlegen,
     // damit sie auch dann existiert, wenn der Nutzer die App direkt wieder
@@ -484,6 +494,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     await showPrintMenu(context, current);
   }
 
+  // Frühere Versionen dieser Notiz aus dem Drive-Verlauf ansehen/zurückholen.
+  Future<void> _showVersions() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    await showVersionHistory(context, note);
+  }
+
   // Notiz archivieren und den Editor schließen (sie verschwindet aus der Liste).
   Future<void> _archiveNote() async {
     // Anstehenden Auto-Save abbrechen, sonst könnte er nach dem Archivieren den
@@ -624,6 +642,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                     _printNote();
                   },
                 ),
+
+                // Frühere Versionen aus dem Drive-Verlauf (nur bestehende Notiz)
+                if (!isNewNote)
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text(l10n.versionHistory),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showVersions();
+                    },
+                  ),
 
                 // Einstellungen direkt aus dem Editor öffnen
                 ListTile(

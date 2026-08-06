@@ -160,5 +160,15 @@
   "selectAllNotes": "Seleziona tutto",
   "deleteNotesConfirm": "Eliminare {count} note?",
   "notesMovedSnack": "{count} note spostate",
-  "notesArchivedSnack": "{count} note archiviate"
+  "notesArchivedSnack": "{count} note archiviate",
+  "versionHistory": "Versioni precedenti",
+  "versionHistoryHint": "Versioni dalla cronologia di Google Drive (le 30 più recenti per nota)",
+  "versionHistoryEmpty": "Nessuna versione precedente",
+  "versionHistoryFailed": "Impossibile caricare la cronologia",
+  "versionDeletedMarker": "eliminata",
+  "versionRestore": "Ripristina",
+  "versionRestoreConfirm": "Ripristinare la versione del {date}? La versione attuale resta nella cronologia.",
+  "versionRestored": "Versione del {date} ripristinata",
+  "conflictDetected": "Conflitto: «{title}» è stata modificata su due dispositivi. Controlla la versione precedente.",
+  "conflictDetectedMulti": "Conflitto: {count} note sono state modificate su due dispositivi. Controlla le versioni precedenti."
 }

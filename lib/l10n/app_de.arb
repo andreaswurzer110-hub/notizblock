@@ -177,5 +177,19 @@
   "notesMovedSnack": "{count} Notizen verschoben",
   "@notesMovedSnack": { "placeholders": { "count": { "type": "int" } } },
   "notesArchivedSnack": "{count} Notizen archiviert",
-  "@notesArchivedSnack": { "placeholders": { "count": { "type": "int" } } }
+  "@notesArchivedSnack": { "placeholders": { "count": { "type": "int" } } },
+  "versionHistory": "Frühere Versionen",
+  "versionHistoryHint": "Stände aus dem Google-Drive-Verlauf (die neuesten 30 je Notiz)",
+  "versionHistoryEmpty": "Noch keine früheren Versionen vorhanden",
+  "versionHistoryFailed": "Verlauf konnte nicht geladen werden",
+  "versionDeletedMarker": "gelöscht",
+  "versionRestore": "Wiederherstellen",
+  "versionRestoreConfirm": "Stand vom {date} wiederherstellen? Der aktuelle Stand bleibt im Verlauf erhalten.",
+  "@versionRestoreConfirm": { "placeholders": { "date": { "type": "String" } } },
+  "versionRestored": "Stand vom {date} wiederhergestellt",
+  "@versionRestored": { "placeholders": { "date": { "type": "String" } } },
+  "conflictDetected": "Konflikt: „{title}“ wurde auf zwei Geräten geändert. Bitte die frühere Version prüfen.",
+  "@conflictDetected": { "placeholders": { "title": { "type": "String" } } },
+  "conflictDetectedMulti": "Konflikt: {count} Notizen wurden auf zwei Geräten geändert. Bitte die früheren Versionen prüfen.",
+  "@conflictDetectedMulti": { "placeholders": { "count": { "type": "int" } } }
 }

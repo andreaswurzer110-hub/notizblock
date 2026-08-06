@@ -531,4 +531,43 @@ class AppLocalizationsDe extends AppLocalizations {
   String notesArchivedSnack(int count) {
     return '$count Notizen archiviert';
   }
+
+  @override
+  String get versionHistory => 'Frühere Versionen';
+
+  @override
+  String get versionHistoryHint =>
+      'Stände aus dem Google-Drive-Verlauf (die neuesten 30 je Notiz)';
+
+  @override
+  String get versionHistoryEmpty => 'Noch keine früheren Versionen vorhanden';
+
+  @override
+  String get versionHistoryFailed => 'Verlauf konnte nicht geladen werden';
+
+  @override
+  String get versionDeletedMarker => 'gelöscht';
+
+  @override
+  String get versionRestore => 'Wiederherstellen';
+
+  @override
+  String versionRestoreConfirm(String date) {
+    return 'Stand vom $date wiederherstellen? Der aktuelle Stand bleibt im Verlauf erhalten.';
+  }
+
+  @override
+  String versionRestored(String date) {
+    return 'Stand vom $date wiederhergestellt';
+  }
+
+  @override
+  String conflictDetected(String title) {
+    return 'Konflikt: „$title“ wurde auf zwei Geräten geändert. Bitte die frühere Version prüfen.';
+  }
+
+  @override
+  String conflictDetectedMulti(int count) {
+    return 'Konflikt: $count Notizen wurden auf zwei Geräten geändert. Bitte die früheren Versionen prüfen.';
+  }
 }

@@ -160,5 +160,15 @@
   "selectAllNotes": "Tout sélectionner",
   "deleteNotesConfirm": "Supprimer {count} notes ?",
   "notesMovedSnack": "{count} notes déplacées",
-  "notesArchivedSnack": "{count} notes archivées"
+  "notesArchivedSnack": "{count} notes archivées",
+  "versionHistory": "Versions précédentes",
+  "versionHistoryHint": "Versions issues de l’historique Google Drive (les 30 dernières par note)",
+  "versionHistoryEmpty": "Aucune version précédente pour l’instant",
+  "versionHistoryFailed": "Impossible de charger l’historique",
+  "versionDeletedMarker": "supprimée",
+  "versionRestore": "Restaurer",
+  "versionRestoreConfirm": "Restaurer la version du {date} ? La version actuelle reste dans l’historique.",
+  "versionRestored": "Version du {date} restaurée",
+  "conflictDetected": "Conflit : « {title} » a été modifiée sur deux appareils. Vérifiez la version précédente.",
+  "conflictDetectedMulti": "Conflit : {count} notes ont été modifiées sur deux appareils. Vérifiez les versions précédentes."
 }

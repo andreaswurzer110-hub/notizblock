@@ -10,6 +10,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
+import '../widgets/version_history.dart';
 import '../services/sticky_note_service.dart';
 import '../services/google_drive_service.dart';
 import 'note_editor_screen.dart';
@@ -58,6 +59,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSignInChanged() {
     if (mounted) setState(() {});
+  }
+
+  // Hat der letzte Abgleich einen Konflikt gemeldet (dieselbe Notiz auf zwei
+  // Geräten geändert), einmalig darauf hinweisen. Bewusst KEINE Konfliktkopie:
+  // beide Fassungen stehen im Versionsverlauf, von dort holt man die richtige
+  // zurück – der Hinweis führt direkt dorthin.
+  void _showConflictsIfAny(NotesProvider provider) {
+    final conflicts = provider.pendingConflicts;
+    if (conflicts.isEmpty) return;
+    provider.clearConflicts();
+    final l10n = AppLocalizations.of(context)!;
+    final first = conflicts.first;
+    final text = conflicts.length == 1
+        ? l10n.conflictDetected(
+            first.title.trim().isEmpty ? l10n.emptyNote : first.title.trim())
+        : l10n.conflictDetectedMulti(conflicts.length);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(text),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 10),
+      action: SnackBarAction(
+        label: l10n.versionHistory,
+        onPressed: () {
+          final note = context.read<NotesProvider>().getNoteById(first.noteId);
+          if (note != null) showVersionHistory(context, note);
+        },
+      ),
+    ));
   }
 
   Future<void> _loadWidgetIds() async {
@@ -570,6 +599,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         PopupMenuItem(
+          value: 'history',
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.history),
+            title: Text(l10n.versionHistory),
+          ),
+        ),
+        PopupMenuItem(
           value: 'select',
           child: ListTile(
             dense: true,
@@ -630,6 +668,9 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
       case 'print':
         showPrintMenu(context, note);
+        break;
+      case 'history':
+        showVersionHistory(context, note);
         break;
       case 'select':
         _startSelection(note);
@@ -726,6 +767,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.pop(sheetContext);
                     showPrintMenu(context, note);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: Text(l10n.versionHistory),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showVersionHistory(context, note);
                   },
                 ),
                 // Mehrere Notizen gemeinsam bearbeiten – diese Notiz ist schon
@@ -891,6 +940,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Consumer<NotesProvider>(
         builder: (context, notesProvider, child) {
+          // Nach jedem Abgleich prüfen, ob ein Konflikt zu melden ist (nach dem
+          // Frame, damit während des Bauens keine SnackBar angestoßen wird).
+          if (notesProvider.pendingConflicts.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _showConflictsIfAny(notesProvider);
+            });
+          }
           if (notesProvider.isLoading) return const Center(child: CircularProgressIndicator());
           if (notesProvider.notes.isEmpty) return _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty, notesProvider.selectedFolder);
           return settings.isGridView ? _buildGridView(notesProvider.notes) : _buildListView(notesProvider.notes);

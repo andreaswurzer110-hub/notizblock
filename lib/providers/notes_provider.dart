@@ -116,6 +116,42 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     if (result.success) {
       await loadNotes(silent: true);
     }
+    // Auf beiden Seiten geänderte Notizen melden – die UI zeigt dann einen
+    // Hinweis auf den Versionsverlauf (siehe pendingConflicts).
+    if (result.conflicts.isNotEmpty) {
+      _pendingConflicts = List.of(result.conflicts);
+      notifyListeners();
+    }
+  }
+
+  /// Beim ÖFFNEN einer Notiz sofort abgleichen, statt auf den 15-s-Takt bzw.
+  /// den stündlichen Hintergrund-Job zu warten. Damit sieht man die Änderung
+  /// des anderen Geräts möglichst noch VOR dem eigenen Tippen; der Editor
+  /// übernimmt eintreffende Fremdänderungen live (solange man nicht gerade in
+  /// dem Feld schreibt). Läuft im Hintergrund und blockiert das Öffnen nicht.
+  void syncOnOpen() {
+    // Mehrfaches Öffnen kurz hintereinander soll nicht mehrfach anstoßen; der
+    // Sync selbst dedupliziert zusätzlich über seinen _inFlight-Future.
+    final now = DateTime.now();
+    if (_lastOpenSync != null &&
+        now.difference(_lastOpenSync!) < const Duration(seconds: 3)) {
+      return;
+    }
+    _lastOpenSync = now;
+    _runAutoSync();
+  }
+
+  DateTime? _lastOpenSync;
+
+  /// Zuletzt erkannte Sync-Konflikte, die der Nutzer noch nicht gesehen hat.
+  /// Die Notizliste zeigt dafür einen Hinweis und räumt sie danach über
+  /// [clearConflicts] wieder ab.
+  List<ConflictInfo> _pendingConflicts = const [];
+  List<ConflictInfo> get pendingConflicts => _pendingConflicts;
+
+  void clearConflicts() {
+    if (_pendingConflicts.isEmpty) return;
+    _pendingConflicts = const [];
   }
 
   @override

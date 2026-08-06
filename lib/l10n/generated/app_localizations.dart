@@ -1057,6 +1057,66 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'{count} Notizen archiviert'**
   String notesArchivedSnack(int count);
+
+  /// No description provided for @versionHistory.
+  ///
+  /// In de, this message translates to:
+  /// **'Frühere Versionen'**
+  String get versionHistory;
+
+  /// No description provided for @versionHistoryHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Stände aus dem Google-Drive-Verlauf (die neuesten 30 je Notiz)'**
+  String get versionHistoryHint;
+
+  /// No description provided for @versionHistoryEmpty.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine früheren Versionen vorhanden'**
+  String get versionHistoryEmpty;
+
+  /// No description provided for @versionHistoryFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Verlauf konnte nicht geladen werden'**
+  String get versionHistoryFailed;
+
+  /// No description provided for @versionDeletedMarker.
+  ///
+  /// In de, this message translates to:
+  /// **'gelöscht'**
+  String get versionDeletedMarker;
+
+  /// No description provided for @versionRestore.
+  ///
+  /// In de, this message translates to:
+  /// **'Wiederherstellen'**
+  String get versionRestore;
+
+  /// No description provided for @versionRestoreConfirm.
+  ///
+  /// In de, this message translates to:
+  /// **'Stand vom {date} wiederherstellen? Der aktuelle Stand bleibt im Verlauf erhalten.'**
+  String versionRestoreConfirm(String date);
+
+  /// No description provided for @versionRestored.
+  ///
+  /// In de, this message translates to:
+  /// **'Stand vom {date} wiederhergestellt'**
+  String versionRestored(String date);
+
+  /// No description provided for @conflictDetected.
+  ///
+  /// In de, this message translates to:
+  /// **'Konflikt: „{title}“ wurde auf zwei Geräten geändert. Bitte die frühere Version prüfen.'**
+  String conflictDetected(String title);
+
+  /// No description provided for @conflictDetectedMulti.
+  ///
+  /// In de, this message translates to:
+  /// **'Konflikt: {count} Notizen wurden auf zwei Geräten geändert. Bitte die früheren Versionen prüfen.'**
+  String conflictDetectedMulti(int count);
 }
 
 class _AppLocalizationsDelegate

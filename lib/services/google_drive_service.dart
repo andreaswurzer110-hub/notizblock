@@ -534,6 +534,8 @@ class GoogleDriveService {
       final prefs = await SharedPreferences.getInstance();
       // Frische, prozessübergreifende Sicht (Hauptapp + Sticky-Fenster syncen beide).
       await prefs.reload();
+      // Gemessenen Uhr-Versatz zur Drive-Serverzeit laden (siehe _isRemoteNewer).
+      await _loadClockOffset(prefs);
 
       // Einmalige Migration vom alten Gesamt-Backup
       await _migrateLegacyIfNeeded(rootId);
@@ -555,6 +557,8 @@ class GoogleDriveService {
       var uploaded = 0;
       var downloaded = 0;
       DateTime? maxSeen;
+      // Auf beiden Seiten geänderte Notizen (siehe ConflictInfo).
+      final conflicts = <ConflictInfo>[];
       // IDs, die wir in diesem Sync gerade von Remote übernommen haben – die
       // dürfen wir NICHT direkt wieder hochladen (verhindert Ping-Pong und das
       // versehentliche Zurückschreiben eines gerade geholten Stands).
@@ -579,10 +583,30 @@ class GoogleDriveService {
           final note =
               Note.fromJson(jsonDecode(content) as Map<String, dynamic>);
           final local = await DatabaseService.instance.getNoteById(note.id);
-          if (local == null || note.modifiedAt.isAfter(local.modifiedAt)) {
+          // KONFLIKT: Diese Notiz wurde seit dem letzten Abgleich auf BEIDEN
+          // Seiten geändert (Remote-Datei ist neu in der Liste UND die Notiz
+          // steht in den lokal geänderten). Es gewinnt weiterhin die neuere
+          // Fassung, aber der Nutzer wird gewarnt und findet die andere im
+          // Versionsverlauf.
+          final isConflict = local != null && localChangedIds.contains(note.id);
+          if (local == null || _isRemoteNewer(note, local, f.modifiedTime)) {
+            // Vor dem Überschreiben die LOKALE Fassung in die Historie retten –
+            // sie wurde nie hochgeladen und wäre sonst endgültig weg.
+            if (isConflict) {
+              await _writeHistorySnapshot(historyFolderId, local);
+            }
             await DatabaseService.instance.insertOrUpdateNotes([note]);
             appliedIds.add(note.id);
             downloaded++;
+            if (isConflict) {
+              conflicts.add(ConflictInfo(
+                  noteId: note.id, title: note.title, remoteWon: true));
+            }
+          } else if (isConflict) {
+            // Lokale Fassung ist neuer -> sie wird gleich gepusht und
+            // überschreibt die fremde. Die liegt bereits in der Historie.
+            conflicts.add(ConflictInfo(
+                noteId: note.id, title: local.title, remoteWon: false));
           }
         } catch (_) {}
       }
@@ -615,6 +639,8 @@ class GoogleDriveService {
         final mt = await _putFile(
             notesFolderId, '${note.id}.json', jsonEncode(note.toJson()));
         maxSeen = _laterOf(maxSeen, mt);
+        // Serverzeit dieses Schreibvorgangs -> Uhr-Versatz nachführen.
+        await _updateClockOffset(prefs, mt);
         await _writeHistorySnapshot(historyFolderId, note);
         uploaded++;
       }
@@ -663,6 +689,7 @@ class GoogleDriveService {
         message: 'Synchronisierung erfolgreich',
         uploadedCount: uploaded,
         downloadedCount: downloaded,
+        conflicts: conflicts,
       );
     } catch (e) {
       debugPrint('Sync Fehler: $e');
@@ -903,11 +930,16 @@ class GoogleDriveService {
   }
 
   Future<List<drive.File>> _listFiles(String folderId,
-      {String? modifiedAfter}) async {
+      {String? modifiedAfter, String? nameContains}) async {
     final files = <drive.File>[];
     var query = "'$folderId' in parents and trashed=false";
     if (modifiedAfter != null) {
       query += " and modifiedTime > '$modifiedAfter'";
+    }
+    if (nameContains != null) {
+      // Vorfiltern auf dem Server – der Historie-Ordner enthält die Snapshots
+      // ALLER Notizen, die will man für eine einzelne nicht komplett laden.
+      query += " and name contains '$nameContains'";
     }
     String? pageToken;
     do {
@@ -1013,6 +1045,62 @@ class GoogleDriveService {
 
   // ---- Historie ----
 
+  // ---- Zeitvergleich (Geräte-Uhr vs. Drive-Serverzeit) ----
+
+  /// Gemessener Versatz zwischen dieser Geräte-Uhr und der Drive-Serverzeit
+  /// (`serverzeit - gerätezeit`), gespeichert in den Prefs.
+  ///
+  /// Warum: Welche Fassung beim Sync gewinnt, entscheidet `modifiedAt` – und
+  /// das ist die Uhr des jeweiligen GERÄTS. Geht eine Uhr falsch, gewinnt
+  /// systematisch das falsche Gerät, ohne dass irgendwo ein Fehler auftaucht.
+  /// Beim Hochladen liefert Drive die Serverzeit der Datei zurück; damit lässt
+  /// sich der Versatz messen und beim Vergleich herausrechnen.
+  static const String _clockOffsetKey = 'drive_clock_offset_seconds';
+
+  /// Ab diesem Versatz wird korrigiert. Kleine Abweichungen (normale
+  /// Ungenauigkeit, Laufzeit des Uploads) bleiben bewusst unangetastet, damit
+  /// sich am eingespielten Verhalten nichts ändert.
+  static const int _clockOffsetThresholdSeconds = 60;
+
+  Duration _clockOffset = Duration.zero;
+
+  Future<void> _loadClockOffset(SharedPreferences prefs) async {
+    final s = prefs.getInt(_clockOffsetKey) ?? 0;
+    _clockOffset = Duration(seconds: s);
+  }
+
+  /// Versatz aus einer frisch von Drive zurückgemeldeten Schreibzeit ableiten.
+  Future<void> _updateClockOffset(
+      SharedPreferences prefs, DateTime? serverTime) async {
+    if (serverTime == null) return;
+    final offset = serverTime.toUtc().difference(DateTime.now().toUtc());
+    if (offset.abs() < const Duration(seconds: _clockOffsetThresholdSeconds)) {
+      if (_clockOffset != Duration.zero) {
+        _clockOffset = Duration.zero;
+        await prefs.setInt(_clockOffsetKey, 0);
+      }
+      return;
+    }
+    _clockOffset = offset;
+    await prefs.setInt(_clockOffsetKey, offset.inSeconds);
+    debugPrint('Uhr-Versatz zur Drive-Serverzeit: ${offset.inSeconds}s');
+  }
+
+  /// Ist die Remote-Fassung neuer als die lokale?
+  ///
+  /// Für die Remote-Seite zählt die **Drive-Serverzeit** der Datei, wenn sie
+  /// vorliegt – die stammt von Google und nicht von einer möglicherweise falsch
+  /// gehenden Geräte-Uhr. Die lokale Zeit wird um den gemessenen Versatz
+  /// korrigiert, damit beide in derselben Zeitbasis verglichen werden.
+  /// Ohne gemessenen Versatz (Normalfall) verhält sich das exakt wie bisher.
+  bool _isRemoteNewer(Note remote, Note local, DateTime? remoteServerTime) {
+    if (_clockOffset == Duration.zero || remoteServerTime == null) {
+      return remote.modifiedAt.isAfter(local.modifiedAt);
+    }
+    final localInServerTime = local.modifiedAt.toUtc().add(_clockOffset);
+    return remoteServerTime.toUtc().isAfter(localInServerTime);
+  }
+
   Future<void> _writeHistorySnapshot(String historyFolderId, Note note,
       {bool deleted = false}) async {
     // Dateiname: <id>__<zeitstempel>__<titel>.json  (id vorne = leicht gruppierbar)
@@ -1080,6 +1168,49 @@ class GoogleDriveService {
     }
   }
 
+  // ---- Versionsverlauf einer Notiz ----
+
+  /// Alle in Drive vorhandenen Stände einer Notiz, neueste zuerst.
+  ///
+  /// Quelle sind die ohnehin geschriebenen Snapshots im Ordner `history/`
+  /// (Dateiname `<id>__<zeitstempel>__<titel>.json`, pro Notiz die neuesten 30).
+  /// Damit lässt sich ein Stand zurückholen, der vom Abgleich überschrieben
+  /// wurde – etwa nach einem gemeldeten Konflikt.
+  Future<List<NoteVersion>> getNoteVersions(String noteId) async {
+    if (_driveApi == null) return [];
+    final rootId = await _getOrCreateBackupFolder();
+    if (rootId == null) return [];
+    final historyFolderId =
+        await _getOrCreateSubfolder(rootId, _historyFolderName);
+    if (historyFolderId == null) return [];
+
+    final files = await _listFiles(historyFolderId, nameContains: noteId);
+    final versions = <NoteVersion>[];
+    for (final f in files) {
+      final name = f.name ?? '';
+      if (!name.startsWith('${noteId}__')) continue;
+      versions.add(NoteVersion.fromFileName(
+        name,
+        fileId: f.id!,
+        fallbackTime: f.modifiedTime,
+      ));
+    }
+    versions.sort((a, b) => b.savedAt.compareTo(a.savedAt));
+    return versions;
+  }
+
+  /// Den Inhalt eines Standes laden (zum Anzeigen bzw. Wiederherstellen).
+  Future<Note?> loadNoteVersion(String fileId) async {
+    final content = await _downloadFile(fileId);
+    if (content == null) return null;
+    try {
+      return Note.fromJson(jsonDecode(content) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Version laden fehlgeschlagen: $e');
+      return null;
+    }
+  }
+
   // ---- Migration vom alten Gesamt-Backup ----
 
   Future<void> _migrateLegacyIfNeeded(String rootId) async {
@@ -1124,13 +1255,85 @@ class SyncResult {
   final String message;
   final int uploadedCount;
   final int downloadedCount;
+  /// Notizen, die seit dem letzten Abgleich auf BEIDEN Seiten geändert wurden.
+  /// Eine der beiden Fassungen hat dabei verloren (last-write-wins) – beide
+  /// liegen aber im Versionsverlauf. Die UI warnt daraufhin.
+  final List<ConflictInfo> conflicts;
 
   SyncResult({
     required this.success,
     required this.message,
     this.uploadedCount = 0,
     this.downloadedCount = 0,
+    this.conflicts = const [],
   });
+}
+
+/// Ein erkannter Sync-Konflikt: dieselbe Notiz wurde seit dem letzten Abgleich
+/// hier UND auf einem anderen Gerät geändert.
+class ConflictInfo {
+  final String noteId;
+  final String title;
+  /// true = die Fassung des anderen Geräts hat gewonnen (die lokale wurde
+  /// ersetzt), false = die lokale Fassung hat gewonnen.
+  final bool remoteWon;
+
+  ConflictInfo({
+    required this.noteId,
+    required this.title,
+    required this.remoteWon,
+  });
+}
+
+/// Ein Stand aus dem Versionsverlauf einer Notiz (Drive-Ordner `history/`).
+class NoteVersion {
+  final String fileId;
+  /// Zeitpunkt des Snapshots (aus dem Dateinamen; sonst die Drive-Zeit).
+  final DateTime savedAt;
+  /// Titel, den die Notiz zu diesem Zeitpunkt hatte.
+  final String title;
+  /// Snapshot einer gelöschten Notiz.
+  final bool deleted;
+
+  NoteVersion({
+    required this.fileId,
+    required this.savedAt,
+    required this.title,
+    this.deleted = false,
+  });
+
+  /// Aus dem Dateinamen der Historie lesen:
+  /// `<id>__<zeitstempel>__<titel>[__geloescht].json`.
+  ///
+  /// Der Zeitstempel steht mit `-` statt `:` in der Uhrzeit (Doppelpunkte sind
+  /// in Dateinamen nicht erlaubt) und wird hier zurückgedreht. Lässt er sich
+  /// nicht lesen, gilt [fallbackTime] (die Drive-Zeit der Datei).
+  factory NoteVersion.fromFileName(
+    String name, {
+    required String fileId,
+    DateTime? fallbackTime,
+  }) {
+    final parts = name.split('__');
+    DateTime? saved;
+    if (parts.length >= 2) {
+      // 2026-08-04T18-30-00.000Z -> 2026-08-04T18:30:00.000Z
+      final fixed = parts[1].replaceFirstMapped(
+        RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
+        (m) => 'T${m[1]}:${m[2]}:${m[3]}',
+      );
+      saved = DateTime.tryParse(fixed)?.toLocal();
+    }
+    var title = '';
+    if (parts.length >= 3) {
+      title = parts[2].replaceAll('.json', '').trim();
+    }
+    return NoteVersion(
+      fileId: fileId,
+      savedAt: saved ?? fallbackTime?.toLocal() ?? DateTime.now(),
+      title: title,
+      deleted: name.contains('__geloescht'),
+    );
+  }
 }
 
 /// Eine gelöschte Notiz aus dem Drive-Verlauf: letzter bekannter Stand + wann

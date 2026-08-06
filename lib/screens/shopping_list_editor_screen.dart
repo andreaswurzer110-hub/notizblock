@@ -15,6 +15,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
+import '../widgets/version_history.dart';
 import 'archive_screen.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
@@ -72,6 +73,12 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
         context.read<NotesProvider>().selectedFolder;
     _currentNote = widget.note;
     _titleController.addListener(_onChanged);
+    // Beim Öffnen sofort abgleichen (siehe NotesProvider.syncOnOpen).
+    if (!isNewNote) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<NotesProvider>().syncOnOpen();
+      });
+    }
   }
 
   @override
@@ -242,6 +249,14 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
     await showPrintMenu(context, current);
   }
 
+  // Frühere Versionen dieser Notiz aus dem Drive-Verlauf ansehen/zurückholen.
+  Future<void> _showVersions() async {
+    if (_hasChanges) await _saveNote();
+    final note = _currentNote ?? widget.note;
+    if (note == null || !mounted) return;
+    await showVersionHistory(context, note);
+  }
+
   Future<void> _archiveNote() async {
     _saveDebounce?.cancel();
     final note = _currentNote ?? widget.note;
@@ -382,6 +397,16 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
                     _printNote();
                   },
                 ),
+                // Frühere Versionen aus dem Drive-Verlauf
+                if (!isNewNote)
+                  ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text(l10n.versionHistory),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showVersions();
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.settings_outlined),
                   title: Text(l10n.settings),
