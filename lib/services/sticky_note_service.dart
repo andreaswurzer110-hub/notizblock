@@ -229,7 +229,34 @@ class StickyNoteService {
 
   // --- Fenster-Bounds (Position + Groesse), pro-Notiz-Datei ---
 
+  /// Ist diese Fensterlage brauchbar – oder Unsinn, den wir weder speichern noch
+  /// wiederherstellen dürfen?
+  ///
+  /// **WICHTIG (war real ein Bug, 1.29.2):** Windows meldet für ein
+  /// **minimiertes** Fenster die Platzhalter-Lage **-32000/-32000** mit
+  /// Titelleisten-Größe (ca. 160x39). Der 2-Sekunden-Poll in
+  /// `StickyNoteScreen._saveBounds` hat genau das einmal erwischt und in die
+  /// Zustandsdatei geschrieben. Danach öffnete das Widget bei JEDEM Start
+  /// unsichtbar weit außerhalb des Bildschirms und winzig – und ließ sich auch
+  /// durch neues Anheften oder Task-Beenden nicht zurückholen, weil die kaputte
+  /// Lage immer wieder angewendet wurde. Solche Werte deshalb hier abfangen:
+  /// beim Speichern gar nicht erst schreiben und beim Laden ignorieren
+  /// (Letzteres repariert bereits kaputte Dateien automatisch – das Fenster
+  /// öffnet dann mit der Standardgröße).
+  static bool isPlausibleBounds(Rect b) {
+    for (final v in [b.left, b.top, b.width, b.height]) {
+      if (v.isNaN || !v.isFinite) return false;
+    }
+    // Kleiner als das kann ein Notizfenster sinnvoll nie sein.
+    if (b.width < 120 || b.height < 80) return false;
+    // Weit außerhalb jedes realen Monitors (u.a. die -32000-Platzhalterlage).
+    if (b.left <= -20000 || b.top <= -20000) return false;
+    if (b.left >= 20000 || b.top >= 20000) return false;
+    return true;
+  }
+
   Future<void> saveBounds(String noteId, Rect bounds) async {
+    if (!isPlausibleBounds(bounds)) return;
     final data = await _readState(noteId);
     data['bounds'] = {
       'x': bounds.left,
@@ -245,12 +272,19 @@ class StickyNoteService {
     final b = data['bounds'];
     if (b is! Map) return null;
     try {
-      return Rect.fromLTWH(
+      final rect = Rect.fromLTWH(
         (b['x'] as num).toDouble(),
         (b['y'] as num).toDouble(),
         (b['w'] as num).toDouble(),
         (b['h'] as num).toDouble(),
       );
+      // Unbrauchbare Lage (z.B. aus einer älteren Version gespeichert, als das
+      // Fenster minimiert war) verwerfen -> Standardgröße statt unsichtbar.
+      if (!isPlausibleBounds(rect)) {
+        debugPrint('Unbrauchbare Fensterlage für $noteId verworfen: $rect');
+        return null;
+      }
+      return rect;
     } catch (_) {
       return null;
     }

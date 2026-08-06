@@ -238,8 +238,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Future<void> _saveBounds() async {
     if (!_isDesktop) return;
     try {
+      // Minimiertes Fenster NIE speichern: Windows liefert dafür die
+      // Platzhalter-Lage -32000/-32000 in Titelleisten-Größe. Landet die in der
+      // Zustandsdatei, öffnet das Widget künftig unsichtbar außerhalb des
+      // Bildschirms (siehe StickyNoteService.isPlausibleBounds).
+      if (await windowManager.isMinimized()) return;
       final bounds = await windowManager.getBounds();
-      if (bounds.width <= 0 || bounds.height <= 0) return; // unsinnige Werte
+      // Zusätzliche Absicherung, falls isMinimized() den Zustand verpasst.
+      if (!StickyNoteService.isPlausibleBounds(bounds)) return;
       final last = _lastSavedBounds;
       if (last != null &&
           (last.left - bounds.left).abs() < 1 &&
