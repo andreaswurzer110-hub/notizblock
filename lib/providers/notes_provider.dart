@@ -7,6 +7,7 @@ import '../models/note.dart';
 import '../services/database_service.dart';
 import '../services/widget_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/conflict_store.dart';
 import '../services/settings_store.dart';
 import 'settings_provider.dart';
 
@@ -56,6 +57,8 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Einmaliger Sync kurz nach Start: holt Änderungen anderer Geräte herein.
     Timer(const Duration(seconds: 2), _runAutoSync);
+    // Offene Konflikt-Hinweise aus früheren Läufen/anderen Prozessen anzeigen.
+    reloadConflicts();
     // Explizite Ordner-Liste laden.
     _loadFolders();
   }
@@ -116,12 +119,20 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     if (result.success) {
       await loadNotes(silent: true);
     }
-    // Auf beiden Seiten geänderte Notizen melden – die UI zeigt dann einen
-    // Hinweis auf den Versionsverlauf (siehe pendingConflicts).
-    if (result.conflicts.isNotEmpty) {
-      _pendingConflicts = List.of(result.conflicts);
-      notifyListeners();
-    }
+    // Konflikte hat der Sync bereits dauerhaft vermerkt (ConflictStore) – hier
+    // nur den gespeicherten Stand nachladen, damit die Notizliste ihn zeigt.
+    await reloadConflicts();
+  }
+
+  /// Offene Konflikt-Hinweise aus dem Speicher lesen (auch die, die ein
+  /// Sticky-Fenster, das Hintergrund-Isolate oder ein früherer App-Lauf
+  /// vermerkt hat).
+  Future<void> reloadConflicts() async {
+    final list = await ConflictStore.load();
+    final changed = list.length != _pendingConflicts.length ||
+        !list.every((c) => _pendingConflicts.any((p) => p.noteId == c.noteId));
+    _pendingConflicts = list;
+    if (changed) notifyListeners();
   }
 
   /// Beim ÖFFNEN einer Notiz sofort abgleichen, statt auf den 15-s-Takt bzw.
@@ -143,15 +154,24 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
 
   DateTime? _lastOpenSync;
 
-  /// Zuletzt erkannte Sync-Konflikte, die der Nutzer noch nicht gesehen hat.
-  /// Die Notizliste zeigt dafür einen Hinweis und räumt sie danach über
-  /// [clearConflicts] wieder ab.
-  List<ConflictInfo> _pendingConflicts = const [];
-  List<ConflictInfo> get pendingConflicts => _pendingConflicts;
+  /// Erkannte Sync-Konflikte, die der Nutzer noch nicht bestätigt hat. Die
+  /// Notizliste zeigt dafür einen bleibenden Hinweis (kein flüchtiger Toast –
+  /// der ging beim Wechsel in den Hintergrund verloren).
+  List<PendingConflict> _pendingConflicts = const [];
+  List<PendingConflict> get pendingConflicts => _pendingConflicts;
 
-  void clearConflicts() {
-    if (_pendingConflicts.isEmpty) return;
+  /// Einen Hinweis bestätigen (der Nutzer hat ihn gesehen).
+  Future<void> dismissConflict(String noteId) async {
+    await ConflictStore.remove(noteId);
+    _pendingConflicts =
+        _pendingConflicts.where((c) => c.noteId != noteId).toList();
+    notifyListeners();
+  }
+
+  Future<void> clearConflicts() async {
+    await ConflictStore.clearAll();
     _pendingConflicts = const [];
+    notifyListeners();
   }
 
   @override

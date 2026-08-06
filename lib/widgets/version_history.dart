@@ -16,7 +16,15 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 /// die neuesten 30 je Notiz). Sichtbar gemacht sind sie vor allem für den Fall,
 /// dass zwei Geräte dieselbe Notiz geändert haben: dabei gewinnt die neuere
 /// Fassung, die andere ist hier zu finden.
-Future<void> showVersionHistory(BuildContext context, Note note) async {
+/// [onRestore] wird gebraucht, wenn kein [NotesProvider] verfügbar ist – etwa
+/// im Sticky-Fenster, das ein eigener Prozess ohne Provider ist. Dort schreibt
+/// der Aufrufer den Stand selbst (über den DatabaseService) und aktualisiert
+/// seine Anzeige. Ohne Angabe läuft das Wiederherstellen über den Provider.
+Future<void> showVersionHistory(
+  BuildContext context,
+  Note note, {
+  Future<void> Function(Note version)? onRestore,
+}) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
 
@@ -34,14 +42,15 @@ Future<void> showVersionHistory(BuildContext context, Note note) async {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (sheetContext) => _VersionList(note: note),
+    builder: (sheetContext) => _VersionList(note: note, onRestore: onRestore),
   );
 }
 
 class _VersionList extends StatefulWidget {
   final Note note;
+  final Future<void> Function(Note version)? onRestore;
 
-  const _VersionList({required this.note});
+  const _VersionList({required this.note, this.onRestore});
 
   @override
   State<_VersionList> createState() => _VersionListState();
@@ -127,18 +136,25 @@ class _VersionListState extends State<_VersionList> {
                     itemCount: versions.length,
                     itemBuilder: (ctx, i) {
                       final v = versions[i];
+                      // Untertitel: von welchem Gerät der Stand stammt (bei
+                      // Konflikten die entscheidende Information) + Titel.
+                      final details = <String>[
+                        if (v.device.isNotEmpty) v.device,
+                        if (v.title.isNotEmpty) v.title,
+                        if (v.deleted) l10n.versionDeletedMarker,
+                      ];
                       return ListTile(
                         leading: Icon(v.deleted
                             ? Icons.delete_outline
                             : Icons.schedule),
                         title: Text(_formatDate(v.savedAt)),
-                        subtitle: Text(
-                          v.deleted
-                              ? '${v.title} (${l10n.versionDeletedMarker})'
-                              : v.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                        subtitle: details.isEmpty
+                            ? null
+                            : Text(
+                                details.join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         onTap: () => _openVersion(v),
                       );
                     },
@@ -223,13 +239,17 @@ class _VersionListState extends State<_VersionList> {
     // Auf den aktuellen Notizstand anwenden. Der bisherige Inhalt geht dabei
     // NICHT verloren: Der nächste Sync legt ihn als eigenen Snapshot ab
     // (Push schreibt immer erst die Historie).
-    final provider = context.read<NotesProvider>();
-    final current = provider.getNoteById(widget.note.id) ?? widget.note;
-    await provider.updateNote(current.copyWith(
-      title: note.title,
-      content: note.content,
-      autopoolData: note.autopoolData,
-    ));
+    if (widget.onRestore != null) {
+      await widget.onRestore!(note); // z.B. Sticky-Fenster (kein Provider)
+    } else {
+      final provider = context.read<NotesProvider>();
+      final current = provider.getNoteById(widget.note.id) ?? widget.note;
+      await provider.updateNote(current.copyWith(
+        title: note.title,
+        content: note.content,
+        autopoolData: note.autopoolData,
+      ));
+    }
     if (!mounted) return;
     Navigator.pop(context); // Verlaufsliste schließen
     messenger.showSnackBar(SnackBar(

@@ -21,6 +21,7 @@ import '../widgets/color_picker.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
+import '../widgets/version_history.dart';
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -555,6 +556,14 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text('Frühere Versionen'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showVersions();
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.settings_outlined),
                 title: const Text('Einstellungen'),
                 onTap: () {
@@ -629,6 +638,43 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     _stickyAutoSyncTimer?.cancel();
     _stickyAutoSyncTimer =
         Timer(const Duration(seconds: 2), _runStickyAutoSync);
+  }
+
+  /// Frühere Versionen aus dem Drive-Verlauf. Das Sticky-Fenster ist ein
+  /// eigener Prozess OHNE NotesProvider – deshalb wird das Wiederherstellen
+  /// hier selbst erledigt (direkt über den DatabaseService) und die Anzeige
+  /// danach aktualisiert.
+  Future<void> _showVersions() async {
+    final note = _note;
+    if (note == null) return;
+    await showVersionHistory(
+      context,
+      note,
+      onRestore: (version) async {
+        final current = _note ?? note;
+        final restored = current.copyWith(
+          title: version.title,
+          content: version.content,
+          autopoolData: version.autopoolData,
+        );
+        await _applyNoteChange(restored);
+        if (!mounted) return;
+        // Eingabefelder/Tabelle auf den wiederhergestellten Stand setzen.
+        _titleController.text = restored.title;
+        if (restored.isAutopool) {
+          _autopoolJson = restored.autopoolData;
+          _autopoolKey.currentState?.setData(restored.autopoolData);
+        } else if (restored.isShopping) {
+          _shoppingJson = restored.autopoolData;
+          _shoppingKey.currentState?.setData(restored.autopoolData);
+        } else {
+          _contentController.text = restored.content;
+        }
+        _lastCheckpoint = (restored.isAutopool || restored.isShopping)
+            ? restored.autopoolData
+            : restored.content;
+      },
+    );
   }
 
   Future<void> _togglePin() async {

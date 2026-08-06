@@ -13,6 +13,8 @@ import '../models/note.dart';
 import 'database_service.dart';
 import 'google_drive_config.dart';
 import 'settings_store.dart';
+import 'conflict_store.dart';
+import 'device_info_service.dart';
 
 /// Maximale Dauer eines einzelnen Drive-HTTP-Requests (Verbindung + Senden +
 /// Antwort-Header) bzw. einer Stillstands-Pause im Download-Stream. Schutz gegen
@@ -676,6 +678,23 @@ class GoogleDriveService {
         await _pruneHistory(historyFolderId, tombFolderId);
       }
 
+      // Konflikte dauerhaft vermerken – aus JEDEM Sync-Pfad (auch Sticky-
+      // Fenster, Hintergrund-Isolate, manueller Sync). Die Notizliste zeigt sie
+      // beim nächsten Blick als Hinweis; ein reiner Speicher-Merker ginge beim
+      // Wechsel in den Hintergrund verloren (siehe ConflictStore).
+      if (conflicts.isNotEmpty) {
+        await ConflictStore.add([
+          for (final c in conflicts)
+            PendingConflict(
+              noteId: c.noteId,
+              title: c.title,
+              remoteWon: c.remoteWon,
+              detectedAt: DateTime.now(),
+            ),
+        ]);
+        debugPrint('Sync-Konflikte erkannt: ${conflicts.length}');
+      }
+
       // Zeitstempel fortschreiben: Start-Watermark verwenden, damit während des
       // Syncs gespeicherte Änderungen im nächsten Lauf erfasst werden.
       await prefs.setString(_lastSyncKey, localSyncStart.toIso8601String());
@@ -1103,11 +1122,15 @@ class GoogleDriveService {
 
   Future<void> _writeHistorySnapshot(String historyFolderId, Note note,
       {bool deleted = false}) async {
-    // Dateiname: <id>__<zeitstempel>__<titel>.json  (id vorne = leicht gruppierbar)
+    // Dateiname: <id>__<zeitstempel>__<titel>__<gerät>[__geloescht].json
+    // (id vorne = leicht gruppierbar; das Gerät steht seit 1.30.1 dabei, damit
+    // im Versionsverlauf erkennbar ist, von welchem Gerät ein Stand kommt.
+    // Ältere Snapshots haben den Teil nicht – das Parsen kommt damit klar.)
     final ts = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
     final safeTitle = _sanitizeTitle(note.title.isEmpty ? 'Notiz' : note.title);
+    final device = _sanitizeTitle(await DeviceInfoService.describe());
     final marker = deleted ? '__geloescht' : '';
-    final name = '${note.id}__${ts}__$safeTitle$marker.json';
+    final name = '${note.id}__${ts}__${safeTitle}__$device$marker.json';
     await _createFile(historyFolderId, name, jsonEncode(note.toJson()));
   }
 
@@ -1292,6 +1315,9 @@ class NoteVersion {
   final DateTime savedAt;
   /// Titel, den die Notiz zu diesem Zeitpunkt hatte.
   final String title;
+  /// Von welchem Gerät der Stand stammt („Windows - ANDI-PC", „Android - …").
+  /// Leer bei Snapshots aus Versionen vor 1.30.1.
+  final String device;
   /// Snapshot einer gelöschten Notiz.
   final bool deleted;
 
@@ -1299,21 +1325,27 @@ class NoteVersion {
     required this.fileId,
     required this.savedAt,
     required this.title,
+    this.device = '',
     this.deleted = false,
   });
 
   /// Aus dem Dateinamen der Historie lesen:
-  /// `<id>__<zeitstempel>__<titel>[__geloescht].json`.
+  /// `<id>__<zeitstempel>__<titel>[__<gerät>][__geloescht].json`.
   ///
   /// Der Zeitstempel steht mit `-` statt `:` in der Uhrzeit (Doppelpunkte sind
   /// in Dateinamen nicht erlaubt) und wird hier zurückgedreht. Lässt er sich
   /// nicht lesen, gilt [fallbackTime] (die Drive-Zeit der Datei).
+  ///
+  /// Das Geräte-Feld gibt es erst seit 1.30.1 – ältere Snapshots haben nur drei
+  /// Teile (bzw. vier, wenn sie eine Löschung markieren). Deshalb wird der
+  /// vierte Teil nur dann als Gerät gelesen, wenn er nicht die Löschmarkierung
+  /// ist.
   factory NoteVersion.fromFileName(
     String name, {
     required String fileId,
     DateTime? fallbackTime,
   }) {
-    final parts = name.split('__');
+    final parts = name.replaceAll('.json', '').split('__');
     DateTime? saved;
     if (parts.length >= 2) {
       // 2026-08-04T18-30-00.000Z -> 2026-08-04T18:30:00.000Z
@@ -1323,15 +1355,17 @@ class NoteVersion {
       );
       saved = DateTime.tryParse(fixed)?.toLocal();
     }
-    var title = '';
-    if (parts.length >= 3) {
-      title = parts[2].replaceAll('.json', '').trim();
+    final title = parts.length >= 3 ? parts[2].trim() : '';
+    var device = '';
+    if (parts.length >= 4 && parts[3].trim() != 'geloescht') {
+      device = parts[3].trim();
     }
     return NoteVersion(
       fileId: fileId,
       savedAt: saved ?? fallbackTime?.toLocal() ?? DateTime.now(),
       title: title,
-      deleted: name.contains('__geloescht'),
+      device: device,
+      deleted: parts.contains('geloescht'),
     );
   }
 }

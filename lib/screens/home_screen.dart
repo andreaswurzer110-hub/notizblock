@@ -61,32 +61,66 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  // Hat der letzte Abgleich einen Konflikt gemeldet (dieselbe Notiz auf zwei
-  // Geräten geändert), einmalig darauf hinweisen. Bewusst KEINE Konfliktkopie:
-  // beide Fassungen stehen im Versionsverlauf, von dort holt man die richtige
-  // zurück – der Hinweis führt direkt dorthin.
-  void _showConflictsIfAny(NotesProvider provider) {
+  // Bleibender Hinweis über der Liste, wenn dieselbe Notiz auf zwei Geräten
+  // geändert wurde. Bewusst KEINE Konfliktkopie: beide Fassungen stehen im
+  // Versionsverlauf, der Hinweis führt direkt dorthin.
+  //
+  // Bewusst KEINE SnackBar: Der Abgleich läuft oft aus dem Editor heraus oder
+  // beim Wechsel in den Hintergrund – ein flüchtiger Toast wurde dabei nie
+  // gesehen (genau das ist beim Testen von 1.30.0 passiert).
+  Widget _buildConflictBanner(NotesProvider provider) {
     final conflicts = provider.pendingConflicts;
-    if (conflicts.isEmpty) return;
-    provider.clearConflicts();
+    if (conflicts.isEmpty) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final first = conflicts.first;
     final text = conflicts.length == 1
         ? l10n.conflictDetected(
             first.title.trim().isEmpty ? l10n.emptyNote : first.title.trim())
         : l10n.conflictDetectedMulti(conflicts.length);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(text),
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 10),
-      action: SnackBarAction(
-        label: l10n.versionHistory,
-        onPressed: () {
-          final note = context.read<NotesProvider>().getNoteById(first.noteId);
-          if (note != null) showVersionHistory(context, note);
-        },
+
+    return Material(
+      color: theme.colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                color: theme.colorScheme.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(text,
+                      style: TextStyle(
+                          color: theme.colorScheme.onErrorContainer)),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          final note = provider.getNoteById(first.noteId);
+                          if (note != null) {
+                            showVersionHistory(context, note);
+                          }
+                        },
+                        child: Text(l10n.versionHistory),
+                      ),
+                      TextButton(
+                        onPressed: () => provider.dismissConflict(first.noteId),
+                        child: Text(l10n.close),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Future<void> _loadWidgetIds() async {
@@ -940,16 +974,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Consumer<NotesProvider>(
         builder: (context, notesProvider, child) {
-          // Nach jedem Abgleich prüfen, ob ein Konflikt zu melden ist (nach dem
-          // Frame, damit während des Bauens keine SnackBar angestoßen wird).
-          if (notesProvider.pendingConflicts.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _showConflictsIfAny(notesProvider);
-            });
+          final Widget list;
+          if (notesProvider.isLoading) {
+            list = const Center(child: CircularProgressIndicator());
+          } else if (notesProvider.notes.isEmpty) {
+            list = _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty,
+                notesProvider.selectedFolder);
+          } else {
+            list = settings.isGridView
+                ? _buildGridView(notesProvider.notes)
+                : _buildListView(notesProvider.notes);
           }
-          if (notesProvider.isLoading) return const Center(child: CircularProgressIndicator());
-          if (notesProvider.notes.isEmpty) return _buildEmptyState(l10n, notesProvider.searchQuery.isNotEmpty, notesProvider.selectedFolder);
-          return settings.isGridView ? _buildGridView(notesProvider.notes) : _buildListView(notesProvider.notes);
+          return Column(
+            children: [
+              _buildConflictBanner(notesProvider),
+              Expanded(child: list),
+            ],
+          );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
