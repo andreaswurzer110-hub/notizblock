@@ -69,8 +69,16 @@ class ShoppingListViewState extends State<ShoppingListView> {
   // Richtung des NÄCHSTEN Sortierlaufs (der Knopf zeigt sie im Tooltip an).
   bool _sortAscending = true;
 
+  /// Nur für Tests: erzwingt den Desktop- (`true`) bzw. Touch-Zweig (`false`).
+  /// `null` = echte Plattform. Nötig, weil `Platform.is…` im Test immer die
+  /// Rechner-Plattform meldet – der Touch-Pfad wäre auf Windows sonst gar
+  /// nicht prüfbar (und genau dort saß der Fehler mit dem Tooltip).
+  @visibleForTesting
+  static bool? debugForceDesktop;
+
   bool get _isDesktop =>
-      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+      debugForceDesktop ??
+      (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
   @override
   void initState() {
@@ -294,29 +302,55 @@ class ShoppingListViewState extends State<ShoppingListView> {
   }
 
   // Anfasser fürs Umsortieren. Desktop: sofortiges Maus-Drag. Touch: langer
-  // Druck (der Standard-Listener von Flutter) – hier unproblematisch, weil die
-  // Einkaufszeile kein Kontextmenü per Long-Press hat.
+  // Druck startet DIREKT das Ziehen – anders als beim Autopool braucht es
+  // keinen Umweg über ein Kontextmenü, weil die Einkaufszeile keine weitere
+  // Long-Press-Aktion hat.
+  //
+  // KEIN Tooltip auf Touch (war real ein Bug in 1.31.2): Flutter löst Tooltips
+  // auf Touch-Geräten per LANGEM DRUCK aus – die Sprechblase „Verschieben"
+  // gewann damit gegen den Drag-Listener, das Ziehen kam nie zustande und die
+  // Blase sah aus wie ein Knopf, der nichts tut. Auf Desktop erscheint der
+  // Tooltip beim Überfahren mit der Maus und stört das Ziehen nicht.
   Widget _dragHandle(int index) {
-    final l = AppLocalizations.of(context)!;
-    final handle = Tooltip(
-      // Bewusst derselbe Text wie beim Autopool („Verschieben") – gleiche
-      // Geste, gleiche Benennung; kein zusätzlicher Übersetzungsschlüssel.
-      message: l.autopoolMoveRow,
+    final icon = Icon(
+      Icons.drag_indicator,
+      size: 18,
+      color: _tc.withValues(alpha: 0.45),
+    );
+
+    if (_isDesktop) {
+      final l = AppLocalizations.of(context)!;
+      return ReorderableDragStartListener(
+        index: index,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.grab,
+          // Bewusst derselbe Text wie beim Autopool („Verschieben") – gleiche
+          // Geste, gleiche Benennung; kein zusätzlicher Übersetzungsschlüssel.
+          child: Tooltip(
+            message: l.autopoolMoveRow,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 2),
+              child: icon,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Touch: größere Trefferfläche. Das 18-px-Symbol allein ist mit dem Finger
+    // kaum zu halten, und daneben liegt sofort das Textfeld – ein Fehlgriff
+    // landet dort im Text statt im Ziehen.
+    return ReorderableDelayedDragStartListener(
+      index: index,
       child: Padding(
         padding: const EdgeInsets.only(right: 2),
-        child: Icon(
-          Icons.drag_indicator,
-          size: 18,
-          color: _tc.withValues(alpha: 0.45),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Center(child: icon),
         ),
       ),
     );
-    return _isDesktop
-        ? ReorderableDragStartListener(
-            index: index,
-            child: MouseRegion(cursor: SystemMouseCursors.grab, child: handle),
-          )
-        : ReorderableDelayedDragStartListener(index: index, child: handle);
   }
 
   Widget _nameField(_ItemCtrl item) {
