@@ -61,67 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  // Bleibender Hinweis über der Liste, wenn dieselbe Notiz auf zwei Geräten
-  // geändert wurde. Bewusst KEINE Konfliktkopie: beide Fassungen stehen im
-  // Versionsverlauf, der Hinweis führt direkt dorthin.
-  //
-  // Bewusst KEINE SnackBar: Der Abgleich läuft oft aus dem Editor heraus oder
-  // beim Wechsel in den Hintergrund – ein flüchtiger Toast wurde dabei nie
-  // gesehen (genau das ist beim Testen von 1.30.0 passiert).
-  Widget _buildConflictBanner(NotesProvider provider) {
-    final conflicts = provider.pendingConflicts;
-    if (conflicts.isEmpty) return const SizedBox.shrink();
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final first = conflicts.first;
-    final text = conflicts.length == 1
-        ? l10n.conflictDetected(
-            first.title.trim().isEmpty ? l10n.emptyNote : first.title.trim())
-        : l10n.conflictDetectedMulti(conflicts.length);
-
-    return Material(
-      color: theme.colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.warning_amber_rounded,
-                color: theme.colorScheme.onErrorContainer),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(text,
-                      style: TextStyle(
-                          color: theme.colorScheme.onErrorContainer)),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          final note = provider.getNoteById(first.noteId);
-                          if (note != null) {
-                            showVersionHistory(context, note);
-                          }
-                        },
-                        child: Text(l10n.versionHistory),
-                      ),
-                      TextButton(
-                        onPressed: () => provider.dismissConflict(first.noteId),
-                        child: Text(l10n.close),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // HINWEIS: Der Konflikt-Hinweis steht bewusst NICHT mehr hier. In der
+  // Notizliste war er wirkungslos – man kann dort nichts damit anfangen. Er
+  // erscheint jetzt an der betroffenen Notiz selbst (siehe ConflictBanner):
+  // im Editor und im Sticky-Fenster.
 
   Future<void> _loadWidgetIds() async {
     if (!_isDesktop) return;
@@ -985,12 +928,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? _buildGridView(notesProvider.notes)
                 : _buildListView(notesProvider.notes);
           }
-          return Column(
-            children: [
-              _buildConflictBanner(notesProvider),
-              Expanded(child: list),
-            ],
-          );
+          return list;
         },
       ),
       floatingActionButton: FloatingActionButton.extended(

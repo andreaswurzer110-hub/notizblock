@@ -76,6 +76,11 @@ class GoogleDriveService {
   // prozessübergreifende Writes".)
   static const String _credentialsFileName = 'drive_credentials.json';
 
+  /// Zusatzfeld in `notes/<id>.json`: `modifiedAt` der Fassung, auf der die
+  /// hochgeladene Änderung aufsetzt (der Vorgänger-Stand). KEIN Feld der Notiz
+  /// selbst – `Note.fromJson` ignoriert es, ältere App-Versionen ebenso.
+  static const String _basedOnKey = 'basedOn';
+
   /// true in Sticky-Note-Prozessen. Solche Prozesse dürfen Credentials NICHT
   /// persistieren – sonst würde ein laufendes Sticky-Fenster eine Abmeldung der
   /// Hauptapp durch einen still erneuerten Token wieder zurückschreiben. Wird in
@@ -426,8 +431,13 @@ class GoogleDriveService {
         await _putFile(
           notesFolderId,
           '${note.id}.json',
-          jsonEncode(note.toJson()),
+          jsonEncode(_notePayload(
+              note, await DatabaseService.instance.getSyncBase(note.id))),
         );
+        // Basis nachziehen, sonst meldet der nächste Sync den eigenen Upload
+        // als fremde Änderung.
+        await DatabaseService.instance
+            .setSyncBase(note.id, note.modifiedAt.toIso8601String());
       }
 
       // Zusätzliche Gesamt-Datei als Fallback
@@ -479,6 +489,8 @@ class GoogleDriveService {
         try {
           final note = Note.fromJson(jsonDecode(content) as Map<String, dynamic>);
           await DatabaseService.instance.insertOrUpdateNotes([note]);
+          await DatabaseService.instance
+              .setSyncBase(note.id, note.modifiedAt.toIso8601String());
         } catch (_) {}
       }
 
@@ -582,15 +594,28 @@ class GoogleDriveService {
         final content = await _downloadFile(f.id!);
         if (content == null) continue;
         try {
-          final note =
-              Note.fromJson(jsonDecode(content) as Map<String, dynamic>);
+          final decoded = jsonDecode(content) as Map<String, dynamic>;
+          final note = Note.fromJson(decoded);
+          // Auf welcher Fassung die fremde Änderung aufsetzt (seit 1.31.2 mit
+          // hochgeladen). Fehlt der Wert (ältere App-Version hat zuletzt
+          // geschrieben), wird nicht gewarnt statt falsch gewarnt.
+          final remoteBasedOn = decoded[_basedOnKey] as String?;
           final local = await DatabaseService.instance.getNoteById(note.id);
-          // KONFLIKT: Diese Notiz wurde seit dem letzten Abgleich auf BEIDEN
-          // Seiten geändert (Remote-Datei ist neu in der Liste UND die Notiz
-          // steht in den lokal geänderten). Es gewinnt weiterhin die neuere
+          final base = await DatabaseService.instance.getSyncBase(note.id);
+          final remoteIso = note.modifiedAt.toIso8601String();
+
+          // KONFLIKT nur, wenn dabei tatsächlich eine Änderung ÜBERSPRUNGEN
+          // wird (siehe isSkippedChange). Es gewinnt weiterhin die neuere
           // Fassung, aber der Nutzer wird gewarnt und findet die andere im
           // Versionsverlauf.
-          final isConflict = local != null && localChangedIds.contains(note.id);
+          final isConflict = local != null &&
+              base != null &&
+              isSkippedChange(
+                base: base,
+                local: local.modifiedAt.toIso8601String(),
+                remote: remoteIso,
+                remoteBasedOn: remoteBasedOn,
+              );
           if (local == null || _isRemoteNewer(note, local, f.modifiedTime)) {
             // Vor dem Überschreiben die LOKALE Fassung in die Historie retten –
             // sie wurde nie hochgeladen und wäre sonst endgültig weg.
@@ -598,6 +623,8 @@ class GoogleDriveService {
               await _writeHistorySnapshot(historyFolderId, local);
             }
             await DatabaseService.instance.insertOrUpdateNotes([note]);
+            // Ab jetzt ist DIESE Fassung unser gemeinsamer Stand mit Drive.
+            await DatabaseService.instance.setSyncBase(note.id, remoteIso);
             appliedIds.add(note.id);
             downloaded++;
             if (isConflict) {
@@ -638,12 +665,19 @@ class GoogleDriveService {
         if (appliedIds.contains(id)) continue; // gerade von Remote übernommen
         final note = await DatabaseService.instance.getNoteById(id);
         if (note == null) continue; // zwischenzeitlich gelöscht
-        final mt = await _putFile(
-            notesFolderId, '${note.id}.json', jsonEncode(note.toJson()));
+        // Basis dieser Änderung mitschicken: auf welchem Stand sie aufsetzt.
+        // Damit erkennt das ANDERE Gerät, ob seine Fassung dabei übersprungen
+        // wurde – es sieht sonst nur „neuere Datei" und merkt den Verlust nicht.
+        final basedOn = await DatabaseService.instance.getSyncBase(note.id);
+        final mt = await _putFile(notesFolderId, '${note.id}.json',
+            jsonEncode(_notePayload(note, basedOn)));
         maxSeen = _laterOf(maxSeen, mt);
         // Serverzeit dieses Schreibvorgangs -> Uhr-Versatz nachführen.
         await _updateClockOffset(prefs, mt);
         await _writeHistorySnapshot(historyFolderId, note);
+        // Hochgeladener Stand ist ab jetzt der gemeinsame Stand mit Drive.
+        await DatabaseService.instance
+            .setSyncBase(note.id, note.modifiedAt.toIso8601String());
         uploaded++;
       }
 
@@ -914,7 +948,9 @@ class GoogleDriveService {
       if (notesFolderId == null || tombFolderId == null) return false;
       await _deleteFileByName(tombFolderId, '${note.id}.json');
       await _putFile(
-          notesFolderId, '${note.id}.json', jsonEncode(note.toJson()));
+          notesFolderId, '${note.id}.json', jsonEncode(_notePayload(note, null)));
+      await DatabaseService.instance
+          .setSyncBase(note.id, note.modifiedAt.toIso8601String());
       return true;
     } catch (e) {
       debugPrint('Wiederherstellen (Drive) Fehler: $e');
@@ -1118,6 +1154,52 @@ class GoogleDriveService {
     }
     final localInServerTime = local.modifiedAt.toUtc().add(_clockOffset);
     return remoteServerTime.toUtc().isAfter(localInServerTime);
+  }
+
+  /// Notiz-JSON für `notes/<id>.json` inkl. Basis-Stand der Änderung.
+  Map<String, dynamic> _notePayload(Note note, String? basedOn) => {
+        ...note.toJson(),
+        if (basedOn != null) _basedOnKey: basedOn,
+      };
+
+  /// Geht bei diesem Zusammenführen eine Änderung VERLOREN?
+  ///
+  /// Nur dann ist es ein Konflikt, über den gewarnt werden muss. Alle Zeiten
+  /// sind `modifiedAt`-Zeitstempel (ISO) und identifizieren damit eindeutig
+  /// eine Fassung der Notiz:
+  /// - [base]: Fassung, die dieses Gerät zuletzt mit Drive ausgetauscht hat
+  ///   (gemeinsamer Vorfahre, siehe `DatabaseService.getSyncBase`).
+  /// - [local]: aktueller lokaler Stand.
+  /// - [remote]: Stand, der jetzt von Drive kommt.
+  /// - [remoteBasedOn]: Fassung, auf der die fremde Änderung aufsetzt.
+  ///
+  /// Fälle:
+  /// 1. `remote == base` → die Drive-Datei ist genau die, die wir schon kennen
+  ///    (typisch: unser EIGENER letzter Upload taucht erneut in der Liste auf).
+  ///    Nichts geht verloren, egal wie oft lokal geändert wurde.
+  /// 2. Beide Seiten haben sich seit [base] geändert → eine der beiden Fassungen
+  ///    wird überschrieben → echter Konflikt.
+  /// 3. Nur die fremde Seite hat sich geändert → normalerweise sauberes
+  ///    Nachziehen. AUSNAHME: die fremde Änderung setzt auf einer ÄLTEREN
+  ///    Fassung auf als unserer Basis – dann hat das andere Gerät unseren
+  ///    zwischenzeitlich hochgeladenen Stand übersprungen und überschreibt ihn.
+  static bool isSkippedChange({
+    required String base,
+    required String local,
+    required String remote,
+    String? remoteBasedOn,
+  }) {
+    if (remote == base) return false; // Fall 1
+    if (local != base) return true; // Fall 2
+    // Fall 3
+    if (remoteBasedOn == null || remoteBasedOn == base) return false;
+    final parent = DateTime.tryParse(remoteBasedOn);
+    final ours = DateTime.tryParse(base);
+    if (parent == null || ours == null) return false;
+    // Nur älter = übersprungen. Neuer heißt bloß, dass wir Zwischenstände nie
+    // gesehen haben (Drive hält pro Notiz nur die jüngste Datei) – dabei geht
+    // nichts von UNS verloren.
+    return parent.isBefore(ours);
   }
 
   Future<void> _writeHistorySnapshot(String historyFolderId, Note note,

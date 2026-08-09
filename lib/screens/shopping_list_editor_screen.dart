@@ -12,6 +12,7 @@ import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/shopping_list_view.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/conflict_banner.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
@@ -587,6 +588,11 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Hinweis, wenn beim Abgleich eine Änderung überschrieben wurde.
+                ConflictBanner(
+                  note: _currentNote ?? widget.note,
+                  onShowVersions: _showVersions,
+                ),
                 TextField(
                   controller: _titleController,
                   style: TextStyle(

@@ -18,6 +18,7 @@ import '../providers/notes_provider.dart' show NotesProvider;
 import '../widgets/autopool_table.dart';
 import '../widgets/shopping_list_view.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/conflict_banner.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
@@ -959,6 +960,12 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       body: Column(
         children: [
           if (_isDesktop) _buildToolbar(),
+          // Hinweis, wenn beim Abgleich eine Änderung überschrieben wurde.
+          ConflictBanner(
+            note: _note,
+            onShowVersions: _showVersions,
+            compact: true,
+          ),
           Expanded(
             child: _note!.isAutopool
                 ? SingleChildScrollView(

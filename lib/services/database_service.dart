@@ -12,7 +12,7 @@ class DatabaseService {
   static Database? _database;
   static String? _databasePath;
   static const String _databaseName = 'notizblock.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   // Singleton Pattern
   DatabaseService._privateConstructor();
@@ -136,6 +136,7 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_notes_pinned ON notes(isPinned)');
 
     await _createDeletionsTable(db);
+    await _createSyncBaseTable(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -155,6 +156,10 @@ class DatabaseService {
       await db.execute(
           "ALTER TABLE notes ADD COLUMN folder TEXT NOT NULL DEFAULT ''");
     }
+    // v5: Basis-Stand pro Notiz für die Konflikt-Erkennung
+    if (oldVersion < 5) {
+      await _createSyncBaseTable(db);
+    }
   }
 
   Future<void> _createDeletionsTable(Database db) async {
@@ -163,6 +168,15 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         deletedAt TEXT NOT NULL,
         snapshot TEXT
+      )
+    ''');
+  }
+
+  Future<void> _createSyncBaseTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sync_base (
+        id TEXT PRIMARY KEY,
+        base TEXT NOT NULL
       )
     ''');
   }
@@ -273,6 +287,7 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    await db.delete('sync_base', where: 'id = ?', whereArgs: [id]);
     await _updateWidgetJsonFile();
     return result;
   }
@@ -284,6 +299,7 @@ class DatabaseService {
       await _recordDeletion(db, note);
     }
     final result = await db.delete('notes');
+    await db.delete('sync_base');
     await _updateWidgetJsonFile();
     return result;
   }
@@ -293,6 +309,7 @@ class DatabaseService {
   Future<void> applyRemoteDeletion(String id) async {
     final db = await database;
     await db.delete('notes', where: 'id = ?', whereArgs: [id]);
+    await db.delete('sync_base', where: 'id = ?', whereArgs: [id]);
     await _updateWidgetJsonFile();
   }
 
@@ -317,6 +334,48 @@ class DatabaseService {
   Future<void> clearDeletion(String id) async {
     final db = await database;
     await db.delete('deletions', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ---- Basis-Stand für die Konflikt-Erkennung ----
+  //
+  // Gespeichert wird der `modifiedAt`-Zeitstempel (ISO) genau der Fassung, die
+  // dieses Gerät zuletzt mit Drive ausgetauscht hat (hochgeladen ODER geholt) –
+  // also der gemeinsame Vorfahre von lokalem Stand und Drive-Stand.
+  //
+  // WARUM: Ohne diesen Anker kann der Sync nur „lokal seit X geändert UND
+  // Remote-Datei seit Y neu" prüfen. Das trifft aber auch auf die EIGENE gerade
+  // hochgeladene Datei zu (z.B. wenn zwei Prozesse – Hauptfenster und
+  // Sticky-Fenster – parallel syncen und der Zeitstempel-Wasserstand
+  // zurückspringt) → es wurde ständig „Konflikt" gemeldet, obwohl alle
+  // Änderungen vom selben Gerät kamen (war real ein Bug bis 1.30.x). Mit dem
+  // Basis-Stand ist die Frage exakt beantwortbar: Ist die Remote-Fassung
+  // dieselbe, die wir zuletzt gesehen haben, ist NICHTS passiert.
+  Future<String?> getSyncBase(String id) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_base',
+      columns: ['base'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['base'] as String?;
+  }
+
+  Future<void> setSyncBase(String id, String base) async {
+    final db = await database;
+    // Kein _updateWidgetJsonFile(): reine Sync-Buchhaltung, keine Notizdaten.
+    await db.insert(
+      'sync_base',
+      {'id': id, 'base': base},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> clearSyncBase(String id) async {
+    final db = await database;
+    await db.delete('sync_base', where: 'id = ?', whereArgs: [id]);
   }
 
   // Suche

@@ -52,13 +52,22 @@ class PendingConflict {
 /// beim Wechsel in den Hintergrund (`paused`). Ein Hinweis, der nur im
 /// Arbeitsspeicher steht bzw. als kurze SnackBar erscheint, geht dabei
 /// verloren – beim Testen kam deshalb nie eine Warnung an. Über diese Datei
-/// meldet JEDER Sync-Pfad den Konflikt, und die Notizliste zeigt ihn beim
-/// nächsten Blick als bleibenden Hinweis.
+/// meldet JEDER Sync-Pfad den Konflikt, und das `ConflictBanner` zeigt ihn an
+/// der betroffenen Notiz (Editor bzw. Sticky-Fenster) als bleibenden Hinweis.
 class ConflictStore {
   ConflictStore._();
 
   static const String _fileName = 'conflicts.json';
   static const int _maxEntries = 20;
+
+  /// Format-Version der Datei. Bis 1.30.x stand hier eine blanke Liste; die
+  /// darin gemerkten „Konflikte" stammen aus der alten, zu groben Erkennung
+  /// (meldete auch den eigenen Upload als Fremdänderung) und wären nach dem
+  /// Update lauter Fehlalarme. Eine unbekannte/alte Version wird deshalb
+  /// verworfen – das räumt die Altlasten genau einmal weg, ohne Extra-Flag.
+  static const int _formatVersion = 2;
+  static const String _versionKey = 'v';
+  static const String _itemsKey = 'items';
 
   static Future<File> _file() async {
     final dir = await getApplicationSupportDirectory();
@@ -87,9 +96,11 @@ class ConflictStore {
       final f = await _file();
       if (!await f.exists()) return [];
       final decoded = jsonDecode(await f.readAsString());
-      if (decoded is! List) return [];
+      if (decoded is! Map || decoded[_versionKey] != _formatVersion) return [];
+      final items = decoded[_itemsKey];
+      if (items is! List) return [];
       final out = <PendingConflict>[];
-      for (final e in decoded) {
+      for (final e in items) {
         if (e is Map) {
           final c = PendingConflict.fromJson(e.cast<String, dynamic>());
           if (c != null) out.add(c);
@@ -115,7 +126,10 @@ class ConflictStore {
   static Future<void> _write(List<PendingConflict> list) async {
     try {
       final f = await _file();
-      await f.writeAsString(jsonEncode([for (final c in list) c.toJson()]));
+      await f.writeAsString(jsonEncode({
+        _versionKey: _formatVersion,
+        _itemsKey: [for (final c in list) c.toJson()],
+      }));
     } catch (e) {
       debugPrint('Konflikte schreiben fehlgeschlagen: $e');
     }

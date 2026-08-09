@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../services/google_drive_service.dart';
 import '../services/sticky_note_service.dart';
 import '../widgets/color_picker.dart';
+import '../widgets/conflict_banner.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
@@ -919,6 +920,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Hinweis, wenn beim Abgleich eine Änderung überschrieben wurde
+                // (nur bei echtem Verlust – siehe GoogleDriveService).
+                ConflictBanner(
+                  note: _currentNote ?? widget.note,
+                  onShowVersions: _showVersions,
+                ),
                 // Titel
                 TextField(
                   controller: _titleController,
