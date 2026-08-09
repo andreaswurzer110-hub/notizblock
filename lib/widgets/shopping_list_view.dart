@@ -439,7 +439,9 @@ class ShoppingListViewState extends State<ShoppingListView> {
         _items.where((i) => i.controller.text.trim().isNotEmpty).length > 1;
     return Row(
       children: [
-        _addButton(l),
+        // Flexible + Ellipse: im schmalen Sticky-Fenster wird die Beschriftung
+        // gekürzt, statt die Zeile überlaufen zu lassen.
+        Flexible(child: _addButton(l)),
         const Spacer(),
         if (sortable)
           IconButton(
@@ -465,9 +467,13 @@ class ShoppingListViewState extends State<ShoppingListView> {
           children: [
             Icon(Icons.add, size: 20, color: _tc),
             const SizedBox(width: 8),
-            Text(
-              l.shoppingAddItem,
-              style: TextStyle(color: _tc, fontWeight: FontWeight.w500),
+            Flexible(
+              child: Text(
+                l.shoppingAddItem,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _tc, fontWeight: FontWeight.w500),
+              ),
             ),
           ],
         ),
