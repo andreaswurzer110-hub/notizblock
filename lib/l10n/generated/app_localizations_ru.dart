@@ -284,6 +284,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shoppingDeleteItem => 'Удалить товар';
 
   @override
+  String get shoppingSortAZ => 'Сортировать по алфавиту (А–Я)';
+
+  @override
+  String get shoppingSortZA => 'Сортировать по алфавиту (Я–А)';
+
+  @override
   String shoppingOpenCount(int open, int total) {
     return '$open/$total осталось';
   }

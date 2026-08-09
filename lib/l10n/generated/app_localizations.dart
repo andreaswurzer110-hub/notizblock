@@ -630,6 +630,18 @@ abstract class AppLocalizations {
   /// **'Artikel löschen'**
   String get shoppingDeleteItem;
 
+  /// No description provided for @shoppingSortAZ.
+  ///
+  /// In de, this message translates to:
+  /// **'Alphabetisch sortieren (A–Z)'**
+  String get shoppingSortAZ;
+
+  /// No description provided for @shoppingSortZA.
+  ///
+  /// In de, this message translates to:
+  /// **'Alphabetisch sortieren (Z–A)'**
+  String get shoppingSortZA;
+
   /// No description provided for @shoppingOpenCount.
   ///
   /// In de, this message translates to:

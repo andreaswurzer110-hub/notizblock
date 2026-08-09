@@ -85,6 +85,8 @@
   "shoppingAddItem": "Aggiungi articolo",
   "shoppingCompleted": "Completati ({count})",
   "shoppingDeleteItem": "Elimina articolo",
+  "shoppingSortAZ": "Ordina in ordine alfabetico (A–Z)",
+  "shoppingSortZA": "Ordina in ordine alfabetico (Z–A)",
   "shoppingOpenCount": "{open}/{total} da comprare",
   "allNotes": "Tutte le note",
   "folders": "Cartelle",

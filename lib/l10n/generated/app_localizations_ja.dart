@@ -280,6 +280,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shoppingDeleteItem => '品目を削除';
 
   @override
+  String get shoppingSortAZ => '名前順に並べ替え（A–Z）';
+
+  @override
+  String get shoppingSortZA => '名前順に並べ替え（Z–A）';
+
+  @override
   String shoppingOpenCount(int open, int total) {
     return '残り $open/$total';
   }

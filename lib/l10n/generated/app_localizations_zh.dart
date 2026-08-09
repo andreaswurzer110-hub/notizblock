@@ -280,6 +280,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shoppingDeleteItem => '删除商品';
 
   @override
+  String get shoppingSortAZ => '按字母顺序排序（A–Z）';
+
+  @override
+  String get shoppingSortZA => '按字母顺序排序（Z–A）';
+
+  @override
   String shoppingOpenCount(int open, int total) {
     return '$open/$total 未完成';
   }

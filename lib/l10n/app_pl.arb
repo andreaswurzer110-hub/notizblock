@@ -85,6 +85,8 @@
   "shoppingAddItem": "Dodaj pozycję",
   "shoppingCompleted": "Zrobione ({count})",
   "shoppingDeleteItem": "Usuń pozycję",
+  "shoppingSortAZ": "Sortuj alfabetycznie (A–Z)",
+  "shoppingSortZA": "Sortuj alfabetycznie (Z–A)",
   "shoppingOpenCount": "{open}/{total} do zrobienia",
   "allNotes": "Wszystkie notatki",
   "folders": "Foldery",

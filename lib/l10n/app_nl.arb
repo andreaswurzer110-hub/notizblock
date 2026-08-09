@@ -85,6 +85,8 @@
   "shoppingAddItem": "Artikel toevoegen",
   "shoppingCompleted": "Afgerond ({count})",
   "shoppingDeleteItem": "Artikel verwijderen",
+  "shoppingSortAZ": "Alfabetisch sorteren (A–Z)",
+  "shoppingSortZA": "Alfabetisch sorteren (Z–A)",
   "shoppingOpenCount": "{open}/{total} open",
   "allNotes": "Alle notities",
   "folders": "Mappen",

@@ -141,6 +141,8 @@
     }
   },
   "shoppingDeleteItem": "Artikel löschen",
+  "shoppingSortAZ": "Alphabetisch sortieren (A–Z)",
+  "shoppingSortZA": "Alphabetisch sortieren (Z–A)",
   "shoppingOpenCount": "{open}/{total} offen",
   "@shoppingOpenCount": {
     "placeholders": {

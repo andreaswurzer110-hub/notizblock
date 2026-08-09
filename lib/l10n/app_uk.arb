@@ -85,6 +85,8 @@
   "shoppingAddItem": "Додати товар",
   "shoppingCompleted": "Готово ({count})",
   "shoppingDeleteItem": "Видалити товар",
+  "shoppingSortAZ": "Сортувати за абеткою (А–Я)",
+  "shoppingSortZA": "Сортувати за абеткою (Я–А)",
   "shoppingOpenCount": "{open}/{total} залишилось",
   "allNotes": "Усі нотатки",
   "folders": "Теки",

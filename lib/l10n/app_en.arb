@@ -141,6 +141,8 @@
     }
   },
   "shoppingDeleteItem": "Delete item",
+  "shoppingSortAZ": "Sort alphabetically (A–Z)",
+  "shoppingSortZA": "Sort alphabetically (Z–A)",
   "shoppingOpenCount": "{open}/{total} open",
   "@shoppingOpenCount": {
     "placeholders": {

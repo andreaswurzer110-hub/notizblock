@@ -285,6 +285,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shoppingDeleteItem => 'Artikel löschen';
 
   @override
+  String get shoppingSortAZ => 'Alphabetisch sortieren (A–Z)';
+
+  @override
+  String get shoppingSortZA => 'Alphabetisch sortieren (Z–A)';
+
+  @override
   String shoppingOpenCount(int open, int total) {
     return '$open/$total offen';
   }

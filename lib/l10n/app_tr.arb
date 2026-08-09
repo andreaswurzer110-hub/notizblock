@@ -85,6 +85,8 @@
   "shoppingAddItem": "Ürün ekle",
   "shoppingCompleted": "Tamamlanan ({count})",
   "shoppingDeleteItem": "Ürünü sil",
+  "shoppingSortAZ": "Alfabetik sırala (A–Z)",
+  "shoppingSortZA": "Alfabetik sırala (Z–A)",
   "shoppingOpenCount": "{open}/{total} açık",
   "allNotes": "Tüm notlar",
   "folders": "Klasörler",

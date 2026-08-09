@@ -85,6 +85,8 @@
   "shoppingAddItem": "添加商品",
   "shoppingCompleted": "已完成（{count}）",
   "shoppingDeleteItem": "删除商品",
+  "shoppingSortAZ": "按字母顺序排序（A–Z）",
+  "shoppingSortZA": "按字母顺序排序（Z–A）",
   "shoppingOpenCount": "{open}/{total} 未完成",
   "allNotes": "全部笔记",
   "folders": "文件夹",

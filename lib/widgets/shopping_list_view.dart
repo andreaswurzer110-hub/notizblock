@@ -1,13 +1,27 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/shopping_list.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
 /// Editierbare Einkaufsliste. Zwei Sektionen:
-///  - **Einkaufsliste** (oben): je Artikel eine Zeile mit Bezeichnung, einer
-///    Mengensteuerung (−/+) und einer Checkbox. Häkchen setzen = „erledigt".
+///  - **Einkaufsliste** (oben): je Artikel eine Zeile mit Anfasser, Bezeichnung,
+///    einer Mengensteuerung (−/+) und einer Checkbox. Häkchen setzen =
+///    „erledigt".
 ///  - **Erledigt** (unten, einklappbar): abgehakte Artikel. Häkchen entfernen
 ///    holt den Artikel zurück in die Einkaufsliste – so muss man wiederkehrende
 ///    Einkäufe nicht neu tippen, sondern nur wieder anhaken.
+///
+/// **Reihenfolge** (wie bei der Autopool-Tabelle):
+///  - Drag&Drop am Anfasser links. Auf Desktop sofort mit der Maus, auf Touch
+///    per langem Druck. Anders als beim Autopool braucht es hier KEINEN
+///    Verschiebe-Modus über ein Kontextmenü: die Einkaufszeile hat kein
+///    Kontextmenü, mit dem der Long-Press kollidieren könnte.
+///  - Alphabetisch sortieren über den Knopf neben „Artikel hinzufügen"
+///    (einmalige Aktion, wechselt zwischen A–Z und Z–A – danach lässt sich von
+///    Hand weiter umsortieren).
+/// Nur die AKTIVE Liste ist umsortierbar; in der Erledigt-Sektion hat die
+/// Reihenfolge keine Bedeutung (sie wird beim Sortieren aber mit sortiert).
 ///
 /// Wird im Vollbild-Editor und im Windows/Linux-Sticky-Fenster verwendet. Über
 /// einen [GlobalKey] auf [ShoppingListViewState] können Eltern den aktuellen
@@ -52,6 +66,11 @@ class _ItemCtrl {
 class ShoppingListViewState extends State<ShoppingListView> {
   final List<_ItemCtrl> _items = [];
   bool _completedExpanded = true;
+  // Richtung des NÄCHSTEN Sortierlaufs (der Knopf zeigt sie im Tooltip an).
+  bool _sortAscending = true;
+
+  bool get _isDesktop =>
+      Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
   @override
   void initState() {
@@ -141,6 +160,35 @@ class ShoppingListViewState extends State<ShoppingListView> {
     _emitChange();
   }
 
+  /// Umsortieren der AKTIVEN Liste per Drag&Drop (Logik in
+  /// [reorderActiveItems], damit sie ohne UI testbar ist).
+  void _reorderActive(int oldIndex, int newIndex) {
+    final next =
+        reorderActiveItems(_items, (i) => i.done, oldIndex, newIndex);
+    setState(() {
+      _items
+        ..clear()
+        ..addAll(next);
+    });
+    _emitChange();
+  }
+
+  /// Alle Artikel alphabetisch sortieren; die Richtung wechselt bei jedem Druck.
+  /// Sortiert wird die flache Liste – dadurch stehen sowohl die aktiven als auch
+  /// die erledigten Artikel in ihrer jeweiligen Sektion alphabetisch.
+  void _sortAlphabetically() {
+    setState(() {
+      final ascending = _sortAscending;
+      _items.sort((a, b) => compareShoppingNames(
+            a.controller.text,
+            b.controller.text,
+            ascending: ascending,
+          ));
+      _sortAscending = !ascending;
+    });
+    _emitChange();
+  }
+
   Color get _tc => widget.textColor;
 
   @override
@@ -152,9 +200,28 @@ class ShoppingListViewState extends State<ShoppingListView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final item in active) _activeRow(item),
+        // shrinkWrap + NeverScrollable, weil das Ganze in einer äußeren
+        // SingleChildScrollView steckt (Editor wie Sticky-Fenster) – genau wie
+        // bei der Autopool-Tabelle.
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: active.length,
+          onReorderItem: _reorderActive,
+          proxyDecorator: (child, index, animation) => Material(
+            color: Colors.transparent,
+            elevation: 6,
+            borderRadius: BorderRadius.circular(8),
+            child: child,
+          ),
+          itemBuilder: (context, i) => KeyedSubtree(
+            key: ObjectKey(active[i]),
+            child: _activeRow(active[i], i),
+          ),
+        ),
         const SizedBox(height: 4),
-        Align(alignment: Alignment.centerLeft, child: _addButton(l)),
+        _actionRow(l),
         if (completed.isNotEmpty) ...[
           const SizedBox(height: 8),
           _completedHeader(l, completed.length),
@@ -165,13 +232,15 @@ class ShoppingListViewState extends State<ShoppingListView> {
     );
   }
 
-  // Zeile in der aktiven Einkaufsliste: [ Artikel ] [ − Menge + ] [ ☐ ] [ 🗑 ]
-  Widget _activeRow(_ItemCtrl item) {
+  // Zeile in der aktiven Einkaufsliste:
+  // [ ⠿ ] [ Artikel ] [ − Menge + ] [ ☐ ] [ 🗑 ]
+  Widget _activeRow(_ItemCtrl item, int index) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          _dragHandle(index),
           Expanded(child: _nameField(item)),
           const SizedBox(width: 4),
           _quantityControl(item),
@@ -222,6 +291,32 @@ class ShoppingListViewState extends State<ShoppingListView> {
         ],
       ),
     );
+  }
+
+  // Anfasser fürs Umsortieren. Desktop: sofortiges Maus-Drag. Touch: langer
+  // Druck (der Standard-Listener von Flutter) – hier unproblematisch, weil die
+  // Einkaufszeile kein Kontextmenü per Long-Press hat.
+  Widget _dragHandle(int index) {
+    final l = AppLocalizations.of(context)!;
+    final handle = Tooltip(
+      // Bewusst derselbe Text wie beim Autopool („Verschieben") – gleiche
+      // Geste, gleiche Benennung; kein zusätzlicher Übersetzungsschlüssel.
+      message: l.autopoolMoveRow,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 2),
+        child: Icon(
+          Icons.drag_indicator,
+          size: 18,
+          color: _tc.withValues(alpha: 0.45),
+        ),
+      ),
+    );
+    return _isDesktop
+        ? ReorderableDragStartListener(
+            index: index,
+            child: MouseRegion(cursor: SystemMouseCursors.grab, child: handle),
+          )
+        : ReorderableDelayedDragStartListener(index: index, child: handle);
   }
 
   Widget _nameField(_ItemCtrl item) {
@@ -333,6 +428,29 @@ class ShoppingListViewState extends State<ShoppingListView> {
       tooltip: l.shoppingDeleteItem,
       color: _tc.withValues(alpha: 0.45),
       onPressed: () => _deleteItem(item),
+    );
+  }
+
+  // „Artikel hinzufügen" links, Sortier-Knopf rechts. Der Sortier-Knopf steht
+  // erst ab zwei Artikeln zur Verfügung – vorher ist er sinnlos und nimmt im
+  // schmalen Sticky-Fenster nur Platz weg.
+  Widget _actionRow(AppLocalizations l) {
+    final sortable =
+        _items.where((i) => i.controller.text.trim().isNotEmpty).length > 1;
+    return Row(
+      children: [
+        _addButton(l),
+        const Spacer(),
+        if (sortable)
+          IconButton(
+            icon: const Icon(Icons.sort_by_alpha),
+            iconSize: 20,
+            visualDensity: VisualDensity.compact,
+            tooltip: _sortAscending ? l.shoppingSortAZ : l.shoppingSortZA,
+            color: _tc.withValues(alpha: 0.7),
+            onPressed: _sortAlphabetically,
+          ),
+      ],
     );
   }
 

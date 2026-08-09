@@ -85,6 +85,8 @@
   "shoppingAddItem": "Ajouter un article",
   "shoppingCompleted": "Terminé ({count})",
   "shoppingDeleteItem": "Supprimer l’article",
+  "shoppingSortAZ": "Trier par ordre alphabétique (A–Z)",
+  "shoppingSortZA": "Trier par ordre alphabétique (Z–A)",
   "shoppingOpenCount": "{open}/{total} à acheter",
   "allNotes": "Toutes les notes",
   "folders": "Dossiers",

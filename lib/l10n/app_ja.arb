@@ -85,6 +85,8 @@
   "shoppingAddItem": "品目を追加",
   "shoppingCompleted": "完了（{count}）",
   "shoppingDeleteItem": "品目を削除",
+  "shoppingSortAZ": "名前順に並べ替え（A–Z）",
+  "shoppingSortZA": "名前順に並べ替え（Z–A）",
   "shoppingOpenCount": "残り {open}/{total}",
   "allNotes": "すべてのメモ",
   "folders": "フォルダ",

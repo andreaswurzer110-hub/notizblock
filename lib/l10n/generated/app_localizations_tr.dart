@@ -285,6 +285,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get shoppingDeleteItem => 'Ürünü sil';
 
   @override
+  String get shoppingSortAZ => 'Alfabetik sırala (A–Z)';
+
+  @override
+  String get shoppingSortZA => 'Alfabetik sırala (Z–A)';
+
+  @override
   String shoppingOpenCount(int open, int total) {
     return '$open/$total açık';
   }

@@ -85,6 +85,8 @@
   "shoppingAddItem": "Добавить товар",
   "shoppingCompleted": "Готово ({count})",
   "shoppingDeleteItem": "Удалить товар",
+  "shoppingSortAZ": "Сортировать по алфавиту (А–Я)",
+  "shoppingSortZA": "Сортировать по алфавиту (Я–А)",
   "shoppingOpenCount": "{open}/{total} осталось",
   "allNotes": "Все заметки",
   "folders": "Папки",

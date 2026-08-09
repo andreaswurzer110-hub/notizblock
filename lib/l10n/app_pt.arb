@@ -85,6 +85,8 @@
   "shoppingAddItem": "Adicionar item",
   "shoppingCompleted": "Concluídos ({count})",
   "shoppingDeleteItem": "Excluir item",
+  "shoppingSortAZ": "Ordenar alfabeticamente (A–Z)",
+  "shoppingSortZA": "Ordenar alfabeticamente (Z–A)",
   "shoppingOpenCount": "{open}/{total} em aberto",
   "allNotes": "Todas as notas",
   "folders": "Pastas",
