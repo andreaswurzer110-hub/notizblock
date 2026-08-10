@@ -6,14 +6,19 @@
 # Upload-Keystore + die Store-MSIX-Identität müssen NICHT als GitHub-Secret rein).
 # Du baust wie bisher lokal und hängst die zwei Dateien ans Release.
 #
-# AUSLÖSER
-#   - Empfohlen: ein veröffentlichtes GitHub-Release mit den zwei Artefakten, z.B.
-#       gh release create v1.26.0.0 ^
-#         "E:\Notizblock-1.26.0.0.aab" "E:\Notizblock-1.26.0.0-Store.msix" ^
-#         --title v1.26.0.0 --notes "Release 1.26.0.0"
-#     (Der Tag v* löst zusätzlich wie gehabt den Snap-stable-Build aus – snap.yml.)
-#   - workflow_dispatch (manuell) mit Tag-Eingabe, falls das Release schon existiert
-#     (z.B. weil der Tag fürs Snap-Release schon gepusht war).
+# AUSLÖSER: NUR manuell (workflow_dispatch) mit Tag-Eingabe.
+#
+#   WICHTIG – bewusst KEIN `release: published`-Trigger mehr (entfernt in 1.31.6):
+#   Das GitHub-Release ist das ARCHIV. Jede Version soll dort liegen, damit die
+#   Artefakte gesichert sind – unabhängig davon, ob und wann sie in einen Store
+#   geht. Solange das Release den Upload automatisch auslöste, ließ sich kein
+#   Release anlegen, ohne zugleich an Play zu schicken (Workaround waren
+#   `test-*`-Tags statt `v*`). Andi steuert die Play-Freigabe (geschlossener
+#   Test → Produktion) selbst in der Console. Diesen Trigger NICHT wieder
+#   einbauen.
+#
+#   Play-Upload bei Bedarf: Actions → Store-Upload → Run workflow, Tag angeben
+#   (z.B. v1.31.6.0), optional den Track wählen.
 #
 # OHNE die jeweiligen Secrets wird der Store ÜBERSPRUNGEN (kein Fehlschlag) →
 # man kann Play und Store unabhängig/schrittweise scharf schalten.
@@ -26,24 +31,21 @@
 name: Store-Upload
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release-Tag, dessen Artefakte hochgeladen werden (z.B. v1.26.0.0)'
+        description: 'Release-Tag, dessen Artefakte hochgeladen werden (z.B. v1.31.6.0)'
         required: true
       play_track:
         description: 'Google-Play-Track (internal/alpha/beta/production)'
         required: false
         default: internal
 
-# Tag aus Release-Event ODER manueller Eingabe.
 env:
-  REL_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  REL_TAG: ${{ inputs.tag }}
 
 concurrency:
-  group: store-upload-${{ github.event.release.tag_name || inputs.tag }}
+  group: store-upload-${{ inputs.tag }}
   cancel-in-progress: false
 
 jobs:

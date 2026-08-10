@@ -1,7 +1,16 @@
-# Automatischer Store-Upload (Google Play + Microsoft Store)
+# Store-Upload (Google Play + Microsoft Store)
+
+> **Seit 1.31.6 vom GitHub-Release ENTKOPPELT.** Das Release ist das **Archiv**:
+> jede Version liegt dort mit AAB + Store-MSIX, damit die Artefakte gesichert
+> sind – unabhängig von jedem Store. Der Upload nach Play läuft **nur noch
+> manuell** (Actions → Store-Upload → Run workflow, Tag angeben). Vorher startete
+> jedes veröffentlichte Release sofort den Play-Upload; man konnte also nichts
+> archivieren, ohne zugleich zu veröffentlichen (Notlösung waren `test-*`-Tags).
+> Die Freigabe in Play (geschlossener Test → Produktion) macht Andi in der
+> Console selbst.
 
 Der Workflow [`.github/workflows/store-upload.yml`](../.github/workflows/store-upload.yml)
-lädt die an ein **GitHub-Release** angehängten Artefakte automatisch hoch:
+lädt die an ein **GitHub-Release** angehängten Artefakte hoch:
 
 | Store | Artefakt | Tool |
 |---|---|---|
@@ -22,15 +31,20 @@ Play und Store lassen sich unabhängig scharf schalten.
 1. Lokal bauen wie gehabt (Version in `app_info.dart` + `pubspec.yaml`/`msix_version`):
    - `flutter build appbundle --release --build-name=<ver> --build-number=<code>` → AAB nach `E:\`
    - Store-MSIX (`dart run msix:create --store …`) → `E:\…-Store.msix`
-2. Release mit beiden Dateien anlegen (löst zugleich den Snap-stable-Build aus):
+2. Release mit beiden Dateien anlegen – reines Archiv, löst KEINEN Store-Upload aus:
    ```powershell
-   gh release create v<ver> "E:\Notizblock-<ver>.aab" "E:\Notizblock-<ver>-Store.msix" `
+   gh release create v<ver> "<pfad>\Notizblock-<ver>.aab" "E:\Notizblock-<ver>-Store.msix" `
      --title "v<ver>" --notes "Release <ver>"
    ```
    Existiert der Tag schon (z.B. weil er fürs Snap-Release vorab gepusht wurde),
    legt `gh release create v<ver> …` trotzdem das Release **am vorhandenen Tag** an.
-3. Fertig – der Workflow lädt zu Play (Track `internal`) und zum MS Store hoch.
-   Manuell nachstoßen geht über **Actions → Store-Upload → Run workflow** (Tag angeben).
+   Das AAB NICHT auf `E:` ablegen (Ansage Andi) – direkt aus
+   `build/app/outputs/bundle/release/` oder aus einem Temp-Ordner anhängen.
+3. **Play:** entweder von Hand in der Play Console hochladen/freigeben (so macht
+   es Andi: erst geschlossener Test, nach Feedback Produktion) – oder den
+   Workflow anstoßen: **Actions → Store-Upload → Run workflow**, Tag angeben,
+   Track wählen.
+4. **MS Store:** manuell in Partner Center (siehe Sackgasse unten).
 
 > Upload ≠ Veröffentlichung: Play-Review bzw. Store-Zertifizierung laufen wie
 > immer dazwischen. Automatisiert ist nur der Upload/die Einreichung.
