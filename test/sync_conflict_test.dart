@@ -99,6 +99,59 @@ void main() {
     );
   });
 
+  group('nur EIN Gerät im Spiel – es darf NIE eine Meldung kommen', () {
+    // Andi hat einen ganzen Vormittag nur am Handy geändert (PC aus) und trotzdem
+    // mehrfach die Konfliktmeldung bekommen. Ursache: Der Sync lädt hoch und
+    // schreibt den Basis-Stand erst danach fort. Bricht der Lauf dazwischen ab –
+    // auf dem Handy jederzeit möglich (Netz weg, Android friert die App beim
+    // Wegschalten ein) – kennt Drive die neue Fassung, die Basis zeigt aber noch
+    // auf die alte. Der nächste Lauf sah damit den EIGENEN Upload als fremde
+    // Änderung. Diese Fälle nageln die Gegenmittel fest.
+
+    test('abgebrochener Lauf: eigener Upload liegt in Drive, Basis hinkt nach',
+        () {
+      expect(
+        GoogleDriveService.isSkippedChange(
+          base: v11, // Basis noch auf dem alten Stand
+          local: v12, // hochgeladen wurde v12
+          remote: v12, // ... und genau das liegt in Drive
+          remoteBasedOn: v11,
+        ),
+        isFalse,
+        reason: 'Drive haelt exakt unseren Stand - da geht nichts verloren',
+      );
+    });
+
+    test('eigenes Geraet als Schreiber -> nie ein Konflikt', () {
+      // Selbst wenn die Zeitstempel auseinanderlaufen (z.B. zwei Sync-Laeufe
+      // desselben Geraets ueberholen sich): von uns geschrieben = kein Verlust.
+      expect(
+        GoogleDriveService.isSkippedChange(
+          base: v11,
+          local: v1220,
+          remote: v12,
+          remoteBasedOn: v11,
+          remoteFromThisDevice: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('fremdes Gerät bleibt trotz der neuen Regeln erkannt', () {
+      // Gegenprobe: derselbe Fall, nur eben NICHT vom eigenen Geraet.
+      expect(
+        GoogleDriveService.isSkippedChange(
+          base: v11,
+          local: v1220,
+          remote: v12,
+          remoteBasedOn: v11,
+          remoteFromThisDevice: false,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   test('unlesbare Zeitstempel führen nicht zu einer Meldung', () {
     expect(
       GoogleDriveService.isSkippedChange(

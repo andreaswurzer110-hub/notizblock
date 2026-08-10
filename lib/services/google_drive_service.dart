@@ -81,6 +81,16 @@ class GoogleDriveService {
   /// selbst – `Note.fromJson` ignoriert es, ältere App-Versionen ebenso.
   static const String _basedOnKey = 'basedOn';
 
+  /// Zusatzfeld in `notes/<id>.json`: welches Gerät diese Fassung geschrieben
+  /// hat ([DeviceInfoService.describe], dieselbe Bezeichnung wie im
+  /// Versionsverlauf). Dient allein der Konflikt-Erkennung: Eine Datei, die
+  /// DIESES Gerät geschrieben hat, kann nie ein Konflikt sein – da wurde
+  /// nichts von jemand anderem übersprungen. Absichtlich der Gerätename und
+  /// keine Installations-ID: auf dem Desktop syncen Hauptfenster und jedes
+  /// Sticky-Fenster als EIGENE Prozesse auf derselben Datenbank – die sollen
+  /// sich gegenseitig ebenfalls nicht als „anderes Gerät" sehen.
+  static const String _writerKey = 'writer';
+
   /// true in Sticky-Note-Prozessen. Solche Prozesse dürfen Credentials NICHT
   /// persistieren – sonst würde ein laufendes Sticky-Fenster eine Abmeldung der
   /// Hauptapp durch einen still erneuerten Token wieder zurückschreiben. Wird in
@@ -432,7 +442,9 @@ class GoogleDriveService {
           notesFolderId,
           '${note.id}.json',
           jsonEncode(_notePayload(
-              note, await DatabaseService.instance.getSyncBase(note.id))),
+              note,
+              await DatabaseService.instance.getSyncBase(note.id),
+              await DeviceInfoService.describe())),
         );
         // Basis nachziehen, sonst meldet der nächste Sync den eigenen Upload
         // als fremde Änderung.
@@ -568,6 +580,10 @@ class GoogleDriveService {
       // "Test m" hochgeladen, finaler Stand "Test machen" verschluckt).
       final localSyncStart = DateTime.now();
 
+      // Bezeichnung dieses Geräts – wird an jede hochgeladene Notiz geschrieben
+      // und beim Pull gegen die Datei geprüft (siehe _writerKey). Gecacht.
+      final device = await DeviceInfoService.describe();
+
       var uploaded = 0;
       var downloaded = 0;
       DateTime? maxSeen;
@@ -600,9 +616,20 @@ class GoogleDriveService {
           // hochgeladen). Fehlt der Wert (ältere App-Version hat zuletzt
           // geschrieben), wird nicht gewarnt statt falsch gewarnt.
           final remoteBasedOn = decoded[_basedOnKey] as String?;
+          final remoteWriter = decoded[_writerKey] as String?;
           final local = await DatabaseService.instance.getNoteById(note.id);
           final base = await DatabaseService.instance.getSyncBase(note.id);
           final remoteIso = note.modifiedAt.toIso8601String();
+          final fromThisDevice = remoteWriter != null && remoteWriter == device;
+
+          // Selbstheilung: Hält Drive exakt unseren lokalen Stand, ist genau das
+          // der gemeinsame Stand – auch wenn die Basis (z.B. nach einem
+          // abgebrochenen Lauf) noch hinterherhinkt.
+          if (local != null && remoteIso == local.modifiedAt.toIso8601String()) {
+            if (base != remoteIso) {
+              await DatabaseService.instance.setSyncBase(note.id, remoteIso);
+            }
+          }
 
           // KONFLIKT nur, wenn dabei tatsächlich eine Änderung ÜBERSPRUNGEN
           // wird (siehe isSkippedChange). Es gewinnt weiterhin die neuere
@@ -615,6 +642,7 @@ class GoogleDriveService {
                 local: local.modifiedAt.toIso8601String(),
                 remote: remoteIso,
                 remoteBasedOn: remoteBasedOn,
+                remoteFromThisDevice: fromThisDevice,
               );
           if (local == null || _isRemoteNewer(note, local, f.modifiedTime)) {
             // Vor dem Überschreiben die LOKALE Fassung in die Historie retten –
@@ -670,14 +698,26 @@ class GoogleDriveService {
         // wurde – es sieht sonst nur „neuere Datei" und merkt den Verlust nicht.
         final basedOn = await DatabaseService.instance.getSyncBase(note.id);
         final mt = await _putFile(notesFolderId, '${note.id}.json',
-            jsonEncode(_notePayload(note, basedOn)));
+            jsonEncode(_notePayload(note, basedOn, device)));
+        // Basis SOFORT nach dem Upload fortschreiben – vor allem, was danach
+        // noch kommt (war real ein Bug bis 1.31.4): Steht die Datei erst in
+        // Drive und bricht der Lauf danach ab (Netz weg, Android friert die App
+        // beim Wegschalten ein), dann kennt Drive die neue Fassung, die Basis
+        // zeigt aber noch auf die alte -> der nächste Sync hält den EIGENEN
+        // Upload für eine fremde Änderung und meldet Konflikt, obwohl nur ein
+        // einziges Gerät im Spiel war.
+        await DatabaseService.instance
+            .setSyncBase(note.id, note.modifiedAt.toIso8601String());
         maxSeen = _laterOf(maxSeen, mt);
         // Serverzeit dieses Schreibvorgangs -> Uhr-Versatz nachführen.
         await _updateClockOffset(prefs, mt);
-        await _writeHistorySnapshot(historyFolderId, note);
-        // Hochgeladener Stand ist ab jetzt der gemeinsame Stand mit Drive.
-        await DatabaseService.instance
-            .setSyncBase(note.id, note.modifiedAt.toIso8601String());
+        // Historie ist Beiwerk: ein Fehler hier darf den Sync NICHT abbrechen
+        // (sonst bliebe u.a. der Zeitstempel-Wasserstand am Ende ungeschrieben).
+        try {
+          await _writeHistorySnapshot(historyFolderId, note);
+        } catch (e) {
+          debugPrint('Historie-Schnappschuss fehlgeschlagen: $e');
+        }
         uploaded++;
       }
 
@@ -948,7 +988,10 @@ class GoogleDriveService {
       if (notesFolderId == null || tombFolderId == null) return false;
       await _deleteFileByName(tombFolderId, '${note.id}.json');
       await _putFile(
-          notesFolderId, '${note.id}.json', jsonEncode(_notePayload(note, null)));
+          notesFolderId,
+          '${note.id}.json',
+          jsonEncode(
+              _notePayload(note, null, await DeviceInfoService.describe())));
       await DatabaseService.instance
           .setSyncBase(note.id, note.modifiedAt.toIso8601String());
       return true;
@@ -1156,10 +1199,11 @@ class GoogleDriveService {
     return remoteServerTime.toUtc().isAfter(localInServerTime);
   }
 
-  /// Notiz-JSON für `notes/<id>.json` inkl. Basis-Stand der Änderung.
-  Map<String, dynamic> _notePayload(Note note, String? basedOn) => {
+  /// Notiz-JSON für `notes/<id>.json` inkl. Basis-Stand und schreibendem Gerät.
+  Map<String, dynamic> _notePayload(Note note, String? basedOn, String? writer) => {
         ...note.toJson(),
         if (basedOn != null) _basedOnKey: basedOn,
+        if (writer != null) _writerKey: writer,
       };
 
   /// Geht bei diesem Zusammenführen eine Änderung VERLOREN?
@@ -1188,7 +1232,16 @@ class GoogleDriveService {
     required String local,
     required String remote,
     String? remoteBasedOn,
+    bool remoteFromThisDevice = false,
   }) {
+    // Fall 0a: Die Datei stammt von DIESEM Gerät. Dann kann nichts von jemand
+    // anderem übersprungen worden sein – egal wie die Zeitstempel stehen.
+    // Fängt u.a. ab, dass ein abgebrochener Lauf (Upload fertig, Basis noch
+    // nicht fortgeschrieben) den eigenen Upload als fremde Änderung ansieht.
+    if (remoteFromThisDevice) return false;
+    // Fall 0b: Drive hält exakt unsere Fassung. Auch ohne Gerätekennung (ältere
+    // App-Version hat geschrieben) ist hier nichts zu verlieren.
+    if (remote == local) return false;
     if (remote == base) return false; // Fall 1
     if (local != base) return true; // Fall 2
     // Fall 3
