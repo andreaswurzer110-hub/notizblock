@@ -140,30 +140,47 @@ class StickyNoteService {
     return _isProcessAlive(storedPid);
   }
 
+  /// Läuft unter dieser PID noch ein Sticky-Fenster DIESER App?
+  ///
+  /// **Es reicht NICHT, nur die Existenz der PID zu prüfen (war real ein Bug
+  /// bis 1.31.5):** Betriebssysteme vergeben PIDs wieder. Nach einem Neustart
+  /// der App gehörte eine gemerkte PID irgendwann einem fremden Programm – die
+  /// Hauptapp hielt das Widget damit für offen und ließ es beim
+  /// `openAllWidgets()` dauerhaft aus. Symptom: nach einem Update kam immer
+  /// wieder EIN angeheftetes Widget nicht zurück, scheinbar willkürlich, und
+  /// ein zweiter App-Start „reparierte" es nur, wenn der fremde Prozess
+  /// zwischenzeitlich beendet war. Deshalb wird zusätzlich der Programmname
+  /// verglichen.
   Future<bool> _isProcessAlive(int processId) async {
-    // Linux: /proc/<pid> existiert solange der Prozess lebt (kein Subprozess).
-    if (Platform.isLinux) {
-      return Directory('/proc/$processId').existsSync();
-    }
-    // macOS: kein /proc -> kill -0 (Signal 0 prüft nur die Existenz).
-    if (Platform.isMacOS) {
-      try {
-        final r = await Process.run('kill', ['-0', '$processId']);
-        return r.exitCode == 0;
-      } catch (_) {
-        return false;
-      }
-    }
-    if (!Platform.isWindows) return false;
+    final expected = basename(Platform.resolvedExecutable).toLowerCase();
     try {
-      final result = await Process.run(
-        'tasklist',
-        ['/FI', 'PID eq $processId', '/NH', '/FO', 'CSV'],
-      );
-      return result.stdout.toString().contains('"$processId"');
+      if (Platform.isWindows) {
+        final result = await Process.run(
+          'tasklist',
+          ['/FI', 'PID eq $processId', '/NH', '/FO', 'CSV'],
+        );
+        final out = result.stdout.toString().toLowerCase();
+        // CSV-Zeile: "abbild.exe","<pid>",...  -> beides muss passen.
+        return out.contains('"$processId"') && out.contains(expected);
+      }
+      if (Platform.isLinux) {
+        // /proc/<pid>/comm ist der Programmname (auf 15 Zeichen gekürzt).
+        final comm = File('/proc/$processId/comm');
+        if (!comm.existsSync()) return false;
+        final name = comm.readAsStringSync().trim().toLowerCase();
+        return name.isNotEmpty && expected.startsWith(name);
+      }
+      if (Platform.isMacOS) {
+        final r = await Process.run('ps', ['-p', '$processId', '-o', 'comm=']);
+        if (r.exitCode != 0) return false;
+        return r.stdout.toString().toLowerCase().contains(expected);
+      }
     } catch (_) {
+      // Im Zweifel „läuft nicht": ein überflüssig geöffnetes Fenster ist
+      // harmlos (die App erkennt Doppelstarts), ein FEHLENDES nicht.
       return false;
     }
+    return false;
   }
 
   // --- Widget-Status (eigene Datei, nur Hauptapp schreibt) ---
