@@ -64,6 +64,26 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Zuletzt gespeicherte Fenster-Lage – um nur bei echter Änderung zu schreiben.
   Rect? _lastSavedBounds;
 
+  // Zeitpunkt der letzten echten Tastatureingabe in diesem Fenster.
+  //
+  // WARUM NICHT `FocusNode.hasFocus` (war real ein Bug bis 1.31.3): Der Fokus
+  // bleibt in Flutter gesetzt, auch wenn das Fenster längst im Hintergrund
+  // liegt – „fokussiert" heißt also NICHT „tippt gerade". Ein Sticky-Fenster,
+  // in das irgendwann einmal geklickt wurde, hat dauerhaft `hasFocus == true`.
+  // Damit wurde jede Fremdänderung als „nicht übernehmen, der Nutzer tippt"
+  // behandelt, `_note` aber trotzdem auf die neue Fassung gesetzt → der nächste
+  // `_saveNote()` sah einen Unterschied und schrieb den ALTEN Fensterinhalt mit
+  // frischem `modifiedAt` zurück. Ergebnis: Der PC überschrieb im 15-s-Takt
+  // Änderungen anderer Geräte, und auf dem Handy kam berechtigt Konflikt um
+  // Konflikt. Deshalb zählt jetzt die letzte Eingabe, nicht der Fokus.
+  DateTime? _lastTyped;
+
+  /// Wird gerade wirklich getippt? Nur dann darf eine Fremdänderung den
+  /// Fensterinhalt NICHT überschreiben.
+  bool get _isTypingNow =>
+      _lastTyped != null &&
+      DateTime.now().difference(_lastTyped!) < const Duration(seconds: 5);
+
   // Lokale Rückgängig-Funktion (nur Inhalt; Titel steckt in der Fenstertitelleiste).
   final List<String> _undoStack = [];
   // Wiederholen-Stapel: rückgängig gemachte Stände, um sie erneut anzuwenden.
@@ -156,7 +176,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       final colorChanged = note.color != _note?.color;
       final titleChanged = note.title != _note?.title;
       if (!dataChanged && !colorChanged && !titleChanged) return;
-      if (dataChanged && !(_autopoolKey.currentState?.hasFocus ?? false)) {
+      if (dataChanged && !_isTypingNow) {
         _autopoolJson = note.autopoolData;
         _autopoolKey.currentState?.setData(note.autopoolData);
       }
@@ -176,7 +196,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       final colorChanged = note.color != _note?.color;
       final titleChanged = note.title != _note?.title;
       if (!dataChanged && !colorChanged && !titleChanged) return;
-      if (dataChanged && !(_shoppingKey.currentState?.hasFocus ?? false)) {
+      if (dataChanged && !_isTypingNow) {
         _shoppingJson = note.autopoolData;
         _shoppingKey.currentState?.setData(note.autopoolData);
       }
@@ -195,7 +215,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (!contentChanged && !colorChanged && !titleChanged) return;
 
     // Inhalt nur ersetzen, wenn nicht gerade getippt wird.
-    if (contentChanged && !_contentFocus.hasFocus) {
+    if (contentChanged && !_isTypingNow) {
       _contentController.value = TextEditingValue(
         text: note.content,
         // Schreibmarke NICHT ans Ende setzen – sonst scrollt eine lange Notiz
@@ -296,6 +316,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   }
 
   void _onTextChanged() {
+    // Echte Eingabe -> schützt den Fensterinhalt kurzzeitig vor Fremdänderungen.
+    if (!_restoringSnapshot) _lastTyped = DateTime.now();
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
     // Nach dem Tippen automatisch syncen (entprellt).
@@ -451,6 +473,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
 
   // Tabellenänderung (Autopool): entprellt speichern + syncen + Undo-Checkpoint.
   void _onAutopoolChanged(String json) {
+    if (!_restoringSnapshot) _lastTyped = DateTime.now();
     _autopoolJson = json;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
@@ -469,6 +492,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Listenänderung (Einkaufsliste): identisch zu _onAutopoolChanged, nur die
   // Quelle ist die Einkaufsliste.
   void _onShoppingChanged(String json) {
+    if (!_restoringSnapshot) _lastTyped = DateTime.now();
     _shoppingJson = json;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 500), _saveNote);
