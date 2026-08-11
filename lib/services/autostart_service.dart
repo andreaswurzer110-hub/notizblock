@@ -539,6 +539,8 @@ public static class NbAppLink {
   /// Läuft dank Flag nur einmal pro Format-Version. Nur Windows.
   Future<void> refreshShortcutIfNeeded() async {
     if (!Platform.isWindows) return;
+    // ZUERST die Selbstheilung – sie hängt NICHT am Einmal-Flag.
+    await _repairForeignShortcut();
     try {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool(_shortcutRefreshFlag) ?? false) return;
@@ -548,6 +550,55 @@ public static class NbAppLink {
       await prefs.setBool(_shortcutRefreshFlag, true);
     } catch (e) {
       debugPrint('Autostart-Verknüpfung auffrischen fehlgeschlagen: $e');
+    }
+  }
+
+  /// Repariert eine Autostart-Verknüpfung, die auf eine FREMDE Installation
+  /// zeigt (war real ein Bug bis 1.31.6).
+  ///
+  /// Wird die App einmal aus einem anderen Ordner gestartet – auf dem
+  /// Entwickler-PC typischerweise die Build-Exe unter
+  /// `build\windows\x64\runner\Release\` –, schreibt [_enableWindows] die
+  /// Verknüpfung auf GENAU diese Exe um. Ab dann startet Windows bei jeder
+  /// Anmeldung die falsche Programmdatei: die hat keine Paket-Identität, bekommt
+  /// vom System keine AppUserModelID und landet deshalb in einem EIGENEN
+  /// Taskleisten-Symbol statt beim angehefteten Paket-Eintrag. Zusätzlich
+  /// arbeiten dann zwei Installationen auf derselben Datenbank. Das
+  /// Einmal-Flag [_shortcutRefreshFlag] hilft dagegen nicht, weil es längst
+  /// gesetzt ist – deshalb wird hier bei JEDEM Start geprüft.
+  ///
+  /// Erkennungsmerkmal: Für die Paket-Variante ist die korrekte Verknüpfung
+  /// eine **Shell-Item-Verknüpfung ohne Datei-Ziel** (AppsFolder). Hat sie ein
+  /// Datei-Ziel, stammt sie aus einer anderen Installation.
+  Future<void> _repairForeignShortcut() async {
+    if (!_isPackaged) return; // nur die Paket-Variante weiß, was richtig ist
+    try {
+      final path = _shortcutPath;
+      if (path == null || !await File(path).exists()) return;
+      final target = await _shortcutTargetPath(path);
+      if (target == null || target.isEmpty) return; // schon korrekt
+      debugPrint('Autostart zeigte auf fremde Installation ($target) '
+          '-> wird auf das Paket umgeschrieben');
+      await _enableWindows();
+    } catch (e) {
+      debugPrint('Autostart-Verknüpfung prüfen fehlgeschlagen: $e');
+    }
+  }
+
+  /// Datei-Ziel einer .lnk (leer bei Shell-Item-Verknüpfungen wie AppsFolder).
+  Future<String?> _shortcutTargetPath(String lnkPath) async {
+    try {
+      final r = await Process.run('powershell', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        r'$ws = New-Object -ComObject WScript.Shell; '
+            '\$ws.CreateShortcut(${_psQuote(lnkPath)}).TargetPath',
+      ]);
+      if (r.exitCode != 0) return null;
+      return r.stdout.toString().trim();
+    } catch (_) {
+      return null;
     }
   }
 
