@@ -21,6 +21,10 @@ on:
         description: 'Channel (edge/beta/candidate/stable)'
         required: false
         default: edge
+      promote_revision:
+        description: 'Nur eine BESTEHENDE Revision in diesen Channel schieben (z.B. 45) - dann wird NICHT neu gebaut'
+        required: false
+        default: ''
 
 concurrency:
   group: snap-build
@@ -36,7 +40,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Normalfall: bauen und die frische Revision veröffentlichen.
+  # Wird übersprungen, wenn nur eine bestehende Revision umgehängt werden soll.
   build-and-publish:
+    if: github.event.inputs.promote_revision == ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -69,3 +76,36 @@ jobs:
           snap: ${{ steps.build.outputs.snap }}
           # Tag → stable, sonst der manuell gewählte Channel (Default edge).
           release: ${{ github.event.inputs.release || (startsWith(github.ref, 'refs/tags/v') && 'stable' || 'edge') }}
+
+  # Bestehende Revision in einen weiteren Channel schieben, OHNE neu zu bauen.
+  # WARUM: Ein zweiter Build derselben Quelle erzeugt eine zweite Revision mit
+  # identischem Inhalt – die Channels zeigen dann auf verschiedene Revisionen
+  # desselben Stands. Umhängen hält beide auf genau denselben Bits.
+  #   gh workflow run snap.yml --ref main -f promote_revision=45 -f release=edge
+  # Revisionsnummern: `snapcraft status notizblock-aw` bzw. das Log des
+  # Veröffentlichen-Schritts ("Revision N created ... released to ...").
+  promote:
+    if: github.event.inputs.promote_revision != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Store-Credentials vorhanden?
+        id: creds
+        env:
+          C: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          if [ -n "$C" ]; then echo "has=true" >> "$GITHUB_OUTPUT"; else echo "SNAPCRAFT_STORE_CREDENTIALS fehlt -> Umhängen wird übersprungen."; echo "has=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: snapcraft bereitstellen
+        if: steps.creds.outputs.has == 'true'
+        run: sudo snap install snapcraft --classic
+
+      - name: Revision in den Channel schieben
+        if: steps.creds.outputs.has == 'true'
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          REV: ${{ github.event.inputs.promote_revision }}
+          CH: ${{ github.event.inputs.release }}
+        run: |
+          case "$REV" in ''|*[!0-9]*) echo "promote_revision muss eine Zahl sein, war: '$REV'" >&2; exit 1;; esac
+          snapcraft release notizblock-aw "$REV" "$CH"
+          snapcraft status notizblock-aw
