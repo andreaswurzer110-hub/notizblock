@@ -40,14 +40,69 @@ apps:
 parts:
   notizblock:
     source: .
-    plugin: flutter
-    flutter-target: lib/main.dart
+    # BEWUSST `plugin: nil` statt `plugin: flutter` (seit 1.31.8.0).
+    # Das flutter-Plugin klont immer den KOPF eines Kanals
+    # (`git clone --depth 1 -b stable`) und laesst sich nicht festnageln:
+    # `flutter-channel` akzeptiert nur stable/master/beta, keine Version.
+    # Die CI baut damit gegen ein anderes SDK als der Arbeitsplatz, und ein
+    # neues Flutter-Release kann den Snap ohne eigene Aenderung zerlegen –
+    # genau das passierte am 20.08.2026: Flutter 3.47.1 (19.08.) bringt ein
+    # flutter_localizations, das `intl ^0.20.3` verlangt, waehrend pubspec
+    # `intl 0.20.2` festhaelt -> "version solving failed".
+    # Darum laden wir das offizielle SDK-Tarball in FLUTTER_VERSION und
+    # fuehren die Schritte des Plugins selbst aus (identisch zu dessen
+    # get_build_commands: precache, pub get, build linux, bundle kopieren).
+    # Flathub macht es ueber `tag:` genauso (flatpak/flatpak-flutter.yml).
+    #
+    # BEI FLUTTER-UPDATE: FLUTTER_VERSION auf die lokal genutzte Version
+    # ziehen (`flutter --version`), sonst weichen CI und Arbeitsplatz wieder
+    # voneinander ab.
+    plugin: nil
+    build-packages:
+      # Dieselben Pakete, die das flutter-Plugin mitbringen wuerde ...
+      - clang
+      - cmake
+      - curl
+      - git
+      - ninja-build
+      - unzip
+      # ... plus xz-utils fuer das .tar.xz des SDK.
+      - xz-utils
+    build-environment:
+      - FLUTTER_VERSION: '3.44.4'
     override-build: |
+      set -eu
+
       # Dedizierten, bewusst öffentlichen Linux-OAuth-Client einspielen
       # (im Repo gitignored unter lib/services; Quelle in flatpak/).
       cp flatpak/google_drive_config.dart lib/services/google_drive_config.dart
+
+      # Flutter-SDK in FESTER Version bereitstellen. Die Stempeldatei sorgt
+      # dafuer, dass ein zwischengespeicherter Build-Ordner mit einer anderen
+      # Version neu geholt wird statt still weiterbenutzt zu werden.
+      FLUTTER_DIR="$CRAFT_PART_BUILD/flutter-distro"
+      if [ "$(cat "$FLUTTER_DIR/.pinned-version" 2>/dev/null || true)" != "$FLUTTER_VERSION" ]; then
+        rm -rf "$FLUTTER_DIR" "$CRAFT_PART_BUILD/flutter"
+        curl -fsSL -o "$CRAFT_PART_BUILD/flutter.tar.xz" \
+          "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+        tar -xJf "$CRAFT_PART_BUILD/flutter.tar.xz" -C "$CRAFT_PART_BUILD"
+        mv "$CRAFT_PART_BUILD/flutter" "$FLUTTER_DIR"
+        rm -f "$CRAFT_PART_BUILD/flutter.tar.xz"
+        echo "$FLUTTER_VERSION" > "$FLUTTER_DIR/.pinned-version"
+      fi
+      export PATH="$FLUTTER_DIR/bin:$PATH"
+      # Snapcraft baut als root, dem das entpackte SDK sonst "dubious
+      # ownership" meldet und Flutter die Versionserkennung verweigert.
+      git config --global --add safe.directory "$FLUTTER_DIR"
+      # Steht so im Build-Log: hier laesst sich nachlesen, womit gebaut wurde.
+      flutter --version
+
+      flutter precache --linux
+      flutter pub get
+      flutter build linux --release --target lib/main.dart
+      cp -r build/linux/*/release/bundle/* "$CRAFT_PART_INSTALL/"
+
       # Snap-Version = die 4-teilige msix_version aus pubspec (z.B. 1.25.5.3),
       # damit der Store die volle Nummer inkl. Revision zeigt. pubspec `version:`
       # ist nur 3-teilig (semver), taugt dafür nicht.
       craftctl set version="$(sed -n 's/^[[:space:]]*msix_version:[[:space:]]*\([0-9.]*\).*/\1/p' pubspec.yaml)"
-      craftctl default
