@@ -428,6 +428,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get creator => 'Geliştirici';
 
   @override
+  String get toolsUsed => 'Kullanılan araçlar';
+
+  @override
+  String get aiNotice =>
+      'Bu uygulama yapay zeka (Claude Code) desteğiyle geliştirildi. Kodun ve metinlerin bir kısmı yapay zeka tarafından oluşturuldu ve geliştirici tarafından kontrol edildi.';
+
+  @override
   String get feedback => 'Geri bildirim ve sorular';
 
   @override

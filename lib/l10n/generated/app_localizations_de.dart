@@ -428,6 +428,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get creator => 'Ersteller';
 
   @override
+  String get toolsUsed => 'Genutzte Werkzeuge';
+
+  @override
+  String get aiNotice =>
+      'Diese App wurde mit Unterstützung von künstlicher Intelligenz (Claude Code) entwickelt. Programmcode und Texte sind teilweise KI-generiert und wurden vom Ersteller geprüft.';
+
+  @override
   String get feedback => 'Feedback und Fragen';
 
   @override

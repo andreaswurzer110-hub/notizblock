@@ -130,6 +130,8 @@
   "ctxPaste": "Yapıştır",
   "readOnly": "Salt okunur",
   "creator": "Geliştirici",
+  "toolsUsed": "Kullanılan araçlar",
+  "aiNotice": "Bu uygulama yapay zeka (Claude Code) desteğiyle geliştirildi. Kodun ve metinlerin bir kısmı yapay zeka tarafından oluşturuldu ve geliştirici tarafından kontrol edildi.",
   "feedback": "Geri bildirim ve sorular",
   "close": "Kapat",
   "bibleVerse1Ref": "Koloseliler 3:17",

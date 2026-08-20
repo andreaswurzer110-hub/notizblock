@@ -144,6 +144,8 @@
   "ctxPaste": "Coller",
   "readOnly": "Lecture seule",
   "creator": "Créateur",
+  "toolsUsed": "Outils utilisés",
+  "aiNotice": "Cette application a été développée avec l'aide de l'intelligence artificielle (Claude Code). Une partie du code et des textes est générée par IA et a été vérifiée par le créateur.",
   "feedback": "Commentaires et questions",
   "close": "Fermer",
   "bibleVerse1Ref": "Colossiens 3:17",

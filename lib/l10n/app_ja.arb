@@ -130,6 +130,8 @@
   "ctxPaste": "貼り付け",
   "readOnly": "読み取り専用",
   "creator": "作者",
+  "toolsUsed": "使用ツール",
+  "aiNotice": "このアプリは人工知能（Claude Code）の支援を受けて開発されました。コードとテキストの一部はAIが生成したもので、作者が確認しています。",
   "feedback": "ご意見・お問い合わせ",
   "close": "閉じる",
   "bibleVerse1Ref": "コロサイ人への手紙 3:17",

@@ -429,6 +429,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get creator => 'Maker';
 
   @override
+  String get toolsUsed => 'Gebruikte hulpmiddelen';
+
+  @override
+  String get aiNotice =>
+      'Deze app is ontwikkeld met hulp van kunstmatige intelligentie (Claude Code). Delen van de code en de teksten zijn AI-gegenereerd en door de maker gecontroleerd.';
+
+  @override
   String get feedback => 'Feedback en vragen';
 
   @override

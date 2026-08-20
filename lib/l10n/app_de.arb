@@ -217,6 +217,8 @@
   "ctxPaste": "Einfügen",
   "readOnly": "Nur Lesen",
   "creator": "Ersteller",
+  "toolsUsed": "Genutzte Werkzeuge",
+  "aiNotice": "Diese App wurde mit Unterstützung von künstlicher Intelligenz (Claude Code) entwickelt. Programmcode und Texte sind teilweise KI-generiert und wurden vom Ersteller geprüft.",
   "feedback": "Feedback und Fragen",
   "close": "Schließen",
   "bibleVerse1Ref": "Kolosser 3,17",

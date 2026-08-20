@@ -423,6 +423,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get creator => '作者';
 
   @override
+  String get toolsUsed => '使用ツール';
+
+  @override
+  String get aiNotice =>
+      'このアプリは人工知能（Claude Code）の支援を受けて開発されました。コードとテキストの一部はAIが生成したもので、作者が確認しています。';
+
+  @override
   String get feedback => 'ご意見・お問い合わせ';
 
   @override

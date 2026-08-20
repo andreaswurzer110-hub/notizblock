@@ -423,6 +423,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get creator => '开发者';
 
   @override
+  String get toolsUsed => '使用的工具';
+
+  @override
+  String get aiNotice => '本应用在人工智能（Claude Code）的协助下开发。部分代码和文本由 AI 生成，并已由创建者审核。';
+
+  @override
   String get feedback => '反馈与提问';
 
   @override

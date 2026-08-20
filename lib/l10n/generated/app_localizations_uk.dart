@@ -427,6 +427,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get creator => 'Автор';
 
   @override
+  String get toolsUsed => 'Використані інструменти';
+
+  @override
+  String get aiNotice =>
+      'Цей застосунок розроблено за допомогою штучного інтелекту (Claude Code). Частину коду й текстів згенеровано ШІ та перевірено автором.';
+
+  @override
   String get feedback => 'Відгуки та запитання';
 
   @override

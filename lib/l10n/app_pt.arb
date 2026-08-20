@@ -130,6 +130,8 @@
   "ctxPaste": "Colar",
   "readOnly": "Somente leitura",
   "creator": "Autor",
+  "toolsUsed": "Ferramentas utilizadas",
+  "aiNotice": "Este aplicativo foi desenvolvido com o apoio de inteligência artificial (Claude Code). Parte do código e dos textos foi gerada por IA e revisada pelo autor.",
   "feedback": "Comentários e dúvidas",
   "close": "Fechar",
   "bibleVerse1Ref": "Colossenses 3:17",

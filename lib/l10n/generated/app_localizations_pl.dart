@@ -427,6 +427,13 @@ class AppLocalizationsPl extends AppLocalizations {
   String get creator => 'Autor';
 
   @override
+  String get toolsUsed => 'Użyte narzędzia';
+
+  @override
+  String get aiNotice =>
+      'Ta aplikacja powstała przy wsparciu sztucznej inteligencji (Claude Code). Część kodu i tekstów została wygenerowana przez SI i sprawdzona przez autora.';
+
+  @override
   String get feedback => 'Opinie i pytania';
 
   @override

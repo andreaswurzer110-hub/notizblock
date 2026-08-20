@@ -427,6 +427,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get creator => 'Автор';
 
   @override
+  String get toolsUsed => 'Использованные инструменты';
+
+  @override
+  String get aiNotice =>
+      'Это приложение разработано с помощью искусственного интеллекта (Claude Code). Часть кода и текстов создана ИИ и проверена автором.';
+
+  @override
   String get feedback => 'Отзывы и вопросы';
 
   @override

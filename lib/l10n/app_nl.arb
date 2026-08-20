@@ -130,6 +130,8 @@
   "ctxPaste": "Plakken",
   "readOnly": "Alleen lezen",
   "creator": "Maker",
+  "toolsUsed": "Gebruikte hulpmiddelen",
+  "aiNotice": "Deze app is ontwikkeld met hulp van kunstmatige intelligentie (Claude Code). Delen van de code en de teksten zijn AI-gegenereerd en door de maker gecontroleerd.",
   "feedback": "Feedback en vragen",
   "close": "Sluiten",
   "bibleVerse1Ref": "Kolossenzen 3:17",

@@ -268,12 +268,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(l10n.creator),
             subtitle: const Text('Andreas Wurzer'),
           ),
+          // Genutzte Werkzeuge
+          ListTile(
+            leading: const Icon(Icons.build_outlined),
+            title: Text(l10n.toolsUsed),
+            subtitle: const Text('Claude Code'),
+          ),
           // Feedback & Kontakt (Tippen öffnet das Mailprogramm)
           ListTile(
             leading: const Icon(Icons.mail_outline),
             title: Text(l10n.feedback),
             subtitle: const Text(_feedbackEmail),
             onTap: _sendFeedbackMail,
+          ),
+          // Kennzeichnung KI-gestützter Inhalte – bewusst dauerhaft sichtbar,
+          // nicht hinter einem Dialog versteckt.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: Text(
+              l10n.aiNotice,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),

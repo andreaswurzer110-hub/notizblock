@@ -427,6 +427,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get creator => 'Creator';
 
   @override
+  String get toolsUsed => 'Tools used';
+
+  @override
+  String get aiNotice =>
+      'This app was developed with the help of artificial intelligence (Claude Code). Parts of the code and the texts are AI-generated and were reviewed by the creator.';
+
+  @override
   String get feedback => 'Feedback & questions';
 
   @override

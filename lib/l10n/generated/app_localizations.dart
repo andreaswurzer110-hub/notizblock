@@ -900,6 +900,18 @@ abstract class AppLocalizations {
   /// **'Ersteller'**
   String get creator;
 
+  /// No description provided for @toolsUsed.
+  ///
+  /// In de, this message translates to:
+  /// **'Genutzte Werkzeuge'**
+  String get toolsUsed;
+
+  /// No description provided for @aiNotice.
+  ///
+  /// In de, this message translates to:
+  /// **'Diese App wurde mit Unterstützung von künstlicher Intelligenz (Claude Code) entwickelt. Programmcode und Texte sind teilweise KI-generiert und wurden vom Ersteller geprüft.'**
+  String get aiNotice;
+
   /// No description provided for @feedback.
   ///
   /// In de, this message translates to:

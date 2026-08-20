@@ -130,6 +130,8 @@
   "ctxPaste": "Wklej",
   "readOnly": "Tylko do odczytu",
   "creator": "Autor",
+  "toolsUsed": "Użyte narzędzia",
+  "aiNotice": "Ta aplikacja powstała przy wsparciu sztucznej inteligencji (Claude Code). Część kodu i tekstów została wygenerowana przez SI i sprawdzona przez autora.",
   "feedback": "Opinie i pytania",
   "close": "Zamknij",
   "bibleVerse1Ref": "Kolosan 3:17",
