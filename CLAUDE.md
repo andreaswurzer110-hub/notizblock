@@ -69,8 +69,6 @@ Bei verkeiltem `flutter clean` (Datei in Verwendung): laufende `dart.exe`/App sc
 - Code-Kommentare und UI-Texte auf **Deutsch**.
 - UI-Strings nicht hartkodieren → über l10n (de zuerst), damit Mehrsprachigkeit nicht bricht. **WICHTIG – `SettingsProvider.supportedLocales` MUSS zu den vorhandenen `lib/l10n/app_<locale>.arb` passen:** Bietet der Sprachwähler eine Locale ohne eigene `.arb` an, ist `AppLocalizations.of(context)` für sie **null** → `!`-Zugriff wirft → Haupt-/Einstellungsbildschirm wird **grau und unbedienbar** (war real ein Bug bis 1.25.8.0: es/fr/it wurden angeboten, aber nur de/en hatten Übersetzungen). Aktuell vollständig: de, en, es, fr, it. Neue Sprache = `app_<locale>.arb` (alle Keys) anlegen, `flutter gen-l10n`, in `supportedLocales` eintragen. Geschützt durch `test/l10n_locales_test.dart` (jede angebotene Locale muss laden). Apostrophe in fr/it als typografisches `’` schreiben (das straight `'` ist das ICU-Quote-Zeichen und kann in Strings MIT Platzhaltern Text verschlucken).
 - Plattformabhängigen Code (Desktop vs. Android) sauber über `Platform.is…` bzw. bedingte Importe kapseln.
-- Antworten/Erklärungen an mich: technisch präzise und knapp, kein Füllwerk. Bei Unsinn direkt widersprechen.
-- Vor größeren Änderungen kurz den Plan nennen, nicht blind über bestehenden Code bügeln.
 
 ## Bekannte Stolpersteine → `docs/archiv/stolpersteine.md`
 
@@ -96,6 +94,26 @@ nachschlagen, nicht neu ausprobieren:**
 - **Sprachen & Datum** – 13 Sprachen, `utils/date_display.dart` statt `DateFormat(…,'de')`
 
 Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-2026-08-23.md`
+
+## Offen fürs nächste Release
+
+- **Linux/Snap: „In Datei drucken" über den System-Druckdialog scheitert** (gemeldet
+  von Andi am 2026-08-23 auf Zorin, Snap-Build). Symptom: Der GTK-Speichern-Dialog
+  kann den Zielordner nicht öffnen — `Error opening directory '/home/andi/Dokumente':
+  Permission denied` — und die App meldet danach
+  `Export fehlgeschlagen: Fehler beim Öffnen der Datei »/home/andi/Dokumente/Ausgabe.pdf«:
+  Permission denied`.
+  **Wichtig zur Abgrenzung:** Der *eigene* PDF-Export der App (Menü „Exportieren")
+  funktioniert auf Linux normal — nur der Weg über den **System-Druckdialog**
+  bricht ab. Deshalb ist es Andi lange nicht aufgefallen. Kein kritischer Fehler,
+  aber beim nächsten Release beheben.
+  **Erste Schritte zur Eingrenzung** (noch nicht gemacht, nicht raten):
+  `snap connections notizblock-aw` → ist `home` verbunden? Dann in der Sandbox
+  gegenprüfen (`snap run --shell notizblock-aw`, dort `ls /home/andi/Dokumente`),
+  und testen, ob ein anderes Ziel (z. B. `~/Downloads`) klappt. Falls es an der
+  strikten Confinement-Grenze liegt, ist der saubere Weg der
+  xdg-desktop-portal-Dialog statt des GTK-Choosers **innerhalb** der Sandbox —
+  vergleichbar zum zenity-Problem in [[pdf-zu-bild-projekt]].
 
 ## Anpassen / prüfen ‹von Andi›
 
