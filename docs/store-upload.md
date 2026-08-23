@@ -28,23 +28,43 @@ Play und Store lassen sich unabhängig scharf schalten.
 
 ## So läuft ein Release danach ab
 
-1. Lokal bauen wie gehabt (Version in `app_info.dart` + `pubspec.yaml`/`msix_version`):
-   - `flutter build appbundle --release --build-name=<ver> --build-number=<code>` → AAB nach `E:\`
-   - Store-MSIX (`dart run msix:create --store …`) → `E:\…-Store.msix`
-2. Release mit beiden Dateien anlegen – reines Archiv, löst KEINEN Store-Upload aus:
+**Der bequeme Weg (seit 2026-08-23):** `Release.ps1` im Projektroot macht alles
+in einem Durchlauf – bauen → lokal als MSIX installieren → Release anlegen.
+Vorher nur die Version in `app_info.dart` + `pubspec.yaml` (`version:` **und**
+`msix_version:`) hochzählen.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Release.ps1
+```
+
+Das Skript bricht ab, wenn das Arbeitsverzeichnis nicht sauber oder nicht
+gepusht ist – aus gutem Grund, siehe die Warnung unten zur Tag-Reihenfolge.
+
+Von Hand geht es weiterhin so:
+
+1. Lokal bauen (Version in `app_info.dart` + `pubspec.yaml`/`msix_version`):
+   - `flutter build appbundle --release --build-name=<ver> --build-number=<code>`
+   - Store-MSIX (`dart run msix:create --store …`)
+2. Release mit den Dateien anlegen:
    ```powershell
-   gh release create v<ver> "<pfad>\Notizblock-<ver>.aab" "E:\Notizblock-<ver>-Store.msix" `
+   gh release create v<ver> "<pfad>\Notizblock-<ver>.aab" "<pfad>\Notizblock-<ver>-Store.msix" `
      --title "v<ver>" --notes "Release <ver>"
    ```
    Existiert der Tag schon (z.B. weil er fürs Snap-Release vorab gepusht wurde),
    legt `gh release create v<ver> …` trotzdem das Release **am vorhandenen Tag** an.
    Das AAB NICHT auf `E:` ablegen (Ansage Andi) – direkt aus
    `build/app/outputs/bundle/release/` oder aus einem Temp-Ordner anhängen.
-3. **Play:** entweder von Hand in der Play Console hochladen/freigeben (so macht
-   es Andi: erst geschlossener Test, nach Feedback Produktion) – oder den
-   Workflow anstoßen: **Actions → Store-Upload → Run workflow**, Tag angeben,
-   Track wählen.
+3. **Das Release löst automatisch aus:** AAB → Google Play **interner Test**
+   (`store-upload.yml`) und Snap → Kanal **edge** (`snap.yml`). Beides sind
+   Testkanäle. Die Freigabe nach außen (geschlossener Test → Produktion bei
+   Play, edge → stable beim Snap) macht Andi weiterhin von Hand.
+   Anderer Play-Track bei Bedarf: **Actions → Store-Upload → Run workflow**.
 4. **MS Store:** manuell in Partner Center (siehe Sackgasse unten).
+
+> ⚠️ **Reihenfolge:** Bei einem `release`-Event liest GitHub den Workflow aus dem
+> Commit, auf den der **Tag** zeigt – nicht aus `main`. Also immer: ändern →
+> committen → pushen → **dann** taggen/releasen. Genau daran ist 1.31.6 schon
+> einmal gescheitert (das Archiv-Release feuerte den alten Trigger doch noch).
 
 > Upload ≠ Veröffentlichung: Play-Review bzw. Store-Zertifizierung laufen wie
 > immer dazwischen. Automatisiert ist nur der Upload/die Einreichung.

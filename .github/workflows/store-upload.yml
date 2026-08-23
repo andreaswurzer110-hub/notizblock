@@ -6,19 +6,25 @@
 # Upload-Keystore + die Store-MSIX-Identität müssen NICHT als GitHub-Secret rein).
 # Du baust wie bisher lokal und hängst die zwei Dateien ans Release.
 #
-# AUSLÖSER: NUR manuell (workflow_dispatch) mit Tag-Eingabe.
+# AUSLÖSER
+#   - Veröffentlichtes GitHub-Release mit der *.aab als Anhang → Play `internal`.
+#   - Oder manuell (workflow_dispatch) mit Tag-Eingabe, Track frei wählbar.
 #
-#   WICHTIG – bewusst KEIN `release: published`-Trigger mehr (entfernt in 1.31.6):
-#   Das GitHub-Release ist das ARCHIV. Jede Version soll dort liegen, damit die
-#   Artefakte gesichert sind – unabhängig davon, ob und wann sie in einen Store
-#   geht. Solange das Release den Upload automatisch auslöste, ließ sich kein
-#   Release anlegen, ohne zugleich an Play zu schicken (Workaround waren
-#   `test-*`-Tags statt `v*`). Andi steuert die Play-Freigabe (geschlossener
-#   Test → Produktion) selbst in der Console. Diesen Trigger NICHT wieder
-#   einbauen.
+#   ENTSCHEIDUNG 2026-08-23 (Andi): Jedes Release geht automatisch in den
+#   INTERNEN TEST. Im internen Test ist nur Andi selbst – eine kaputte Version
+#   trifft also niemanden sonst, und der Weg „gebaut → auf dem eigenen Handy"
+#   soll ohne Zwischenschritt laufen.
 #
-#   Play-Upload bei Bedarf: Actions → Store-Upload → Run workflow, Tag angeben
-#   (z.B. v1.31.6.0), optional den Track wählen.
+#   Damit ist die Regel von 1.31.6 („Release = reines ARCHIV, Trigger NICHT
+#   wieder einbauen") bewusst aufgehoben. Ihr Grund war, archivieren zu können,
+#   ohne zugleich zu veröffentlichen – das wird nicht mehr gebraucht, weil
+#   `internal` keine Veröffentlichung an Fremde ist. Die Freigabe nach außen
+#   (interner Test → geschlossen → Produktion) macht Andi weiterhin von Hand
+#   in der Play Console; daran ändert dieser Trigger nichts.
+#
+#   ACHTUNG bei Änderungen an DIESER Datei: Bei einem `release`-Event liest
+#   GitHub den Workflow aus dem Commit, auf den der TAG zeigt – nicht aus main.
+#   Reihenfolge also immer: ändern → committen → dann taggen → dann Release.
 #
 # OHNE die jeweiligen Secrets wird der Store ÜBERSPRUNGEN (kein Fehlschlag) →
 # man kann Play und Store unabhängig/schrittweise scharf schalten.
@@ -31,6 +37,8 @@
 name: Store-Upload
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -42,10 +50,10 @@ on:
         default: internal
 
 env:
-  REL_TAG: ${{ inputs.tag }}
+  REL_TAG: ${{ github.event.release.tag_name || inputs.tag }}
 
 concurrency:
-  group: store-upload-${{ inputs.tag }}
+  group: store-upload-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
 jobs:
