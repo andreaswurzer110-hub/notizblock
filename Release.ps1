@@ -118,8 +118,14 @@ Copy-Item $aabQuelle $aab -Force
 # Store-MSIX ist optional: der MS-Store-Job ueberspringt mangels Secrets ohnehin
 # (Konto Typ "Einzelperson" -> Submission-API nicht autorisierbar). Wenn eine
 # Store-MSIX vorliegt, kommt sie als Archiv mit ans Release.
-$storeMsix = Get-ChildItem (Join-Path $root 'build\msix\*-Store.msix') -ErrorAction SilentlyContinue |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# NUR die zur Version passende nehmen: Frueher griff das Skript die neueste
+# *-Store.msix im Ordner - bei 1.31.9.0 waere so die alte 1.31.8.0 ans Release
+# gehaengt worden, denn dieses Skript baut die Store-Variante nicht selbst.
+$storeMsix = Get-Item (Join-Path $root "build\msix\Notizblock-$ver-Store.msix") -ErrorAction SilentlyContinue
+if (-not $storeMsix) {
+  Warnung "Keine Store-MSIX fuer $ver - das Release bekommt nur das AAB. Bauen (nach dem Windows-Build):"
+  Warnung "  dart run msix:create --store --build-windows false --identity-name AndreasWurzer.NotizblockAW --publisher `"CN=8931876D-7B1F-44B7-8CE7-B81EAAF9533B`" --publisher-display-name `"Andreas Wurzer`" --output-name Notizblock-$ver-Store"
+}
 
 # ------------------------------------------------------------ Lokal installieren
 if (-not $SkipInstall) {
