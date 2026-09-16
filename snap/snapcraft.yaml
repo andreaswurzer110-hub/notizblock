@@ -68,6 +68,14 @@ parts:
       - unzip
       # ... plus xz-utils fuer das .tar.xz des SDK.
       - xz-utils
+      # ... plus pkg-config: Flutters linux/flutter/CMakeLists.txt verlangt
+      # es (`find_package(PkgConfig REQUIRED)`), das flutter-Plugin fuehrt es
+      # aber nicht auf. Bis 1.31.8.0 kam es stillschweigend aus der Umgebung;
+      # beim Build fuer 1.31.9.0 (16.09.2026) fehlte es ploetzlich ("Could NOT
+      # find PkgConfig") - bei identischer snapcraft-Revision (18514) und
+      # identischem gnome-42-2204-sdk (stable Rev. 381). Die GTK-.pc-Dateien
+      # findet es weiter ueber PKG_CONFIG_PATH der gnome-Extension.
+      - pkg-config
     build-environment:
       - FLUTTER_VERSION: '3.44.4'
     override-build: |
@@ -96,6 +104,10 @@ parts:
       git config --global --add safe.directory "$FLUTTER_DIR"
       # Steht so im Build-Log: hier laesst sich nachlesen, womit gebaut wurde.
       flutter --version
+      # Ebenso: welches pkg-config und welche GTK-Version der Build sieht
+      # (Diagnose fuer den pkg-config-Ausfall vom 16.09.2026, siehe oben).
+      command -v pkg-config || echo "pkg-config NICHT im PATH"
+      pkg-config --modversion gtk+-3.0 || echo "gtk+-3.0 per pkg-config NICHT gefunden"
 
       flutter precache --linux
       flutter pub get
