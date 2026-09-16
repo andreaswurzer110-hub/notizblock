@@ -87,8 +87,12 @@ if (-not $SkipBuild) {
     Start-Sleep -Seconds 2
   }
 
+  # --no-fatal-infos: Ohne den Schalter endet `flutter analyze` schon bei reinen
+  # INFO-Hinweisen (prefer_const, deprecated ...) mit Code 1 - das Gate brach so
+  # beim ersten echten Lauf (1.31.9.0) an 21 alten Hinweisen ab. Abbrechen soll
+  # es bei Fehlern und Warnungen, dafuer bleibt --fatal-warnings (Standard) an.
   Write-Host "  flutter analyze" -ForegroundColor Gray
-  flutter analyze
+  flutter analyze --no-fatal-infos
   if ($LASTEXITCODE -ne 0) { throw "flutter analyze meldet Fehler - Release abgebrochen." }
 
   Write-Host "  AAB (Android)" -ForegroundColor Gray
