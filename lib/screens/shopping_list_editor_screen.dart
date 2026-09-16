@@ -459,6 +459,9 @@ class _ShoppingListEditorScreenState extends State<ShoppingListEditorScreen> {
   Future<void> _goToMainMenu() async {
     if (_hasChanges) await _saveNote();
     if (!mounted) return;
+    // Hauptansicht heißt ALLE Notizen: einen noch aktiven Ordnerfilter (z.B. von
+    // einem vorher getippten Ordner-Widget) zurücknehmen.
+    context.read<NotesProvider>().selectFolder('');
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,

@@ -14,6 +14,7 @@ import '../widgets/conflict_banner.dart';
 import '../widgets/note_context_menu.dart';
 import '../widgets/folder_picker.dart';
 import '../widgets/print_menu.dart';
+import '../widgets/selection_scroll_guard.dart';
 import '../widgets/sheet_body.dart';
 import '../widgets/version_history.dart';
 import 'home_screen.dart';
@@ -68,6 +69,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   Future<void>? _saveChain;
   final FocusNode _titleFocus = FocusNode();
   final FocusNode _contentFocus = FocusNode();
+  // Scrollfläche der Seite: Der SelectionScrollGuard braucht dieselbe Instanz,
+  // um beim Markieren selbst (und gebremst) mitzuscrollen.
+  final ScrollController _pageScroll = ScrollController();
   NotesProvider? _notesProvider;
 
   // Lokale Rückgängig-Funktion: nur für die offene Notiz, nicht persistent.
@@ -228,6 +232,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     _contentController.dispose();
     _titleFocus.dispose();
     _contentFocus.dispose();
+    _pageScroll.dispose();
     super.dispose();
   }
 
@@ -359,6 +364,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   Future<void> _goToMainMenu() async {
     await _onWillPop();
     if (!mounted) return;
+    // Hauptansicht heißt ALLE Notizen: einen noch aktiven Ordnerfilter (z.B. von
+    // einem vorher getippten Ordner-Widget) zurücknehmen – sonst landet man auf
+    // der Ordnerübersicht statt im Hauptmenü.
+    context.read<NotesProvider>().selectFolder('');
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),
       (route) => false,
@@ -916,92 +925,99 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                 )
               : null,
           child: SingleChildScrollView(
+            controller: _pageScroll,
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Hinweis, wenn beim Abgleich eine Änderung überschrieben wurde
-                // (nur bei echtem Verlust – siehe GoogleDriveService).
-                ConflictBanner(
-                  note: _currentNote ?? widget.note,
-                  onShowVersions: _showVersions,
-                ),
-                // Titel
-                TextField(
-                  controller: _titleController,
-                  focusNode: _titleFocus,
-                  style: TextStyle(
-                    fontSize: 24 * fontScale,
-                    fontWeight: FontWeight.bold,
-                    color: noteTextColor,
+            // Markieren über den sichtbaren Bereich hinaus: Das Mitscrollen
+            // übernimmt der Wächter – Flutter würde pro Touch-Event rund 40 px
+            // springen und beim oberen Anfasser zum Auswahlende zurück.
+            child: SelectionScrollGuard(
+              controller: _pageScroll,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Hinweis, wenn beim Abgleich eine Änderung überschrieben wurde
+                  // (nur bei echtem Verlust – siehe GoogleDriveService).
+                  ConflictBanner(
+                    note: _currentNote ?? widget.note,
+                    onShowVersions: _showVersions,
                   ),
-                  // Zeilenhöhe an der eingestellten Schriftgröße festnageln –
-                  // siehe Inhalt-Feld unten.
-                  strutStyle: StrutStyle(
-                    fontSize: 24 * fontScale,
-                    forceStrutHeight: true,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: l10n.titleHint,
-                    hintStyle: TextStyle(
-                      color: noteHintColor,
-                      fontWeight: FontWeight.normal,
+                  // Titel
+                  TextField(
+                    controller: _titleController,
+                    focusNode: _titleFocus,
+                    style: TextStyle(
+                      fontSize: 24 * fontScale,
+                      fontWeight: FontWeight.bold,
+                      color: noteTextColor,
                     ),
-                    border: InputBorder.none,
-                    filled: false,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  maxLines: null,
-                  textCapitalization: TextCapitalization.sentences,
-                  // Markierung eng an den Text legen (Flutter-Default auf
-                  // Android/Desktop ist .max → markiert sonst die ganze Zeile
-                  // bis zum rechten Rand mit, sobald ein Zeilenumbruch im
-                  // markierten Bereich liegt).
-                  selectionWidthStyle: BoxWidthStyle.tight,
-                  contextMenuBuilder: buildNoteContextMenu,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Inhalt
-                TextField(
-                  controller: _contentController,
-                  focusNode: _contentFocus,
-                  style: TextStyle(
-                    fontSize: 16 * fontScale,
-                    height: 1.6,
-                    color: noteTextColor,
-                  ),
-                  // Zeilenhöhe fest an der eingestellten Schriftgröße ausrichten.
-                  // Ohne Strut bestimmt das JEWEILS größte Zeichen einer Zeile die
-                  // Zeilenhöhe: eingefügter Text mit Zeichen, die eine Fallback-
-                  // Schrift braucht (Emoji, Symbole aus Web/PDF), macht die Zeilen
-                  // höher und wirkt dadurch größer als der Rest der Notiz –
-                  // gemeldet als „eingefügter Text ist größer".
-                  strutStyle: StrutStyle(
-                    fontSize: 16 * fontScale,
-                    height: 1.6,
-                    forceStrutHeight: true,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: l10n.contentHint,
-                    hintStyle: TextStyle(
-                      color: noteHintColor,
+                    // Zeilenhöhe an der eingestellten Schriftgröße festnageln –
+                    // siehe Inhalt-Feld unten.
+                    strutStyle: StrutStyle(
+                      fontSize: 24 * fontScale,
+                      forceStrutHeight: true,
                     ),
-                    border: InputBorder.none,
-                    filled: false,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
+                    decoration: InputDecoration(
+                      hintText: l10n.titleHint,
+                      hintStyle: TextStyle(
+                        color: noteHintColor,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      border: InputBorder.none,
+                      filled: false,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    // Markierung eng an den Text legen (Flutter-Default auf
+                    // Android/Desktop ist .max → markiert sonst die ganze Zeile
+                    // bis zum rechten Rand mit, sobald ein Zeilenumbruch im
+                    // markierten Bereich liegt).
+                    selectionWidthStyle: BoxWidthStyle.tight,
+                    contextMenuBuilder: buildNoteContextMenu,
                   ),
-                  maxLines: null,
-                  minLines: 10,
-                  textCapitalization: TextCapitalization.sentences,
-                  // s. Titel: enge Markierung statt voller Zeilenbreite.
-                  selectionWidthStyle: BoxWidthStyle.tight,
-                  contextMenuBuilder: buildNoteContextMenu,
-                ),
-              ],
+
+                  const SizedBox(height: 16),
+
+                  // Inhalt
+                  TextField(
+                    controller: _contentController,
+                    focusNode: _contentFocus,
+                    style: TextStyle(
+                      fontSize: 16 * fontScale,
+                      height: 1.6,
+                      color: noteTextColor,
+                    ),
+                    // Zeilenhöhe fest an der eingestellten Schriftgröße ausrichten.
+                    // Ohne Strut bestimmt das JEWEILS größte Zeichen einer Zeile die
+                    // Zeilenhöhe: eingefügter Text mit Zeichen, die eine Fallback-
+                    // Schrift braucht (Emoji, Symbole aus Web/PDF), macht die Zeilen
+                    // höher und wirkt dadurch größer als der Rest der Notiz –
+                    // gemeldet als „eingefügter Text ist größer".
+                    strutStyle: StrutStyle(
+                      fontSize: 16 * fontScale,
+                      height: 1.6,
+                      forceStrutHeight: true,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: l10n.contentHint,
+                      hintStyle: TextStyle(
+                        color: noteHintColor,
+                      ),
+                      border: InputBorder.none,
+                      filled: false,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    maxLines: null,
+                    minLines: 10,
+                    textCapitalization: TextCapitalization.sentences,
+                    // s. Titel: enge Markierung statt voller Zeilenbreite.
+                    selectionWidthStyle: BoxWidthStyle.tight,
+                    contextMenuBuilder: buildNoteContextMenu,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

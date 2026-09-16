@@ -154,6 +154,11 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   Future<void> _checkExternalUpdate() async {
     if (_isLoading) return;
     _loadFontScale(); // Schriftgröße-Änderung aus der Hauptapp live übernehmen
+    // An-/Abmeldung der Hauptapp übernehmen: Dieser Prozess meldet sich nur
+    // einmal beim Start an und bekäme sonst bis zum Schließen des Fensters nichts
+    // davon mit (war real ein Bug – Widget blieb „nicht angemeldet").
+    await GoogleDriveService.instance.syncSignInWithStore();
+    if (!mounted) return;
     // Login-Status live nachziehen (Durchstreichen von Sync-Button/Zeit).
     final signedIn = GoogleDriveService.instance.isSignedIn;
     if (mounted && signedIn != _isSignedIn) {

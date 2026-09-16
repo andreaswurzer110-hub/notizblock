@@ -8,8 +8,14 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "notizblock/deeplink"
-    private var initialNoteId: String? = null
-    private var initialFolder: String? = null
+
+    // GENAU EIN offener Auftrag aus einem Widget-Tipp: "note" (Wert = Notiz-Id)
+    // oder "folder" (Wert = Ordnername, leer = Alle Notizen). Bewusst ein
+    // einzelner Slot statt zweier unabhängiger Felder – sonst bleibt z.B. eine
+    // nie abgeholte Notiz-Id liegen und überholt später den Ordner-Tipp
+    // („Ordner-Widget öffnet die vorher offene Notiz").
+    private var pendingAction: String? = null
+    private var pendingValue: String? = null
     // Per „Teilen" aus einer anderen App geschickter Text (+ optionaler Betreff,
     // den z.B. Browser als Seitentitel mitschicken). Wird von Flutter beim Start
     // und bei jedem Resume abgeholt (getSharedText) und dabei zurückgesetzt.
@@ -46,23 +52,25 @@ class MainActivity : FlutterActivity() {
         when (data.host) {
             "edit_note" -> {
                 val noteId = data.getQueryParameter("id")
-                if (noteId != null) {
-                    initialNoteId = noteId
-                    // Wenn Flutter Engine bereits läuft, sende Nachricht
-                    flutterEngine?.dartExecutor?.let {
-                        MethodChannel(it.binaryMessenger, CHANNEL)
-                            .invokeMethod("openNote", noteId)
-                    }
-                }
+                if (!noteId.isNullOrEmpty()) setPending("note", noteId)
             }
             "open_folder" -> {
-                // Ordner-Widget: den gewählten Ordner nur vormerken (leer = Alle).
-                // KEIN sofortiges invokeMethod: beim Warm-Resume aus dem Hintergrund
-                // ist die Zustellung unzuverlässig (erst der 2. Tap kam an). Flutter
-                // fragt den Ordner stattdessen bei JEDEM Resume via getInitialFolder
-                // ab (siehe _checkPendingFolder) – das greift auch beim 1. Tap.
-                initialFolder = data.getQueryParameter("name") ?: ""
+                // Ordner-Widget: leerer Name = „Alle Notizen" (gültiger Wert!).
+                setPending("folder", data.getQueryParameter("name") ?: "")
             }
+        }
+    }
+
+    /// Auftrag vormerken und die laufende Engine anstupsen. Der Anstupser trägt
+    /// KEINE Daten – Flutter holt den Auftrag selbst ab (getPendingAction) und
+    /// tut das zusätzlich bei jedem Resume. Ein verlorener Anstupser kostet also
+    /// nichts; das direkte Durchreichen war beim Warm-Resume unzuverlässig (kam
+    /// erst beim 2. Tipp an).
+    private fun setPending(action: String, value: String) {
+        pendingAction = action
+        pendingValue = value
+        flutterEngine?.dartExecutor?.let {
+            MethodChannel(it.binaryMessenger, CHANNEL).invokeMethod("checkPending", null)
         }
     }
 
@@ -71,13 +79,18 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "getInitialNoteId" -> {
-                    result.success(initialNoteId)
-                    initialNoteId = null // Reset nach Abruf
-                }
-                "getInitialFolder" -> {
-                    result.success(initialFolder)
-                    initialFolder = null // Reset nach Abruf
+                "getPendingAction" -> {
+                    val action = pendingAction
+                    if (action == null) {
+                        result.success(null)
+                    } else {
+                        result.success(
+                            mapOf("action" to action, "value" to (pendingValue ?: ""))
+                        )
+                    }
+                    // Genau einmal ausliefern (sonst käme er bei jedem Resume erneut).
+                    pendingAction = null
+                    pendingValue = null
                 }
                 "getSharedText" -> {
                     val text = sharedText

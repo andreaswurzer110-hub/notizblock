@@ -208,13 +208,15 @@ void main(List<String> args) async {
   if (Platform.isAndroid) {
     try {
       const channel = MethodChannel('notizblock/deeplink');
-      final noteId = await channel.invokeMethod<String>('getInitialNoteId');
-      if (noteId != null && noteId.isNotEmpty) {
-        initialNote = await DatabaseService.instance.getNoteById(noteId);
-      }
-      final folder = await channel.invokeMethod<String>('getInitialFolder');
-      if (folder != null && folder.isNotEmpty) {
-        initialFolder = folder;
+      final pending =
+          await channel.invokeMapMethod<String, dynamic>('getPendingAction');
+      final action = pending?['action'] as String?;
+      final value = (pending?['value'] ?? '').toString();
+      if (action == 'note' && value.isNotEmpty) {
+        initialNote = await DatabaseService.instance.getNoteById(value);
+      } else if (action == 'folder') {
+        // Leerer Name ist gültig: das Ordner-Widget „Alle Notizen".
+        initialFolder = value;
       }
     } catch (_) {}
   }
@@ -342,13 +344,13 @@ class _NotizblockAppState extends State<NotizblockApp>
   @override
   void initState() {
     super.initState();
-    // Warmstart: Läuft die App schon und das Widget wird getippt, schickt
-    // MainActivity per onNewIntent ein 'openNote' über diesen Channel.
+    // Warmstart: Läuft die App schon und ein Widget wird getippt, stupst
+    // MainActivity über diesen Channel an ('checkPending').
     if (Platform.isAndroid) {
       _setupDeepLinkListener();
-      // Ordner-Widget: bei jedem Resume prüfen, ob ein Ordner-Deep-Link ansteht
-      // (zuverlässiger als das sofortige invokeMethod, das beim Warm-Resume aus
-      // dem Hintergrund erst beim 2. Tap ankam).
+      // Widget-Taps (Notiz UND Ordner): bei jedem Resume prüfen, ob ein Auftrag
+      // ansteht. Zuverlässiger als ein Durchreichen aus Kotlin, das beim
+      // Warm-Resume aus dem Hintergrund erst beim 2. Tap ankam.
       WidgetsBinding.instance.addObserver(this);
     }
 
@@ -406,7 +408,8 @@ class _NotizblockAppState extends State<NotizblockApp>
     }
     // Kaltstart per Ordner-Widget: den gewählten Ordner in der Notizliste
     // vorselektieren (HomeScreen ist bereits gebaut -> NotesProvider existiert).
-    if (widget.initialFolder != null && widget.initialFolder!.isNotEmpty) {
+    // Leerer Name = „Alle Notizen" und damit ebenfalls gültig.
+    if (widget.initialFolder != null) {
       final ctx = _navigatorKey.currentContext;
       if (ctx != null && ctx.mounted) {
         Provider.of<NotesProvider>(ctx, listen: false)
@@ -429,11 +432,11 @@ class _NotizblockAppState extends State<NotizblockApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Zurück im Vordergrund (z.B. nach Tipp aufs Ordner-Widget): anstehenden
-    // Ordner-Deep-Link einlösen. getInitialFolder liefert den Wert genau einmal
-    // (MainActivity setzt ihn danach auf null zurück).
+    // Zurück im Vordergrund (z.B. nach Tipp auf ein Widget): anstehenden
+    // Auftrag einlösen. getPendingAction liefert ihn genau einmal (MainActivity
+    // setzt ihn danach zurück).
     if (state == AppLifecycleState.resumed && Platform.isAndroid) {
-      _checkPendingFolder();
+      _checkPendingAction();
       // Aus einer anderen App geteilter Text (ACTION_SEND) – gleiches Muster wie
       // beim Ordner-Widget: bei jedem Resume abholen statt auf ein sofortiges
       // invokeMethod zu vertrauen.
@@ -463,11 +466,21 @@ class _NotizblockAppState extends State<NotizblockApp>
     } catch (_) {}
   }
 
-  Future<void> _checkPendingFolder() async {
+  /// Anstehenden Widget-Auftrag abholen und ausführen. Idempotent: MainActivity
+  /// liefert ihn genau einmal, mehrfaches Aufrufen (Anstupser + Resume) schadet
+  /// also nicht.
+  Future<void> _checkPendingAction() async {
     try {
-      final folder = await _channel.invokeMethod<String>('getInitialFolder');
-      if (folder != null && folder.isNotEmpty) {
-        _openFolder(folder);
+      final pending =
+          await _channel.invokeMapMethod<String, dynamic>('getPendingAction');
+      final action = pending?['action'] as String?;
+      if (action == null) return;
+      final value = (pending?['value'] ?? '').toString();
+      if (action == 'note') {
+        if (value.isNotEmpty) await _openNoteEditor(value);
+      } else if (action == 'folder') {
+        // Leerer Name = „Alle Notizen" (Ordner-Widget ohne festen Ordner).
+        _openFolder(value);
       }
     } catch (_) {}
   }
@@ -510,16 +523,17 @@ class _NotizblockAppState extends State<NotizblockApp>
 
   void _setupDeepLinkListener() {
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'openNote') {
-        final noteId = call.arguments as String?;
-        if (noteId != null) {
-          _openNoteEditor(noteId);
-        }
+      // Anstupser aus MainActivity: „es liegt ein Auftrag bereit". Die Daten
+      // holen wir selbst ab – so ist es egal, wenn der Anstupser verloren geht
+      // (dann greift die Prüfung beim nächsten Resume).
+      if (call.method == 'checkPending') {
+        await _checkPendingAction();
       }
     });
   }
 
   // Ordner-Widget: zur Notizliste (als EINZIGEN Screen) und den Ordner wählen.
+  // [folder] leer = „Alle Notizen" (Filter zurücksetzen), NICHT „nichts tun".
   // pushAndRemoveUntil ist robust – ein bloßes popUntil(isFirst) würde NICHT zur
   // Liste zurückführen, falls gerade ein Editor als Wurzel-Screen offen ist (z.B.
   // aus einem Notiz-Widget geöffnet) → es bliebe die letzte Notiz sichtbar.

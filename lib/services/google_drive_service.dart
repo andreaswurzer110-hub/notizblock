@@ -182,6 +182,12 @@ class GoogleDriveService {
       await _googleSignIn.signOut();
       _mobileUser = null;
     }
+    _clearSession();
+  }
+
+  /// Nur den Sitzungszustand dieses Prozesses verwerfen (ohne an gespeicherte
+  /// Credentials zu gehen).
+  void _clearSession() {
     _authClient?.close();
     _authClient = null;
     _driveApi = null;
@@ -197,6 +203,14 @@ class GoogleDriveService {
   // Credentials (ohne Token-Prüfung); erst der erste echte Request scheitert.
   bool _isAuthError(Object e) {
     if (e is drive.DetailedApiRequestError && e.status == 401) return true;
+    // Schlägt das Erneuern des Access-Tokens fehl (abgelaufenes/entzogenes
+    // Refresh-Token), wirft googleapis_auth das hier – mit 400/401 vom
+    // Token-Endpunkt. Netzfehler kommen als SocketException/Timeout und dürfen
+    // NICHT als Abmeldung gelten (offline heißt nicht ausgeloggt).
+    if (e is auth.ServerRequestFailedException &&
+        (e.statusCode == 400 || e.statusCode == 401)) {
+      return true;
+    }
     final s = e.toString().toLowerCase();
     return s.contains('invalid_grant') ||
         s.contains('invalid_token') ||
@@ -215,12 +229,7 @@ class GoogleDriveService {
       } catch (_) {}
       _mobileUser = null;
     }
-    _authClient?.close();
-    _authClient = null;
-    _driveApi = null;
-    _userEmail = null;
-    _userName = null;
-    signedInNotifier.value = false;
+    _clearSession();
   }
 
   // Mobil: abgelaufenes Access-Token (~1 h) still erneuern, statt den Nutzer
@@ -286,6 +295,10 @@ class GoogleDriveService {
         await _finishDesktopSignIn(client);
         return true;
       } catch (e) {
+        // Auch der Fall „Refresh-Token abgelaufen/entzogen": _loadUserInfo ist
+        // der erste echte Request und meldet das jetzt (s. dort). Die Sitzung
+        // hat _finishDesktopSignIn bereits aufgeräumt; hier nur noch die toten
+        // Credentials wegwerfen und (falls interaktiv) neu anmelden.
         debugPrint('Gespeicherte Credentials ungültig, neu anmelden: $e');
         await _deleteStoredCredentials();
       }
@@ -312,7 +325,14 @@ class GoogleDriveService {
   Future<void> _finishDesktopSignIn(auth.AutoRefreshingAuthClient client) async {
     _authClient = client;
     _driveApi = drive.DriveApi(client);
-    await _loadUserInfo(client);
+    try {
+      await _loadUserInfo(client);
+    } catch (_) {
+      // _authClient/_driveApi stehen schon -> ohne Aufräumen wäre isSignedIn
+      // true, obwohl das Token tot ist (der Aufrufer sieht nur die Exception).
+      _clearSession();
+      rethrow;
+    }
     // Erst jetzt melden (E-Mail/Name stehen) → reaktive UI zeigt sie sofort.
     signedInNotifier.value = true;
   }
@@ -331,6 +351,67 @@ class GoogleDriveService {
   Future<File> _credentialsFile() async {
     final base = await getApplicationSupportDirectory();
     return File(p.join(base.path, _credentialsFileName));
+  }
+
+  // Änderungszeit der Credentials-Datei beim letzten Abgleich (null = Datei war
+  // nicht da). Nur für Sticky-Prozesse, siehe syncSignInWithStore.
+  DateTime? _lastCredentialsStamp;
+  bool _credentialsStampKnown = false;
+  Future<void>? _storeSyncInFlight;
+
+  /// Sticky-/Sekundärprozesse: den Anmeldestand mit der Credentials-Datei der
+  /// Hauptapp abgleichen.
+  ///
+  /// Ein Sticky-Fenster meldet sich nur EINMAL beim Start still an. Lief es zu
+  /// einem Zeitpunkt los, an dem noch keine Anmeldung vorlag, blieb es bis zum
+  /// Schließen des Fensters „nicht angemeldet" – auch nachdem sich die Hauptapp
+  /// längst angemeldet hatte (gemeldet 2026-09-16 auf Linux). Umgekehrt merkte es
+  /// eine Abmeldung der Hauptapp nicht. Deshalb hier bei jedem Poll die
+  /// Änderungszeit der Datei prüfen (billig) und nur bei echter Änderung die
+  /// Sitzung neu aufbauen.
+  Future<void> syncSignInWithStore() async {
+    if (!_isDesktop || !isSecondaryProcess) return;
+    // Nicht überlappen lassen (der Poll läuft im Sekundentakt).
+    final pending = _storeSyncInFlight;
+    if (pending != null) return pending;
+    final run = _syncSignInWithStore();
+    _storeSyncInFlight = run;
+    try {
+      await run;
+    } finally {
+      _storeSyncInFlight = null;
+    }
+  }
+
+  Future<void> _syncSignInWithStore() async {
+    DateTime? stamp;
+    try {
+      final f = await _credentialsFile();
+      if (await f.exists()) stamp = await f.lastModified();
+    } catch (e) {
+      debugPrint('Credentials-Stand prüfen fehlgeschlagen: $e');
+      return;
+    }
+
+    if (!_credentialsStampKnown) {
+      // Erster Abgleich: nur nachziehen, wenn der Startversuch ins Leere lief.
+      _credentialsStampKnown = true;
+      _lastCredentialsStamp = stamp;
+      if (stamp != null && !isSignedIn) {
+        await signInSilently();
+      } else if (stamp == null && isSignedIn) {
+        _clearSession();
+      }
+      return;
+    }
+
+    if (stamp == _lastCredentialsStamp) return;
+    _lastCredentialsStamp = stamp;
+    // Datei hat sich geändert (An-/Abmeldung oder frisches Token der Hauptapp):
+    // eigene Sitzung fallen lassen und – falls noch Credentials da sind – neu
+    // aus der Datei aufbauen. So stimmt auch das Konto, wenn gewechselt wurde.
+    _clearSession();
+    if (stamp != null) await signInSilently();
   }
 
   /// Gespeicherte Credentials lesen. Einmalige Migration: liegen sie noch im
@@ -362,6 +443,10 @@ class GoogleDriveService {
   }
 
   Future<void> _deleteStoredCredentials() async {
+    // Sticky-/Sekundärprozesse fassen die Datei NICHT an (gleicher Grund wie bei
+    // _saveCredentials: die Hauptapp ist einziger Schreiber). Ein 401 in einem
+    // Sticky-Fenster würde sonst die Hauptapp mit abmelden.
+    if (isSecondaryProcess) return;
     try {
       final f = await _credentialsFile();
       if (await f.exists()) await f.delete();
@@ -375,6 +460,15 @@ class GoogleDriveService {
     } catch (_) {}
   }
 
+  /// E-Mail/Name laden. Das ist zugleich der ERSTE echte Request mit den
+  /// wiederhergestellten Credentials – hier fliegt ein abgelaufenes oder
+  /// entzogenes Refresh-Token auf.
+  ///
+  /// **Wichtig:** Echte Auth-Fehler werden weitergereicht (der Aufrufer verwirft
+  /// dann die toten Credentials), alles andere – vor allem Netzfehler – wird wie
+  /// bisher geschluckt. Wurde der Fehler früher IMMER geschluckt, meldete die App
+  /// „angemeldet" mit totem Token; erst der nächste Sync flog auf und meldete ab
+  /// → die Anmeldung klappte scheinbar erst beim zweiten Versuch.
   Future<void> _loadUserInfo(http.Client client) async {
     try {
       final response = await client
@@ -386,6 +480,7 @@ class GoogleDriveService {
       }
     } catch (e) {
       debugPrint('Userinfo konnte nicht geladen werden: $e');
+      if (_isAuthError(e)) rethrow;
     }
   }
 
