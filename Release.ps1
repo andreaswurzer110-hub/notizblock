@@ -66,8 +66,12 @@ if ($LASTEXITCODE -eq 0 -and [int]$ahead -gt 0) {
 }
 
 # Existiert der Tag schon? Dann waere es kein neues Release.
-git rev-parse "$tag" *> $null
-if ($LASTEXITCODE -eq 0) { Warnung "Tag $tag existiert bereits - gh haengt das Release an den vorhandenen Tag." }
+# NICHT per `git rev-parse <tag> *> $null`: Unter Windows PowerShell 5.1 macht
+# die Umleitung aus gits stderr-Meldung ("unknown revision") einen
+# NativeCommandError, und $ErrorActionPreference='Stop' bricht das Skript ab -
+# ausgerechnet im Normalfall, wenn es den Tag noch nicht gibt (so beim ersten
+# Lauf fuer 1.31.9.0). `git tag --list` schreibt nie nach stderr.
+if (git tag --list "$tag") { Warnung "Tag $tag existiert bereits - gh haengt das Release an den vorhandenen Tag." }
 
 Write-Host "  ok" -ForegroundColor Green
 
