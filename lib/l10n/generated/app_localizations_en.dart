@@ -379,6 +379,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autopoolMoveRow => 'Move row';
 
   @override
+  String get autopoolDuplicateRow => 'Duplicate row';
+
+  @override
   String get autopoolDeleteRow => 'Delete row';
 
   @override

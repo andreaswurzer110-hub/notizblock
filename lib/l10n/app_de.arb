@@ -201,6 +201,7 @@
   "autopoolAddRow4": "Kurze Zeile (4 Felder)",
   "autopoolAddRow2": "Kurze Zeile (2 Felder)",
   "autopoolMoveRow": "Verschieben",
+  "autopoolDuplicateRow": "Zeile duplizieren",
   "autopoolDeleteRow": "Zeile löschen",
   "autopoolMarkRow": "Markieren / Markierung entfernen",
   "autopoolRowColor": "Zeilenfarbe",

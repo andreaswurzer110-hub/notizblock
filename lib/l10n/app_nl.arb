@@ -114,6 +114,7 @@
   "autopoolAddRow4": "Korte rij (4 velden)",
   "autopoolAddRow2": "Korte rij (2 velden)",
   "autopoolMoveRow": "Verplaatsen",
+  "autopoolDuplicateRow": "Rij dupliceren",
   "autopoolDeleteRow": "Rij verwijderen",
   "autopoolMarkRow": "Markeren / markering opheffen",
   "autopoolRowColor": "Rijkleur",

@@ -128,6 +128,7 @@
   "autopoolAddRow4": "Riga breve (4 campi)",
   "autopoolAddRow2": "Riga breve (2 campi)",
   "autopoolMoveRow": "Sposta",
+  "autopoolDuplicateRow": "Duplica riga",
   "autopoolDeleteRow": "Elimina riga",
   "autopoolMarkRow": "Segna / rimuovi segno",
   "autopoolRowColor": "Colore riga",

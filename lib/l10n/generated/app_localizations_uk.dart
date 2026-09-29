@@ -379,6 +379,9 @@ class AppLocalizationsUk extends AppLocalizations {
   String get autopoolMoveRow => 'Перемістити';
 
   @override
+  String get autopoolDuplicateRow => 'Дублювати рядок';
+
+  @override
   String get autopoolDeleteRow => 'Видалити рядок';
 
   @override

@@ -114,6 +114,7 @@
   "autopoolAddRow4": "Kısa satır (4 alan)",
   "autopoolAddRow2": "Kısa satır (2 alan)",
   "autopoolMoveRow": "Taşı",
+  "autopoolDuplicateRow": "Satırı çoğalt",
   "autopoolDeleteRow": "Satırı sil",
   "autopoolMarkRow": "İşaretle / işareti kaldır",
   "autopoolRowColor": "Satır rengi",

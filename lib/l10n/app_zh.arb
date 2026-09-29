@@ -114,6 +114,7 @@
   "autopoolAddRow4": "短行（4 个字段）",
   "autopoolAddRow2": "短行（2 个字段）",
   "autopoolMoveRow": "移动",
+  "autopoolDuplicateRow": "复制行",
   "autopoolDeleteRow": "删除行",
   "autopoolMarkRow": "标记 / 取消标记",
   "autopoolRowColor": "行颜色",

@@ -380,6 +380,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get autopoolMoveRow => 'Mover';
 
   @override
+  String get autopoolDuplicateRow => 'Duplicar fila';
+
+  @override
   String get autopoolDeleteRow => 'Eliminar fila';
 
   @override

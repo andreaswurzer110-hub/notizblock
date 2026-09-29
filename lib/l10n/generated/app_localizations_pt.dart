@@ -380,6 +380,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get autopoolMoveRow => 'Mover';
 
   @override
+  String get autopoolDuplicateRow => 'Duplicar linha';
+
+  @override
   String get autopoolDeleteRow => 'Excluir linha';
 
   @override

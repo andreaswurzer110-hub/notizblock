@@ -114,6 +114,7 @@
   "autopoolAddRow4": "Короткая строка (4 поля)",
   "autopoolAddRow2": "Короткая строка (2 поля)",
   "autopoolMoveRow": "Переместить",
+  "autopoolDuplicateRow": "Дублировать строку",
   "autopoolDeleteRow": "Удалить строку",
   "autopoolMarkRow": "Отметить / снять отметку",
   "autopoolRowColor": "Цвет строки",

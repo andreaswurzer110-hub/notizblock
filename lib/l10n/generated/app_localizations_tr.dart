@@ -380,6 +380,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get autopoolMoveRow => 'Taşı';
 
   @override
+  String get autopoolDuplicateRow => 'Satırı çoğalt';
+
+  @override
   String get autopoolDeleteRow => 'Satırı sil';
 
   @override

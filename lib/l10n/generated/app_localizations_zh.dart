@@ -375,6 +375,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autopoolMoveRow => '移动';
 
   @override
+  String get autopoolDuplicateRow => '复制行';
+
+  @override
   String get autopoolDeleteRow => '删除行';
 
   @override

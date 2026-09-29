@@ -114,6 +114,7 @@
   "autopoolAddRow4": "Linha curta (4 campos)",
   "autopoolAddRow2": "Linha curta (2 campos)",
   "autopoolMoveRow": "Mover",
+  "autopoolDuplicateRow": "Duplicar linha",
   "autopoolDeleteRow": "Excluir linha",
   "autopoolMarkRow": "Marcar / desmarcar",
   "autopoolRowColor": "Cor da linha",

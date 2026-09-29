@@ -381,6 +381,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get autopoolMoveRow => 'Verplaatsen';
 
   @override
+  String get autopoolDuplicateRow => 'Rij dupliceren';
+
+  @override
   String get autopoolDeleteRow => 'Rij verwijderen';
 
   @override

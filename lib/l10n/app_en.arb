@@ -201,6 +201,7 @@
   "autopoolAddRow4": "Short row (4 fields)",
   "autopoolAddRow2": "Short row (2 fields)",
   "autopoolMoveRow": "Move row",
+  "autopoolDuplicateRow": "Duplicate row",
   "autopoolDeleteRow": "Delete row",
   "autopoolMarkRow": "Mark / unmark row",
   "autopoolRowColor": "Row color",

@@ -21,8 +21,9 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 ///     liegt eine halbtransparente Auflage mit Hoch/Runter-Pfeilen über der Zeile;
 ///     ein Druck darauf greift die Zeile zum Ziehen (s. [_moveOverlay]).
 /// - **Zeilen-Kontextmenü** (Rechtsklick auf die Zeile bzw. langer Druck auf den
-///   Anfasser links): Verschieben, einfärben, markieren (durchgestrichen) und
-///   löschen. Diese Aktionen haben KEINE eigenen Buttons mehr an der Seite.
+///   Anfasser links): Verschieben, duplizieren (exakte Kopie direkt darunter),
+///   einfärben, markieren (durchgestrichen) und löschen. Diese Aktionen haben
+///   KEINE eigenen Buttons mehr an der Seite.
 /// - **Spaltenüberschriften umbenennbar** per Rechtsklick / langem Druck auf die
 ///   Überschrift (eigener Name pro Notiz; auf Standard zurücksetzbar).
 /// - Felder sind umrahmt und wachsen mit dem Inhalt (kein Abschneiden).
@@ -163,6 +164,21 @@ class AutopoolTableState extends State<AutopoolTable> {
     _emitChange();
   }
 
+  // Exakte Kopie der Zeile (Inhalt, Feldanzahl, Markierung, Farbe) direkt
+  // darunter einfügen.
+  void _duplicateRow(int index) {
+    setState(() {
+      _rows.insert(index + 1,
+          [for (final c in _rows[index]) TextEditingController(text: c.text)]);
+      _focus.insert(
+          index + 1, [for (var i = 0; i < _rows[index].length; i++) FocusNode()]);
+      _marked.insert(index + 1, _marked[index]);
+      _colors.insert(index + 1, _colors[index]);
+      _moveMode = null;
+    });
+    _emitChange();
+  }
+
   void _deleteRow(int index) {
     setState(() {
       for (final c in _rows[index]) {
@@ -259,7 +275,8 @@ class AutopoolTableState extends State<AutopoolTable> {
     );
   }
 
-  // Zeilen-Kontextmenü: Verschieben / Einfärben / Markieren / Löschen.
+  // Zeilen-Kontextmenü: Verschieben / Duplizieren / Einfärben / Markieren /
+  // Löschen.
   Future<void> _showRowMenu(int index, Offset globalPos) async {
     if (index < 0 || index >= _rows.length) return;
     final l = AppLocalizations.of(context)!;
@@ -277,6 +294,14 @@ class AutopoolTableState extends State<AutopoolTable> {
               Text(l.autopoolMoveRow),
             ]),
           ),
+        PopupMenuItem(
+          value: 'duplicate',
+          child: Row(children: [
+            const Icon(Icons.content_copy, size: 20),
+            const SizedBox(width: 12),
+            Text(l.autopoolDuplicateRow),
+          ]),
+        ),
         PopupMenuItem(
           value: 'color',
           child: Row(children: [
@@ -310,6 +335,9 @@ class AutopoolTableState extends State<AutopoolTable> {
       case 'move':
         // Verschiebe-Modus an: Zeile bekommt die Drag-Auflage (s. _buildRow).
         setState(() => _moveMode = index);
+        break;
+      case 'duplicate':
+        _duplicateRow(index);
         break;
       case 'color':
         final chosen = await showRowColorPickerSheet(

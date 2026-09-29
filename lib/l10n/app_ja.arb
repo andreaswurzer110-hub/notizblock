@@ -114,6 +114,7 @@
   "autopoolAddRow4": "短い行（4 項目）",
   "autopoolAddRow2": "短い行（2 項目）",
   "autopoolMoveRow": "移動",
+  "autopoolDuplicateRow": "行を複製",
   "autopoolDeleteRow": "行を削除",
   "autopoolMarkRow": "マークする / 解除する",
   "autopoolRowColor": "行の色",

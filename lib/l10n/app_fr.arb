@@ -128,6 +128,7 @@
   "autopoolAddRow4": "Ligne courte (4 champs)",
   "autopoolAddRow2": "Ligne courte (2 champs)",
   "autopoolMoveRow": "Déplacer",
+  "autopoolDuplicateRow": "Dupliquer la ligne",
   "autopoolDeleteRow": "Supprimer la ligne",
   "autopoolMarkRow": "Marquer / démarquer",
   "autopoolRowColor": "Couleur de ligne",

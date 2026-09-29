@@ -804,6 +804,12 @@ abstract class AppLocalizations {
   /// **'Verschieben'**
   String get autopoolMoveRow;
 
+  /// No description provided for @autopoolDuplicateRow.
+  ///
+  /// In de, this message translates to:
+  /// **'Zeile duplizieren'**
+  String get autopoolDuplicateRow;
+
   /// No description provided for @autopoolDeleteRow.
   ///
   /// In de, this message translates to:

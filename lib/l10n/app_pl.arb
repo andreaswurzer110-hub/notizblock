@@ -114,6 +114,7 @@
   "autopoolAddRow4": "Krótki wiersz (4 pola)",
   "autopoolAddRow2": "Krótki wiersz (2 pola)",
   "autopoolMoveRow": "Przenieś",
+  "autopoolDuplicateRow": "Duplikuj wiersz",
   "autopoolDeleteRow": "Usuń wiersz",
   "autopoolMarkRow": "Zaznacz / usuń zaznaczenie",
   "autopoolRowColor": "Kolor wiersza",

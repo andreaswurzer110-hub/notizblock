@@ -380,6 +380,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autopoolMoveRow => 'Verschieben';
 
   @override
+  String get autopoolDuplicateRow => 'Zeile duplizieren';
+
+  @override
   String get autopoolDeleteRow => 'Zeile löschen';
 
   @override

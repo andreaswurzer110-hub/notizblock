@@ -379,6 +379,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get autopoolMoveRow => 'Przenieś';
 
   @override
+  String get autopoolDuplicateRow => 'Duplikuj wiersz';
+
+  @override
   String get autopoolDeleteRow => 'Usuń wiersz';
 
   @override

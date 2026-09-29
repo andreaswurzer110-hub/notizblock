@@ -375,6 +375,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autopoolMoveRow => '移動';
 
   @override
+  String get autopoolDuplicateRow => '行を複製';
+
+  @override
   String get autopoolDeleteRow => '行を削除';
 
   @override

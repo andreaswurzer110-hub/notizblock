@@ -128,6 +128,7 @@
   "autopoolAddRow4": "Fila corta (4 campos)",
   "autopoolAddRow2": "Fila corta (2 campos)",
   "autopoolMoveRow": "Mover",
+  "autopoolDuplicateRow": "Duplicar fila",
   "autopoolDeleteRow": "Eliminar fila",
   "autopoolMarkRow": "Marcar / quitar marca",
   "autopoolRowColor": "Color de fila",

@@ -381,6 +381,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get autopoolMoveRow => 'Déplacer';
 
   @override
+  String get autopoolDuplicateRow => 'Dupliquer la ligne';
+
+  @override
   String get autopoolDeleteRow => 'Supprimer la ligne';
 
   @override
