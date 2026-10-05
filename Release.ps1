@@ -1,17 +1,22 @@
 # Release-Routine fuer Notizblock - haengt die Einzelschritte aneinander.
 #
-#   bauen  ->  lokal installieren  ->  GitHub-Release anlegen
-#                                       |
-#                                       +-> Play  : interner Test (store-upload.yml)
-#                                       +-> Snap  : Kanal edge     (snap.yml)
+#   bauen (AAB, Windows, Snap in WSL)  ->  lokal installieren  ->  GitHub-Release anlegen
+#                                                                 |
+#                                       Play : interner Test <----+  (store-upload.yml)
+#                                       Snap : Kanal edge  <- Upload aus WSL (scripts/snap_bauen.sh)
 #
 # WARUM in dieser Reihenfolge: Die Version laeuft zuerst auf DIESEM PC, bevor sie
 # irgendwo hochgeladen wird. Faellt beim lokalen Start etwas auf, bricht man ab,
 # bevor ein Release existiert.
 #
+# SNAP seit 2026-10-05 LOKAL in WSL (Ubuntu-24.04, Benutzer andi), wie bei Wetter AW:
+# Baufehler sieht man sofort, nicht erst in der GitHub-Aktion. Der Tag-Push
+# loest KEINEN Snap-Bau mehr aus (snap.yml laeuft nur noch von Hand als Notweg).
+#
 # AUFRUF (aus dem Projektordner):
 #   powershell -ExecutionPolicy Bypass -File Release.ps1
 #   powershell -ExecutionPolicy Bypass -File Release.ps1 -SkipBuild   # vorhandenen Build nehmen
+#   powershell -ExecutionPolicy Bypass -File Release.ps1 -SkipSnap    # ohne Snap (bauen + hochladen)
 #   powershell -ExecutionPolicy Bypass -File Release.ps1 -Force       # ohne Rueckfrage
 #
 # VORHER die Version an ALLEN drei Stellen hochzaehlen (sonst bricht das Skript ab):
@@ -23,6 +28,7 @@ param(
   [switch]$SkipBuild,
   [switch]$SkipInstall,
   [switch]$SkipRelease,
+  [switch]$SkipSnap,
   [switch]$Force
 )
 
@@ -32,6 +38,10 @@ Set-Location $root
 
 function Schritt($n, $text) { Write-Host "`n[$n] $text" -ForegroundColor Cyan }
 function Warnung($text)     { Write-Host "  ! $text" -ForegroundColor DarkYellow }
+
+# Snap baut und laedt scripts/snap_bauen.sh IN WSL hoch (Projektpfad als /mnt/c/...).
+$wslDistro = 'Ubuntu-24.04'
+$wslSnapSkript = '/mnt/' + $root.Substring(0, 1).ToLower() + ($root.Substring(2) -replace '\\', '/') + '/scripts/snap_bauen.sh'
 
 # ---------------------------------------------------------------- Version lesen
 $pubspec = Get-Content 'pubspec.yaml' -Raw
@@ -104,6 +114,14 @@ if (-not $SkipBuild) {
   if ($LASTEXITCODE -ne 0) { throw "Windows-Build fehlgeschlagen" }
   dart run msix:create
   if ($LASTEXITCODE -ne 0) { throw "msix:create fehlgeschlagen" }
+
+  # Snap jetzt schon bauen (nicht erst beim Release): scheitert er, gibt es noch
+  # kein Release. Erster Bau ~10 min (LXD-Container + Flutter-SDK), danach schneller.
+  if (-not $SkipSnap) {
+    Write-Host "  Snap (Linux) in WSL" -ForegroundColor Gray
+    & wsl.exe -d $wslDistro -u andi -- bash $wslSnapSkript
+    if ($LASTEXITCODE -ne 0) { throw "Snap-Bau in WSL fehlgeschlagen (Log oben). Ohne Snap weiter: -SkipSnap" }
+  }
 } else {
   Schritt 2 'Bauen uebersprungen (-SkipBuild)'
 }
@@ -150,10 +168,10 @@ Write-Host "  Tag      : $tag" -ForegroundColor White
 Write-Host "  AAB      : $aab" -ForegroundColor White
 if ($storeMsix) { Write-Host "  StoreMSIX: $($storeMsix.FullName)" -ForegroundColor White }
 Write-Host ""
-Write-Host "  Das loest AUTOMATISCH aus:" -ForegroundColor Yellow
-Write-Host "    - Google Play : Upload in den INTERNEN TEST (nur du)" -ForegroundColor Yellow
-Write-Host "    - Snap Store  : Veroeffentlichung im Kanal EDGE" -ForegroundColor Yellow
-Write-Host "    stable erreicht man nur von Hand ueber Actions -> Snap-Build." -ForegroundColor Yellow
+Write-Host "  Das loest aus:" -ForegroundColor Yellow
+Write-Host "    - Google Play : Upload in den INTERNEN TEST (nur du), per GitHub-Aktion" -ForegroundColor Yellow
+if (-not $SkipSnap) { Write-Host "    - Snap Store  : Upload in den Kanal EDGE, direkt aus WSL" -ForegroundColor Yellow }
+Write-Host "    stable nur von Hand: snapcraft release notizblock-aw <Revision> stable (snap/README.md)" -ForegroundColor Yellow
 Write-Host ""
 
 if (-not $Force) {
@@ -167,6 +185,17 @@ if ($storeMsix) { $dateien += $storeMsix.FullName }
 gh release create $tag @dateien --title $tag --notes "Release $ver"
 if ($LASTEXITCODE -ne 0) { throw "gh release create fehlgeschlagen" }
 
+# Snap nach EDGE - die .snap stammt aus dem Bau-Schritt (auch bei -SkipBuild
+# eines frueheren Laufs; das Skript prueft, dass sie zur Version passt).
+if (-not $SkipSnap) {
+  Schritt 5 'Snap nach edge hochladen (WSL)'
+  & wsl.exe -d $wslDistro -u andi -- bash $wslSnapSkript --nur-hochladen
+  if ($LASTEXITCODE -ne 0) {
+    Warnung "Snap-Upload fehlgeschlagen - das GitHub-Release steht trotzdem. Nachholen:"
+    Warnung "  wsl.exe -d $wslDistro -u andi -- bash $wslSnapSkript --nur-hochladen"
+  }
+}
+
 Write-Host "`nFERTIG." -ForegroundColor Green
 Write-Host "  Laufende Workflows ansehen:  gh run list --limit 5" -ForegroundColor Gray
-Write-Host "  Snap-Stand pruefen:          gh run watch" -ForegroundColor Gray
+Write-Host "  Snap-Stand pruefen:          curl -s -H 'Snap-Device-Series: 16' https://api.snapcraft.io/v2/snaps/info/notizblock-aw" -ForegroundColor Gray

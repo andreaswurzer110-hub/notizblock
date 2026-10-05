@@ -1,0 +1,4 @@
+# Shell-Skripte und das Snap-Rezept laufen in WSL/Linux - Windows-Zeilenenden
+# (core.autocrlf=true auf diesem PC) wuerden die Shell-Teile zerlegen.
+*.sh text eol=lf
+snap/snapcraft.yaml text eol=lf

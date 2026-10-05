@@ -1,14 +1,19 @@
 # Snap bauen & in den Snap Store veröffentlichen (GitHub Actions = Cloud-Linux).
 #
-# So lässt sich der Snap komplett von Windows aus releasen:
-#   - Tag vX.Y.Z pushen → baut + veröffentlicht nach EDGE (Testkanal).
-#   - "Run workflow" (manuell) → baut + veröffentlicht in den gewählten Channel;
-#     STABLE gibt es nur auf diesem Weg, also nur bewusst und von Hand.
+# NUR NOCH NOTWEG (seit 2026-10-05): Der Snap wird LOKAL in WSL gebaut und
+# hochgeladen – scripts/snap_bauen.sh, aufgerufen von Release.ps1 (wie bei
+# Wetter AW; Baufehler sieht man sofort). Deshalb löst ein Tag-Push diese
+# Aktion NICHT mehr aus – sonst entstünde pro Release eine zweite Revision mit
+# demselben Inhalt.
+#
+#   - "Run workflow" (manuell) → baut + veröffentlicht in den gewählten Channel,
+#     falls WSL einmal nicht zur Verfügung steht.
+#   - Mit promote_revision eine bestehende Revision umhängen (z.B. nach stable).
 #
 #   GEÄNDERT 2026-08-23 (Andi): Ein Tag ging vorher direkt nach STABLE, hat also
-#   bei jedem Release ungeprüft an ALLE Linux-Nutzer ausgeliefert. Jetzt landet
-#   ein Tag im selben Testkanal wie das Android-Release im internen Test –
-#   erst prüfen, dann bewusst nach stable schieben.
+#   bei jedem Release ungeprüft an ALLE Linux-Nutzer ausgeliefert. Seitdem
+#   landet ein neuer Stand zuerst in EDGE (Testkanal, wie das Android-Release
+#   im internen Test) – erst prüfen, dann bewusst nach stable schieben.
 #
 #   Einen bereits gebauten Stand nach stable bringen: NICHT neu bauen, sondern
 #   die Revision umhängen (promote_revision, siehe unten beim promote-Job).
@@ -21,8 +26,7 @@
 name: Snap-Build
 
 on:
-  push:
-    tags: ['v*']
+  # KEIN `push: tags` mehr – siehe Kopf (Snap kommt aus WSL).
   workflow_dispatch:
     inputs:
       release:
@@ -82,8 +86,7 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         with:
           snap: ${{ steps.build.outputs.snap }}
-          # Manuell gewählter Channel, sonst edge. Ein Tag landet damit in EDGE –
-          # stable erreicht man nur über "Run workflow" (bewusst, siehe Kopf).
+          # Manuell gewählter Channel, ohne Angabe edge (siehe Kopf).
           release: ${{ github.event.inputs.release || 'edge' }}
 
   # Bestehende Revision in einen weiteren Channel schieben, OHNE neu zu bauen.

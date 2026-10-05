@@ -32,12 +32,26 @@ static void my_application_activate(GApplication* application) {
   // in case the window manager does more exotic layout, e.g. tiling.
   // If running on Wayland assume the header bar will work (may need changing
   // if future cases occur).
+  //
+  // IM SNAP (seit 1.31.11) KEINE Header Bar und KEIN Icon-Name – beides löst
+  // eine GTK-Symbolsuche aus, und die ist im Snap teuer: Die Symbol-Themes
+  // kommen aus gtk-common-themes/gnome-42-2204, deren icon-theme.cache-Dateien
+  // ÄLTER sind als ihre Ordner (100–380 s). GTK verwirft sie deshalb und liest
+  // jeden Theme-Unterordner einzeln ein (~1.800 Ordner, `icon-theme.cache`
+  // 919-mal geöffnet) – und das, BEVOR die Flutter-Engine startet. Gemessen am
+  // 2026-10-05 in WSL: Fenster nach 0,53 s (mit Header Bar 0,65 s) statt
+  // 0,30 s, beim ersten Start nach dem Hochfahren 1,6 s; auf einem Notebook-i5
+  // ein Vielfaches. Trifft jeden Prozess, also auch jedes Sticky-Fenster.
+  // Ohne Header Bar zeichnet unter X11 der Fenstermanager die Titelleiste
+  // (der Runner erzwingt X11, siehe main.cc). Auf Wayland bleibt die Header
+  // Bar, sonst hätte das Fenster gar keine Titelleiste.
+  const gchar* snap_dir = g_getenv("SNAP");
   gboolean use_header_bar = TRUE;
 #ifdef GDK_WINDOWING_X11
   GdkScreen* screen = gtk_window_get_screen(window);
   if (GDK_IS_X11_SCREEN(screen)) {
     const gchar* wm_name = gdk_x11_screen_get_window_manager_name(screen);
-    if (g_strcmp0(wm_name, "GNOME Shell") != 0) {
+    if (snap_dir != nullptr || g_strcmp0(wm_name, "GNOME Shell") != 0) {
       use_header_bar = FALSE;
     }
   }
@@ -58,7 +72,15 @@ static void my_application_activate(GApplication* application) {
   // Namen im hicolor-Theme installiert ist (manuell: scripts/install_linux.sh
   // legt $APP_ID.png; Flatpak: <app-id>.png). MUSS = APPLICATION_ID sein, sonst
   // findet GTK das Icon nicht (Flatpak-Icon ist nach der App-ID benannt).
-  gtk_window_set_icon_name(window, APPLICATION_ID);
+  // Im Snap stattdessen direkt die PNG laden (snapcraft kopiert snap/gui/ nach
+  // meta/gui/) – ohne Symbolsuche, siehe Header-Bar-Kommentar oben.
+  if (snap_dir != nullptr) {
+    g_autofree gchar* icon_path = g_build_filename(
+        snap_dir, "meta", "gui", "notizblock-aw.png", nullptr);
+    gtk_window_set_icon_from_file(window, icon_path, nullptr);
+  } else {
+    gtk_window_set_icon_name(window, APPLICATION_ID);
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

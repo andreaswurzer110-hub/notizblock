@@ -22,6 +22,14 @@ description: |
 base: core22
 confinement: strict
 grade: stable
+# lzo statt des Standards xz (seit 1.31.11): Beim ersten Start nach dem
+# Hochfahren muss Linux Flutter-Engine, App-Code und pdfium aus dem Snap
+# entpacken – xz ist dabei der Bremsklotz. Gemessen am 2026-10-05 in WSL
+# (gleicher Inhalt, Seitencache geleert): Hauptfenster 0,25–0,35 s früher da
+# (App-Teil 1,15–1,3 s statt 1,5 s) auf einem schnellen Desktop-Prozessor,
+# auf einem Notebook-i5 entsprechend mehr. Kostet ~4 MB Download (18 statt 14 MB).
+# Das gnome-42-2204-Laufzeitpaket ist von Canonical bereits mit lzo gepackt.
+compression: lzo
 
 apps:
   notizblock-aw: # App-Name = Snap-Name → Start per `notizblock-aw`.
@@ -90,18 +98,23 @@ parts:
       # (im Repo gitignored unter lib/services; Quelle in flatpak/).
       cp flatpak/google_drive_config.dart lib/services/google_drive_config.dart
 
-      # Flutter-SDK in FESTER Version bereitstellen. Die Stempeldatei sorgt
-      # dafuer, dass ein zwischengespeicherter Build-Ordner mit einer anderen
-      # Version neu geholt wird statt still weiterbenutzt zu werden.
-      FLUTTER_DIR="$CRAFT_PART_BUILD/flutter-distro"
-      if [ "$(cat "$FLUTTER_DIR/.pinned-version" 2>/dev/null || true)" != "$FLUTTER_VERSION" ]; then
-        rm -rf "$FLUTTER_DIR" "$CRAFT_PART_BUILD/flutter"
-        curl -fsSL -o "$CRAFT_PART_BUILD/flutter.tar.xz" \
+      # Flutter-SDK in FESTER Version bereitstellen – je Version ein eigener
+      # Ordner, fertig entpackt erst mit der Marke .komplett. Liegt im $HOME
+      # der Bauumgebung statt im Part-Ordner: Beim lokalen Bau in WSL bleibt
+      # der LXD-Container zwischen den Bauten erhalten, das SDK (~1,1 GB) wird
+      # dann nur beim ersten Bau bzw. nach einem Versionswechsel geladen.
+      # (In GitHub Actions ist die Umgebung ohnehin jedes Mal frisch.)
+      SDK_CACHE="${HOME:-/root}/.cache/flutter-sdk"
+      FLUTTER_DIR="$SDK_CACHE/$FLUTTER_VERSION"
+      if [ ! -f "$FLUTTER_DIR/.komplett" ]; then
+        rm -rf "$FLUTTER_DIR" "$SDK_CACHE/flutter"
+        mkdir -p "$SDK_CACHE"
+        curl -fsSL -o "$SDK_CACHE/flutter.tar.xz" \
           "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
-        tar -xJf "$CRAFT_PART_BUILD/flutter.tar.xz" -C "$CRAFT_PART_BUILD"
-        mv "$CRAFT_PART_BUILD/flutter" "$FLUTTER_DIR"
-        rm -f "$CRAFT_PART_BUILD/flutter.tar.xz"
-        echo "$FLUTTER_VERSION" > "$FLUTTER_DIR/.pinned-version"
+        tar -xJf "$SDK_CACHE/flutter.tar.xz" -C "$SDK_CACHE"
+        mv "$SDK_CACHE/flutter" "$FLUTTER_DIR"
+        rm -f "$SDK_CACHE/flutter.tar.xz"
+        touch "$FLUTTER_DIR/.komplett"
       fi
       export PATH="$FLUTTER_DIR/bin:$PATH"
       # Snapcraft baut als root, dem das entpackte SDK sonst "dubious

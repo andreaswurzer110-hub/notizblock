@@ -89,7 +89,8 @@ nachschlagen, nicht neu ausprobieren:**
 - **Notiz-Typen** – Autopool-Format abwärtskompatibel halten, Einkaufsliste, Ordner (DB v4)
 - **Windows/Linux-Betrieb** – Autostart, Neustart nach Update, MSIX-Reinstall,
   **nie die Build-Exe starten**, VS-C++-Workload, warme Hauptinstanz (Linux)
-- **Packaging & Release** – Inno-Installer, Snap, Flatpak, `store-upload.yml`,
+- **Packaging & Release** – Inno-Installer, Snap (**lokal in WSL**, `scripts/snap_bauen.sh`,
+  Tag baut keinen Snap mehr; Start-Performance im Snap), Flatpak, `store-upload.yml`,
   Workflow-Änderungen greifen erst für **spätere** Tags, GitHub-Release ≠ Store-Upload
 - **Sprachen & Datum** – 13 Sprachen, `utils/date_display.dart` statt `DateFormat(…,'de')`
 
