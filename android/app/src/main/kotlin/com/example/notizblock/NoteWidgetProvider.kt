@@ -1,23 +1,55 @@
 ﻿package com.example.notizblock
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Build
+import android.os.SystemClock
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StrikethroughSpan
+import android.view.View
 import android.widget.RemoteViews
 import android.net.Uri
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
+import es.antonborri.home_widget.HomeWidgetPlugin
 import org.json.JSONObject
 import java.io.File
 
 class NoteWidgetProvider : AppWidgetProvider() {
+
+    // Eigene Aktionen des Widgets (explizite Intents, daher ohne Intent-Filter).
+    override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            // Tipp auf die Zeit: Ladekreis SOFORT zeigen, dann erst den
+            // Dart-Abgleich anstoßen. Der Hintergrund-Isolate braucht ein, zwei
+            // Sekunden zum Hochfahren – ohne den sofortigen Kreis sah man in der
+            // Zeit nichts und tippte womöglich mehrmals.
+            ACTION_SYNC_NOW -> {
+                HomeWidgetPlugin.getData(context).edit()
+                    .putString(SYNC_SINCE_KEY, System.currentTimeMillis().toString())
+                    .commit()
+                updateAll(context)
+                try {
+                    HomeWidgetBackgroundIntent.getBroadcast(
+                        context, Uri.parse("notizblock://sync_now")
+                    ).send()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            // Sicherung: Kreis nach SYNC_MAX_MS ausblenden, falls das Ende des
+            // Abgleichs nie gemeldet wurde (z.B. Prozess beendet).
+            ACTION_SYNC_TIMEOUT -> updateAll(context)
+            else -> super.onReceive(context, intent)
+        }
+    }
 
     override fun onUpdate(
         context: Context,
@@ -39,6 +71,53 @@ class NoteWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private const val ACTION_SYNC_NOW = "at.aw.notizblock.widget.SYNC_NOW"
+        private const val ACTION_SYNC_TIMEOUT = "at.aw.notizblock.widget.SYNC_TIMEOUT"
+
+        // Beginn des laufenden Abgleichs (Millisekunden als Text, "" = keiner)
+        // in den home_widget-Einstellungen. Schreiben: hier beim Tipp und in
+        // Dart (WidgetService.setSyncRunning) bei JEDEM Abgleich – App,
+        // stündlicher Hintergrund-Abgleich, Widget. Text statt Zahl, weil
+        // home_widget kleine Dart-ints als Int, große als Long ablegt.
+        private const val SYNC_SINCE_KEY = "widget_sync_since"
+
+        // Länger läuft kein normaler Abgleich; danach gilt der Kreis als hängen
+        // geblieben (wie beim Kalender-Widget).
+        private const val SYNC_MAX_MS = 90_000L
+
+        fun updateAll(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(
+                ComponentName(context, NoteWidgetProvider::class.java)
+            )
+            for (id in ids) updateAppWidget(context, manager, id)
+        }
+
+        // Restlaufzeit des Ladekreises in ms, 0 = kein Abgleich (mehr).
+        private fun syncRemainingMs(context: Context): Long {
+            val since = HomeWidgetPlugin.getData(context)
+                .getString(SYNC_SINCE_KEY, "")?.toLongOrNull() ?: return 0
+            val elapsed = System.currentTimeMillis() - since
+            return if (elapsed in 0 until SYNC_MAX_MS) SYNC_MAX_MS - elapsed else 0
+        }
+
+        private fun scheduleSyncTimeout(context: Context, remainingMs: Long) {
+            val intent = Intent(context, NoteWidgetProvider::class.java)
+                .setAction(ACTION_SYNC_TIMEOUT)
+            val pending = PendingIntent.getBroadcast(
+                context, 2000001, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            // Ungenauer Wecker reicht (braucht keine Berechtigung); ersetzt
+            // dank gleichem PendingIntent einen schon gestellten.
+            val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarm.set(
+                AlarmManager.ELAPSED_REALTIME,
+                SystemClock.elapsedRealtime() + remainingMs + 500,
+                pending
+            )
+        }
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -48,6 +127,8 @@ class NoteWidgetProvider : AppWidgetProvider() {
             val noteId = prefs.getString("note_id_$appWidgetId", null)
 
             val views = RemoteViews(context.packageName, R.layout.note_widget)
+            // Dunkle Notizfarbe? Bestimmt auch die Farbe des Ladekreises.
+            var dark = false
 
             if (noteId != null) {
                 val note = loadNote(context, noteId)
@@ -92,7 +173,7 @@ class NoteWidgetProvider : AppWidgetProvider() {
                     val luminance = 0.299 * Color.red(bgColor) +
                         0.587 * Color.green(bgColor) +
                         0.114 * Color.blue(bgColor)
-                    val dark = luminance < 140
+                    dark = luminance < 140
                     views.setTextColor(R.id.widget_title,
                         if (dark) Color.WHITE else Color.parseColor("#DD000000"))
                     views.setTextColor(R.id.widget_content,
@@ -132,16 +213,30 @@ class NoteWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_menu, menuPendingIntent)
 
-            // Zeit-Anzeige = "Jetzt synchronisieren"-Button. Löst über home_widget
-            // einen Hintergrund-Callback (Dart: widgetBackgroundCallback) aus, der
-            // ohne App-Öffnen von Drive synct. Receiver/Service sind im
+            // Zeit-Anzeige = "Jetzt synchronisieren"-Button. Geht zuerst an diesen
+            // Provider (ACTION_SYNC_NOW: Ladekreis an), der dann über home_widget
+            // den Hintergrund-Callback (Dart: widgetBackgroundCallback) auslöst,
+            // der ohne App-Öffnen von Drive synct. Receiver/Service sind im
             // AndroidManifest registriert; der Callback-Handle wird beim App-Start
             // via WidgetService.initialize() persistiert.
-            val syncPendingIntent = HomeWidgetBackgroundIntent.getBroadcast(
-                context,
-                Uri.parse("notizblock://sync_now")
+            val syncIntent = Intent(context, NoteWidgetProvider::class.java)
+                .setAction(ACTION_SYNC_NOW)
+            val syncPendingIntent = PendingIntent.getBroadcast(
+                context, 2000000, syncIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_time, syncPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_sync_area, syncPendingIntent)
+
+            // Ladekreis statt Zeit, solange ein Abgleich läuft.
+            val remaining = syncRemainingMs(context)
+            val running = remaining > 0
+            views.setViewVisibility(R.id.widget_time,
+                if (running) View.INVISIBLE else View.VISIBLE)
+            views.setViewVisibility(R.id.widget_sync_progress_dark,
+                if (running && !dark) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widget_sync_progress_light,
+                if (running && dark) View.VISIBLE else View.GONE)
+            if (running) scheduleSyncTimeout(context, remaining)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

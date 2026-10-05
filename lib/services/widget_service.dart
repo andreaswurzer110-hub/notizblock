@@ -52,6 +52,34 @@ class WidgetService {
     }
   }
 
+  // Beginn des laufenden Abgleichs für den Ladekreis im Notiz-Widget
+  // (NoteWidgetProvider.SYNC_SINCE_KEY). Millisekunden als TEXT: home_widget
+  // legt Dart-ints je nach Größe als Int oder Long ab, das liest Kotlin nicht
+  // verlässlich. "" = kein Abgleich.
+  static const String _syncSinceKey = 'widget_sync_since';
+
+  /// Ladekreis im Notiz-Widget an/aus. Wird um JEDEN Abgleich gelegt
+  /// (GoogleDriveService.synchronize) – App, stündlicher Hintergrund-Abgleich
+  /// und Widget-Tipp, wie beim Kalender-Widget. Beim Widget-Tipp schaltet der
+  /// Provider den Kreis schon vorher selbst an (sofortige Rückmeldung).
+  /// Bleibt ein „an" liegen (Prozess beendet), blendet der Provider den Kreis
+  /// nach 90 s von selbst aus.
+  Future<void> setSyncRunning(bool running) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await HomeWidget.saveWidgetData<String>(
+        _syncSinceKey,
+        running ? '${DateTime.now().millisecondsSinceEpoch}' : '',
+      );
+      await HomeWidget.updateWidget(
+        androidName: androidWidgetName,
+        qualifiedAndroidName: androidWidgetQualifiedName,
+      );
+    } catch (e) {
+      debugPrint('Widget-Ladekreis setzen fehlgeschlagen: $e');
+    }
+  }
+
   // Ordner-Widget(s) neu zeichnen lassen (nach Ordner-/Zähler-Änderungen). Die
   // Ordnerliste selbst liegt in app_flutter/folders.json (vom NotesProvider
   // geschrieben); dieser Broadcast stößt nur die Neuberechnung an.
@@ -213,10 +241,15 @@ Future<void> widgetBackgroundCallback(Uri? uri) async {
         if (signedIn) {
           await GoogleDriveService.instance.synchronize();
         }
-        // Auch ohne Datenänderung das Widget neu zeichnen (sichtbares Feedback).
-        await WidgetService.instance.updateWidget();
       } catch (e) {
         debugPrint('Widget-Sync fehlgeschlagen: $e');
+      } finally {
+        // Den vom Provider beim Tipp gesetzten Ladekreis IMMER beenden – auch
+        // ohne Anmeldung (dann lief gar kein synchronize()) oder nach Fehler.
+        // Zeichnet dabei das Widget neu (sichtbares Feedback auch ohne
+        // Datenänderung).
+        await WidgetService.instance.setSyncRunning(false);
+        await WidgetService.instance.updateWidget();
       }
       break;
   }
