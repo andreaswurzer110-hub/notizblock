@@ -24,58 +24,66 @@
             android:maxLines="2"
             android:ellipsize="end" />
 
-        <!-- Zeit-Anzeige dient zugleich als "Jetzt synchronisieren"-Button
-             (Klick -> Hintergrund-Sync, siehe NoteWidgetProvider). Rahmen +
-             Innenabstand grenzen den Tap-Bereich vom Haus-Button ab.
-             Während eines Abgleichs dreht im Rahmen statt der Zeit ein
-             Ladekreis (wie beim Kalender-Widget). Die Zeit bleibt dabei
-             INVISIBLE statt GONE, damit der Rahmen seine Breite behält – der
-             Klick liegt deshalb auf dem Rahmen, nicht auf dem Text. -->
-        <FrameLayout
+        <!-- "Jetzt synchronisieren" wie im Widget von Wetter AW: Zeit + Pfeil,
+             der ganze Bereich ist der Knopf (Klick -> Hintergrund-Sync, siehe
+             NoteWidgetProvider; Tippen auf die Zeit geht also weiterhin).
+             NUR nach einem Tipp hier dreht statt des Pfeils ein Ladekreis –
+             automatische Abgleiche (App, stündlich) zeigen nichts an. -->
+        <LinearLayout
             android:id="@+id/widget_sync_area"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:layout_marginEnd="6dp"
-            android:background="@drawable/widget_sync_button"
+            android:layout_marginEnd="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="2dp"
             android:contentDescription="@string/widget_sync">
 
             <TextView
                 android:id="@+id/widget_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="3dp"
-                android:paddingBottom="3dp"
-                android:minWidth="44dp"
-                android:gravity="center"
                 android:textSize="11sp"
                 android:textColor="#888888"
                 android:singleLine="true" />
 
-            <!-- Zwei Ladekreise statt Tönung per Code: ProgressBar-Farben
-                 lassen sich über RemoteViews erst ab Android 12 setzen. -->
-            <ProgressBar
-                android:id="@+id/widget_sync_progress_dark"
-                style="?android:attr/progressBarStyleSmall"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_gravity="center"
-                android:indeterminate="true"
-                android:indeterminateTint="#8A000000"
-                android:visibility="gone" />
+            <FrameLayout
+                android:layout_width="26dp"
+                android:layout_height="26dp">
 
-            <ProgressBar
-                android:id="@+id/widget_sync_progress_light"
-                style="?android:attr/progressBarStyleSmall"
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_gravity="center"
-                android:indeterminate="true"
-                android:indeterminateTint="#B3FFFFFF"
-                android:visibility="gone" />
-        </FrameLayout>
+                <ImageView
+                    android:id="@+id/widget_refresh"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="5dp"
+                    android:src="@drawable/ic_refresh"
+                    android:scaleType="fitCenter"
+                    android:importantForAccessibility="no" />
+
+                <!-- Zwei Ladekreise statt Tönung per Code: ProgressBar-Farben
+                     lassen sich über RemoteViews erst ab Android 12 setzen. -->
+                <ProgressBar
+                    android:id="@+id/widget_sync_progress_dark"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                    android:indeterminateTint="#8A000000"
+                    android:visibility="gone" />
+
+                <ProgressBar
+                    android:id="@+id/widget_sync_progress_light"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="center"
+                    android:indeterminate="true"
+                    android:indeterminateTint="#B3FFFFFF"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </LinearLayout>
 
         <ImageView
             android:id="@+id/widget_menu"

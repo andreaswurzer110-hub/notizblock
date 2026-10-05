@@ -46,12 +46,9 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
       );
     }
     // Regelmäßiger Drive-Pull auf ALLEN Plattformen, damit Änderungen anderer
-    // Geräte automatisch erscheinen. Läuft nur im Vordergrund – auf Android
-    // pausieren Timer im Hintergrund, daher kein Akkuverbrauch dort.
-    _remotePullTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _runAutoSync(),
-    );
+    // Geräte automatisch erscheinen. Auf Android NUR im Vordergrund – siehe
+    // didChangeAppLifecycleState (dort angehalten/neu gestartet).
+    _startRemotePull();
     // Sofort-Sync, wenn die App in den Vordergrund zurückkehrt.
     WidgetsBinding.instance.addObserver(this);
     // Einmaliger Sync kurz nach Start: holt Änderungen anderer Geräte herein.
@@ -60,12 +57,33 @@ class NotesProvider with ChangeNotifier, WidgetsBindingObserver {
     _loadFolders();
   }
 
+  void _startRemotePull() {
+    _remotePullTimer?.cancel();
+    _remotePullTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _runAutoSync(),
+    );
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // resumed: Änderungen anderer Geräte holen. paused: eigene Änderungen noch
-    // schnell hochladen, bevor Android den Prozess (und Timer) einfriert.
-    if (state == AppLifecycleState.resumed ||
-        state == AppLifecycleState.paused) {
+    // schnell hochladen.
+    //
+    // Android: den 15-s-Pull im Hintergrund ANHALTEN. Die frühere Annahme
+    // „Android pausiert Timer im Hintergrund" stimmt nicht – der Dart-Isolate
+    // läuft weiter, solange das System den Prozess nicht einfriert. Auf Andis
+    // Handy lief so etwa jede Minute ein Drive-Abgleich bei geschlossener App
+    // (fiel 2026-10-05 auf, weil 1.31.11 dabei den Widget-Ladekreis zeigte).
+    // Im Hintergrund übernimmt der stündliche WorkManager-Abgleich.
+    if (state == AppLifecycleState.resumed) {
+      if (Platform.isAndroid) _startRemotePull();
+      _runAutoSync();
+    } else if (state == AppLifecycleState.paused) {
+      if (Platform.isAndroid) {
+        _remotePullTimer?.cancel();
+        _remotePullTimer = null;
+      }
       _runAutoSync();
     }
   }

@@ -74,10 +74,11 @@ class NoteWidgetProvider : AppWidgetProvider() {
         private const val ACTION_SYNC_NOW = "at.aw.notizblock.widget.SYNC_NOW"
         private const val ACTION_SYNC_TIMEOUT = "at.aw.notizblock.widget.SYNC_TIMEOUT"
 
-        // Beginn des laufenden Abgleichs (Millisekunden als Text, "" = keiner)
-        // in den home_widget-Einstellungen. Schreiben: hier beim Tipp und in
-        // Dart (WidgetService.setSyncRunning) bei JEDEM Abgleich – App,
-        // stündlicher Hintergrund-Abgleich, Widget. Text statt Zahl, weil
+        // Beginn des per Tipp gestarteten Abgleichs (Millisekunden als Text,
+        // "" = keiner) in den home_widget-Einstellungen. Gesetzt NUR hier beim
+        // Tipp, beendet vom Dart-Callback (WidgetService.setSyncRunning(false)).
+        // Bewusst NICHT bei automatischen Abgleichen (1.31.11 tat das: der
+        // Kreis erschien dann alle paar Minuten). Text statt Zahl, weil
         // home_widget kleine Dart-ints als Int, große als Long ablegt.
         private const val SYNC_SINCE_KEY = "widget_sync_since"
 
@@ -186,6 +187,9 @@ class NoteWidgetProvider : AppWidgetProvider() {
                     // anpassen (setColorFilter ist @RemotableViewMethod).
                     views.setInt(R.id.widget_menu, "setColorFilter",
                         if (dark) Color.parseColor("#CCFFFFFF") else Color.parseColor("#99000000"))
+                    // Aktualisieren-Pfeil dezent wie die Zeit.
+                    views.setInt(R.id.widget_refresh, "setColorFilter",
+                        if (dark) Color.parseColor("#B3FFFFFF") else Color.parseColor("#8A000000"))
                 }
             }
 
@@ -227,10 +231,12 @@ class NoteWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_sync_area, syncPendingIntent)
 
-            // Ladekreis statt Zeit, solange ein Abgleich läuft.
+            // Ladekreis statt Pfeil, solange ein per Tipp gestarteter Abgleich
+            // läuft (wie bei Wetter AW). Immer beides setzen: der Launcher
+            // spielt Änderungen auf die alte Ansicht.
             val remaining = syncRemainingMs(context)
             val running = remaining > 0
-            views.setViewVisibility(R.id.widget_time,
+            views.setViewVisibility(R.id.widget_refresh,
                 if (running) View.INVISIBLE else View.VISIBLE)
             views.setViewVisibility(R.id.widget_sync_progress_dark,
                 if (running && !dark) View.VISIBLE else View.GONE)
@@ -241,15 +247,24 @@ class NoteWidgetProvider : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
-        // ISO-Zeitstempel ("2026-05-31T14:23:45.123") -> "31.05. 14:23"
-        // Bewusst per Substring, um java.time/Desugaring zu vermeiden.
+        // ISO-Zeitstempel ("2026-05-31T14:23:45.123") -> heute "14:23", sonst
+        // "31.05." (wie die Notizliste der App: heute Uhrzeit, sonst Tag). Seit
+        // dem Aktualisieren-Pfeil (1.31.12) ist es im Kopf zu eng für Datum UND
+        // Uhrzeit – auf der kleinsten Widget-Größe brach sonst der Titel mitten
+        // im Wort um. Bewusst per Substring + Calendar statt java.time
+        // (Desugaring).
         private fun formatTime(iso: String): String {
             return try {
                 if (iso.length < 16) return ""
-                val day = iso.substring(8, 10)
-                val month = iso.substring(5, 7)
-                val time = iso.substring(11, 16)
-                "$day.$month. $time"
+                val now = java.util.Calendar.getInstance()
+                val today = String.format(
+                    java.util.Locale.ROOT, "%04d-%02d-%02d",
+                    now.get(java.util.Calendar.YEAR),
+                    now.get(java.util.Calendar.MONTH) + 1,
+                    now.get(java.util.Calendar.DAY_OF_MONTH)
+                )
+                if (iso.startsWith(today)) iso.substring(11, 16)
+                else "${iso.substring(8, 10)}.${iso.substring(5, 7)}."
             } catch (e: Exception) {
                 ""
             }

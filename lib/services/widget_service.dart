@@ -52,18 +52,18 @@ class WidgetService {
     }
   }
 
-  // Beginn des laufenden Abgleichs für den Ladekreis im Notiz-Widget
-  // (NoteWidgetProvider.SYNC_SINCE_KEY). Millisekunden als TEXT: home_widget
-  // legt Dart-ints je nach Größe als Int oder Long ab, das liest Kotlin nicht
-  // verlässlich. "" = kein Abgleich.
+  // Beginn des per Widget-Tipp gestarteten Abgleichs für den Ladekreis im
+  // Notiz-Widget (NoteWidgetProvider.SYNC_SINCE_KEY). Millisekunden als TEXT:
+  // home_widget legt Dart-ints je nach Größe als Int oder Long ab, das liest
+  // Kotlin nicht verlässlich. "" = kein Abgleich.
   static const String _syncSinceKey = 'widget_sync_since';
 
-  /// Ladekreis im Notiz-Widget an/aus. Wird um JEDEN Abgleich gelegt
-  /// (GoogleDriveService.synchronize) – App, stündlicher Hintergrund-Abgleich
-  /// und Widget-Tipp, wie beim Kalender-Widget. Beim Widget-Tipp schaltet der
-  /// Provider den Kreis schon vorher selbst an (sofortige Rückmeldung).
-  /// Bleibt ein „an" liegen (Prozess beendet), blendet der Provider den Kreis
-  /// nach 90 s von selbst aus.
+  /// Ladekreis im Notiz-Widget an/aus – NUR für den Abgleich per Tipp aufs
+  /// Widget, wie bei Wetter AW. Angeschaltet wird er vom Provider selbst
+  /// (sofortige Rückmeldung), ausgeschaltet hier am Ende des Widget-Callbacks.
+  /// NICHT um automatische Abgleiche legen: 1.31.11 tat das, der Kreis
+  /// erschien dann alle paar Minuten. Bleibt ein „an" liegen (Prozess
+  /// beendet), blendet der Provider den Kreis nach 90 s von selbst aus.
   Future<void> setSyncRunning(bool running) async {
     if (!Platform.isAndroid) return;
     try {

@@ -15,7 +15,6 @@ import 'google_drive_config.dart';
 import 'settings_store.dart';
 import 'conflict_store.dart';
 import 'device_info_service.dart';
-import 'widget_service.dart';
 
 /// Maximale Dauer eines einzelnen Drive-HTTP-Requests (Verbindung + Senden +
 /// Antwort-Header) bzw. einer Stillstands-Pause im Download-Stream. Schutz gegen
@@ -625,23 +624,12 @@ class GoogleDriveService {
     // mitbenutzen statt mit "läuft bereits" fehlzuschlagen.
     final inFlight = _inFlight;
     if (inFlight != null) return inFlight;
-    final future = _runWithWidgetIndicator();
+    final future = _doSynchronize();
     _inFlight = future;
     try {
       return await future;
     } finally {
       _inFlight = null;
-    }
-  }
-
-  // Android: Ladekreis im Notiz-Widget, solange der Abgleich läuft (siehe
-  // WidgetService.setSyncRunning). Auf dem Desktop ist das ein No-op.
-  Future<SyncResult> _runWithWidgetIndicator() async {
-    await WidgetService.instance.setSyncRunning(true);
-    try {
-      return await _doSynchronize();
-    } finally {
-      await WidgetService.instance.setSyncRunning(false);
     }
   }
 
