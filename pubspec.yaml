@@ -113,9 +113,10 @@ msix_config:
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
   msix_version: 1.31.12.0
   logo_path: assets/icon/icon_full.png
-  # Sprachen des Pakets = Sprachen, für die das Partner Center einen eigenen
-  # Store-Eintrag anbietet. Ohne Angabe meldete das Paket nur en-us – der
-  # deutsche Text stand dann im englischen Eintrag (bemerkt 2026-10-06).
+  # Sprachen, die das Paket als unterstützt meldet (ohne Angabe nur en-us).
+  # Mit den Store-EINTRÄGEN hat das nichts zu tun: Die legt das Partner Center
+  # auch für weitere Sprachen an – der deutsche Eintrag lief jahrelang mit
+  # reinen en-us-Paketen (am 2026-10-06 nachgeprüft, eine Fehlannahme von mir).
   languages: de-de, en-us
   capabilities: internetClient
   architecture: x64
