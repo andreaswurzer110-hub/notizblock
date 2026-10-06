@@ -68,3 +68,25 @@ im Widget dazu `app_flutter/drive_state.json` = `{"signedIn":true}`. Display
 1080×1920 / Dichte 380 (Tablet 1600×2560 / 320), Demo-Statusleiste 9:41.
 Gestaltung (Verlauf im App-Blau, Roboto aus dem Flutter-SDK, Handyrahmen) per
 Python/PIL.
+
+# Snap Store (Linux) – Bilder
+
+| Datei | Inhalt |
+|-------|--------|
+| `store/snap/snap_1.png` … `_5.png` | 1920×1080: Notizzettel auf dem Desktop, Ordner, Einkaufsliste, Suche, Dunkel |
+| `store/snap/banner.png` | Featured Banner 1920×640 (3:1) |
+
+Vorgaben (snapcraft.io): höchstens 5 Bilder, je ≤ 2 MB, Seitenverhältnis
+1:2 bis 2:1; Banner genau 3:1 (720×240 bis 4320×1440), ≤ 2 MB. Hochladen geht
+nur im Dashboard (snapcraft.io → notizblock-aw → Listing), das macht Andi.
+
+**So entstanden (2026-10-06):** nativer Linux-Build in WSL (Kopie `~/nbdemo`,
+Vorführ-Zeile `STORE_DEMO` NUR dort) auf Xvfb `:97` mit `metacity` als
+Fenstermanager (echte Titelleisten wie die Server-Decorations von Zorin im
+Snap). Demo-Daten wie bei Play, Notizzettel-Lage über
+`sticky_state/sticky_<id>.json` + `widget_ids.json`, Einstellung
+`show_main_window_on_start` → Hauptfenster und Zettel starten zusammen.
+Programme per `setsid -f` starten, sonst beendet WSL sie mit der Sitzung.
+Fensterlage samt Rahmen (`_NET_FRAME_EXTENTS`) per python3-xlib, dann mit
+PIL auf ein selbst erzeugtes Hintergrundbild mit weichen Schatten gesetzt –
+das Wurzelfenster von Xvfb hält kein Hintergrundbild.
