@@ -1,23 +1,54 @@
 name: notizblock-aw # Im Snap Store registriert (notizblock war vergeben).
 adopt-info: notizblock # Version wird im Part aus pubspec.yaml gesetzt.
-summary: Schlichte Notizen mit Sticky-Fenstern und Drive-Sync
+# Store-Text (Stand 2026-10-06, passend zu docs/store-eintrag.md). Geht bei jedem
+# `snapcraft upload` mit in den Store; Änderungen im Dashboard hier nachziehen.
+title: Notizblock AW
+summary: Bunte Notizen, Notizzettel auf dem Desktop und Sync mit Android und Windows
 description: |
-  Notizblock AW ist eine schlichte, plattformübergreifende App für reine
-  Text-Notizen – ohne Markdown, Bilder oder Checklisten. Fokus: schnell
-  festhalten und wiederfinden.
+  Notizblock AW – deine Notizen, schlicht und schön.
 
-  Funktionen:
-  - Reine Text-Notizen mit Farben und Anheften
-  - Sticky-Note-Fenster auf dem Desktop
-  - Google-Drive-Sync zwischen Geräten (Android, Windows, Linux)
-  - Archivieren und Wiederherstellen
-  - Mehrsprachig, Deutsch als Standard
+  Schnell etwas aufschreiben, wiederfinden und auf jedem Gerät dabeihaben:
+  Notizblock AW ist ein werbefreier Notizblock ohne Schnickschnack – für
+  Gedanken, Bibelverse, Andachten, Einkaufslisten und alles, was du dir
+  merken willst.
+
+  Notizzettel direkt auf dem Desktop
+  Jede Notiz lässt sich als eigener Notizzettel auf den Desktop heften. Die
+  Zettel merken sich Größe und Position und starten auf Wunsch automatisch
+  mit der Anmeldung.
+
+  Das kann Notizblock AW:
+  - Notizen in 25 Farben – anheften, archivieren und wiederherstellen
+  - Ordner für Ordnung, z. B. Bibelverse, Andacht und Alltag
+  - Einkaufslisten mit Mengen und Häkchen – Erledigtes wandert nach unten
+  - Tabellen für Listen mit mehreren Spalten, z. B. Leseplan oder Geräteliste
+  - Schnelle Suche in Titeln und Inhalten
+  - Rückgängig und Wiederholen beim Schreiben
+  - Frühere Versionen einer Notiz wiederherstellen
+  - Drucken oder als PDF, Text- und Word-Datei speichern
+  - Hell oder dunkel – folgt deinem System
+  - 13 Sprachen, Deutsch als Standard
+
+  Synchron auf allen Geräten
+  Über dein eigenes Google Drive gleicht Notizblock AW deine Notizen zwischen
+  Linux, Windows und Android ab. Es gibt keinen eigenen Server: Deine Notizen
+  liegen nur auf deinen Geräten und – wenn du willst – in deinem Google
+  Drive. Der Abgleich ist freiwillig, ohne Anmeldung funktioniert die App
+  vollständig offline.
 
   Auch erhältlich für:
+  - Android (Google Play): https://play.google.com/store/apps/details?id=at.aw.notizblock
   - Windows (Microsoft Store): https://apps.microsoft.com/detail/9N8MGP7GQV4L
-  - Android (Google Play, derzeit geschlossener Test – Zugang auf Anfrage per
-    E-Mail an andi-w-apps@tuta.com):
-    https://play.google.com/store/apps/details?id=at.aw.notizblock
+
+  Kostenlos und ohne Werbung – keine Abos, kein Konto nötig.
+
+  Datenschutz: https://andreaswurzer110-hub.github.io/notizblock-privacy/
+
+  Entwickelt von Andreas Wurzer mit Claude Code. Code und Texte sind teilweise
+  KI-generiert und vom Entwickler geprüft. Bibelverse in den Bildern:
+  Schlachter-Übersetzung 1951.
+website: https://andreaswurzer110-hub.github.io/notizblock-privacy/
+contact: andi-w-apps@tuta.com
 
 base: core22
 confinement: strict
