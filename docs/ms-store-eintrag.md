@@ -131,6 +131,18 @@ des App-Symbols in der Titelleiste; im Bild durch das echte Symbol ersetzt.
 Die Fenster erscheinen auf Andis Bildschirm, Klicks brauchen den Vordergrund →
 vorher fragen.
 
+**WICHTIG – die Kopie biegt den Autostart um (passiert 2026-10-06):** Der
+eigene Datenordner trennt Datenbank und Einstellungen, aber NICHT die
+Autostart-Verknüpfung im Windows-Autostart-Ordner (`Notizblock AW.lnk`, gibt
+es nur einmal). `AutostartService.refreshShortcutIfNeeded` sah in der frischen
+Kopie das Einmal-Flag nicht gesetzt, fand die Verknüpfung vor und schrieb sie
+auf die Exe der Kopie um. Folge beim nächsten Hochfahren: ein leeres
+Notizblock-Fenster (Kopie mit neuem, leerem Datenordner); erst der Start der
+echten App reparierte die Verknüpfung (`_repairForeignShortcut`). **Nächstes
+Mal:** in der Kopie zusätzlich `refreshShortcutIfNeeded` sofort `return`en
+lassen – und danach prüfen, dass die Verknüpfung auf
+`AW.NotizblockAW_…!notizblock` (AppsFolder, ohne Datei-Ziel) zeigt.
+
 ---
 
 # Store listing (English, en-US)
