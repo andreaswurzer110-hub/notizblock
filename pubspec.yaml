@@ -113,6 +113,10 @@ msix_config:
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
   msix_version: 1.31.12.0
   logo_path: assets/icon/icon_full.png
+  # Sprachen des Pakets = Sprachen, für die das Partner Center einen eigenen
+  # Store-Eintrag anbietet. Ohne Angabe meldete das Paket nur en-us – der
+  # deutsche Text stand dann im englischen Eintrag (bemerkt 2026-10-06).
+  languages: de-de, en-us
   capabilities: internetClient
   architecture: x64
   certificate_path: certs/notizblock_test.pfx
