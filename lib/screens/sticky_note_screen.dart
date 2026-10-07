@@ -10,7 +10,6 @@ import '../models/autopool.dart';
 import '../models/shopping_list.dart';
 import '../services/database_service.dart';
 import '../services/sticky_note_service.dart';
-import '../services/main_instance_service.dart';
 import '../services/google_drive_service.dart';
 import '../services/settings_store.dart';
 import '../providers/settings_provider.dart';
@@ -23,6 +22,7 @@ import '../widgets/note_context_menu.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
 import '../widgets/version_history.dart';
+import '../utils/prozess_start.dart';
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -886,15 +886,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Widgets) sofort wieder beenden.
   Future<void> _openMainApp() async {
     if (!_isDesktop) return;
-    // Linux: Läuft schon eine warme Hauptinstanz, holt sie ihr Fenster sofort
-    // nach vorne (kein Kaltstart). Sonst (und auf Windows immer) neuen Prozess.
-    if (await MainInstanceService.instance.signalShow(settings: false)) return;
     try {
-      await Process.start(
-        Platform.resolvedExecutable,
-        const ['--show-main'],
-        mode: ProcessStartMode.detached,
-      );
+      await starteEigenstaendig(Platform.resolvedExecutable, const ['--show-main']);
     } catch (e) {
       debugPrint('Hauptfenster öffnen fehlgeschlagen: $e');
     }
@@ -906,15 +899,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Hauptapp überschreiben – siehe CLAUDE.md).
   Future<void> _openSettings() async {
     if (!_isDesktop) return;
-    // Linux: schon laufende warme Hauptinstanz wiederverwenden (sofort, kein
-    // Kaltstart). Sonst (und auf Windows immer) neuen Prozess mit --show-settings.
-    if (await MainInstanceService.instance.signalShow(settings: true)) return;
     try {
-      await Process.start(
-        Platform.resolvedExecutable,
-        const ['--show-settings'],
-        mode: ProcessStartMode.detached,
-      );
+      await starteEigenstaendig(
+          Platform.resolvedExecutable, const ['--show-settings']);
     } catch (e) {
       debugPrint('Einstellungen öffnen fehlgeschlagen: $e');
     }

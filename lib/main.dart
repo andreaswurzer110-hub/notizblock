@@ -15,7 +15,6 @@ import 'services/background_sync_service.dart';
 import 'services/google_drive_service.dart';
 import 'services/database_service.dart';
 import 'services/sticky_note_service.dart';
-import 'services/main_instance_service.dart';
 import 'services/settings_store.dart';
 import 'services/prefs_repair_service.dart';
 import 'services/autostart_service.dart';
@@ -108,17 +107,6 @@ void main(List<String> args) async {
     // noch nicht aufgefrischt ist (Flag) – sonst praktisch kostenlos.
     await AutostartService.instance.refreshShortcutIfNeeded();
 
-    // Linux: Soll dieser Start ein Hauptfenster zeigen (Home-/Einstellungen-
-    // Button eines Widgets) und läuft schon eine warme Hauptinstanz, holt diese
-    // ihr Fenster sofort nach vorne → dieser Prozess wird nicht gebraucht (kein
-    // Kaltstart, kein Doppel-Fenster). Sofort prüfen, noch vor jedem
-    // Fensteraufbau. Auf Windows/macOS ist signalShow ein no-op (false) → dort
-    // unverändert ein neuer Prozess pro Fenster (ist dort schnell genug).
-    if (forceMainWindow &&
-        await MainInstanceService.instance.signalShow(settings: openSettings)) {
-      exit(0);
-    }
-
     final widgetIds = await StickyNoteService.instance.getWidgetNoteIds();
     final hasWidgets = widgetIds.isNotEmpty;
 
@@ -159,19 +147,6 @@ void main(List<String> args) async {
       await windowManager.hide();
       exit(0);
     }
-
-    // Linux: Auch im manuellen Start-Pfad (App-Icon) eine schon laufende warme
-    // Instanz wiederverwenden, statt ein zweites Hauptfenster zu öffnen.
-    // (forceMainWindow wurde bereits oben geprüft.)
-    if (!forceMainWindow &&
-        await MainInstanceService.instance.signalShow(settings: false)) {
-      exit(0);
-    }
-
-    // Wir zeigen jetzt das Hauptfenster → auf Linux zur warmen Instanz werden
-    // (PID registrieren, damit künftige Öffnen-Wünsche hierher signalisiert
-    // werden statt einen neuen Prozess kalt zu starten). No-op außer auf Linux.
-    await MainInstanceService.instance.registerSelf();
 
     // Fensteroptionen anwenden, aber NICHT vorzeitig zeigen – beide Desktop-
     // Runner zeigen das Fenster selbst beim ersten Frame; show()/focus() folgen
@@ -228,10 +203,6 @@ void main(List<String> args) async {
     openSettings: openSettings,
     showWindowAfterFirstFrame: showWindowAfterFirstFrame,
     openWidgetsAfterFirstFrame: openWidgetsAfterFirstFrame,
-    // Linux + zeigt das Hauptfenster → warme Instanz: Fenster beim Schließen nur
-    // verstecken (Prozess bleibt am Leben) und Öffnen-Kommandos von Widgets
-    // entgegennehmen. Nur Linux (Windows behält „schließen = beenden").
-    warmMainInstance: Platform.isLinux && showWindowAfterFirstFrame,
   ));
 }
 
@@ -317,10 +288,6 @@ class NotizblockApp extends StatefulWidget {
   // Desktop: angeheftete Widgets erst nach dem ersten Frame öffnen (nur im
   // „aus Widget geöffnet"-Pfad, wo die Widgets ohnehin schon laufen).
   final bool openWidgetsAfterFirstFrame;
-  // Linux: Diese Instanz ist die „warme" Hauptinstanz – beim Schließen nur
-  // verstecken (Prozess bleibt am Leben) und Öffnen-Kommandos von Widgets über
-  // MainInstanceService entgegennehmen, damit das nächste Öffnen sofort da ist.
-  final bool warmMainInstance;
 
   const NotizblockApp({
     super.key,
@@ -329,7 +296,6 @@ class NotizblockApp extends StatefulWidget {
     this.openSettings = false,
     this.showWindowAfterFirstFrame = false,
     this.openWidgetsAfterFirstFrame = false,
-    this.warmMainInstance = false,
   });
 
   @override
@@ -337,11 +303,9 @@ class NotizblockApp extends StatefulWidget {
 }
 
 class _NotizblockAppState extends State<NotizblockApp>
-    with WindowListener, WidgetsBindingObserver {
+    with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   static const _channel = MethodChannel('notizblock/deeplink');
-  // Linux (warme Instanz): pollt Öffnen-Kommandos von Widget-Prozessen.
-  Timer? _mainCmdTimer;
   // Läuft gerade die Übernahme eines per „Teilen" geschickten Textes? Verhindert,
   // dass Kaltstart-Prüfung und Resume-Prüfung den Dialog doppelt öffnen.
   bool _shareImportOpen = false;
@@ -357,17 +321,6 @@ class _NotizblockAppState extends State<NotizblockApp>
       // ansteht. Zuverlässiger als ein Durchreichen aus Kotlin, das beim
       // Warm-Resume aus dem Hintergrund erst beim 2. Tap ankam.
       WidgetsBinding.instance.addObserver(this);
-    }
-
-    // Warme Hauptinstanz (Linux): Fenster beim Schließen nur verstecken statt
-    // den Prozess zu beenden, und Öffnen-Kommandos von Widgets entgegennehmen.
-    if (widget.warmMainInstance) {
-      windowManager.setPreventClose(true);
-      windowManager.addListener(this);
-      _mainCmdTimer = Timer.periodic(
-        const Duration(milliseconds: 300),
-        (_) => _checkMainCommand(),
-      );
     }
 
     // Vom Sticky-Einstellungen-Button gestartet -> Einstellungen über die
@@ -425,12 +378,8 @@ class _NotizblockAppState extends State<NotizblockApp>
 
   @override
   void dispose() {
-    _mainCmdTimer?.cancel();
     if (Platform.isAndroid) {
       WidgetsBinding.instance.removeObserver(this);
-    }
-    if (widget.warmMainInstance) {
-      windowManager.removeListener(this);
     }
     super.dispose();
   }
@@ -487,42 +436,6 @@ class _NotizblockAppState extends State<NotizblockApp>
         // Leerer Name = „Alle Notizen" (Ordner-Widget ohne festen Ordner).
         _openFolder(value);
       }
-    } catch (_) {}
-  }
-
-  // Warme Instanz: Ein Widget hat „Hauptmenü/Einstellungen öffnen" angefordert
-  // (Kommandodatei via MainInstanceService). Fenster sofort nach vorne holen –
-  // kein neuer Prozess, kein Kaltstart.
-  Future<void> _checkMainCommand() async {
-    final cmd = await MainInstanceService.instance.pollCommand();
-    if (cmd == null) return;
-    await _bringToFront(settings: cmd == 'settings');
-  }
-
-  Future<void> _bringToFront({required bool settings}) async {
-    try {
-      await windowManager.setSkipTaskbar(false);
-      await windowManager.show();
-      await windowManager.focus();
-    } catch (_) {}
-    final nav = _navigatorKey.currentState;
-    if (nav == null) return;
-    // Auf die Notizliste zurück (deterministisch), dann ggf. Einstellungen.
-    nav.popUntil((route) => route.isFirst);
-    if (settings) {
-      nav.push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
-    }
-  }
-
-  @override
-  void onWindowClose() async {
-    // Warme Instanz: NICHT beenden, nur verstecken → das nächste Öffnen aus
-    // einem Widget ist sofort da (kein Kaltstart). setPreventClose(true) (in
-    // initState) verhindert, dass window_manager das Fenster zerstört.
-    if (!widget.warmMainInstance) return;
-    try {
-      await windowManager.setSkipTaskbar(true);
-      await windowManager.hide();
     } catch (_) {}
   }
 

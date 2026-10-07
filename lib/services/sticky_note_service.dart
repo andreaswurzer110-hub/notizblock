@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../models/note.dart';
 import 'autostart_service.dart';
 import 'database_service.dart';
+import '../utils/prozess_start.dart';
 
 /// Verwaltet die Sticky-Note-Fenster auf Desktop (Windows/Linux/macOS).
 ///
@@ -55,11 +56,7 @@ class StickyNoteService {
       if (origin != null) {
         args.addAll(['--pos', '${origin.dx.round()}', '${origin.dy.round()}']);
       }
-      await Process.start(
-        exePath,
-        args,
-        mode: ProcessStartMode.detached,
-      );
+      await starteEigenstaendig(exePath, args);
     } catch (e) {
       debugPrint('Fehler beim Oeffnen des Sticky Note: $e');
     }

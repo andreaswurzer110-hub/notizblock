@@ -8,7 +8,7 @@ publish_to: 'none'
 # auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
 # nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
 # gesetzt, da pubspec keine 4. Stelle führen kann.
-version: 1.31.13+13113
+version: 1.31.14+13114
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -118,7 +118,7 @@ msix_config:
   # (Add-AppxPackage ohne vorheriges Remove) → Taskleisten-/Startmenü-Pin bleibt.
   # Bei jedem Release Minor/Patch hochzählen; bei schnellen lokalen Re-Builds
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
-  msix_version: 1.31.13.0
+  msix_version: 1.31.14.0
   logo_path: assets/icon/icon_full.png
   # Sprachen, die das Paket als unterstützt meldet (ohne Angabe nur en-us).
   # Mit den Store-EINTRÄGEN hat das nichts zu tun: Die legt das Partner Center
