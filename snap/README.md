@@ -141,3 +141,33 @@ Messskripte lagen im Scratchpad der Sitzung; das Vorgehen: Snap-Namensraum
 verwerfen (`/usr/lib/snapd/snap-discard-ns notizblock-aw`) + Seitencache leeren
 (`echo 3 > /proc/sys/vm/drop_caches`), dann starten und per
 `xdotool search --onlyvisible --name '^Notizblock AW$'` auf das Fenster warten.
+
+### Offen: ~2,7 s bis die Notizen erscheinen (Zorin, ab 1.31.11)
+
+Messung Andi (Zorin-18-VM, Snap-Rev. 49 mit Zeitstempeln, 9 Durchgänge): Fenster
+nach 0,4 s, Notizen nach 15–30 ms aus der DB gelesen – das **Bild mit den
+Notizen** kommt aber erst ~2,9 s nach dem Dart-Start (±15 ms). Danach meldet
+GTK einmal `Timed out waiting for OpenGL frame of size 1024x680 (have 1280x720)`.
+Auf dem i5-7200U ~10 s inkl. „reagiert nicht"-Dialog → der GTK-Hauptthread ist
+blockiert. **Wichtig:** Seit Flutter 3.44 läuft Dart unter Linux auf dem
+GTK-Hauptthread (`FL_UI_THREAD_POLICY_DEFAULT` = Plattform-Thread, siehe
+`fl_engine.cc`), jede Dart-Rechenpause friert also auch das Fenster ein. Die
+`Timed out`-Meldung selbst kostet nur 100 ms (`kCompositorRenderTimeoutMicroseconds`)
+und ist Folge, nicht Ursache.
+
+**Am 2026-10-07 in einer Cloud-Sitzung NICHT nachstellbar** (überall < 0,15 s
+von „Notizen geladen" bis Bild), getestet mit nativem Build unter:
+GNOME Shell 46 headless + XWayland bei 1024×768 (Fenster wird wie bei Andi
+automatisch maximiert/verkleinert), Titelleiste vom Fenstermanager wie im Snap,
+Ubuntu-22.04-Bibliotheken wie core22 (GTK 3.24.33, Mesa 23.2 llvmpipe,
+fontconfig 2.13), 2.700–2.900 Schriften inkl. Noto/CJK/Emoji, Notizen mit Emoji
+und 5×20 KB Text, AT-SPI-Bus aktiv, Google-Anmeldung mit echtem Netzverkehr,
+Auto-Sync an, zwei laufende Notizzettel, ohne Mesa-Shader-Cache (+0,2 s),
+veralteter fontconfig-Cache (+0,55 s, aber VOR dem ersten Fenster und
+selbstheilend). → Bleibt: echte Snap-Hülle (AppArmor/seccomp, Portale,
+gnome-42-2204-Bibliotheken) oder Zorin-spezifisches.
+
+**Nächster Schritt:** `scripts/linux_threads_messen.py` auf Zorin laufen lassen
+(kein root, keine Pakete nötig). Zeigt je Viertelsekunde, welcher Thread CPU
+verbraucht: rechnet der Hauptthread (`*notizblock`) die ganzen 2,7 s → Profil
+mit `perf`; ist er untätig → die App wartet auf etwas → `snap run --strace`.
