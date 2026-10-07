@@ -8,7 +8,7 @@ publish_to: 'none'
 # auf allen Kanälen, s. kAppVersionDisplay). Ausnahme: ein NUR-mobiler Hotfix
 # nutzt die 4. Stelle (1.25.6.1 → 12561) und wird per --build-name am AAB-Build
 # gesetzt, da pubspec keine 4. Stelle führen kann.
-version: 1.31.12+13112
+version: 1.31.13+13113
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -90,6 +90,13 @@ flutter:
     # Verknüpfung herausgeschrieben (IconLocation), damit der Eintrag das
     # richtige Icon zeigt statt des Explorer-Icons.
     - assets/icon/app_icon.ico
+  fonts:
+    # Hilfsschrift (640 Bytes) mit leeren Zeichen für Zeilenumbruch/
+    # Wagenrücklauf – nur unter Linux im Theme eingehängt, siehe
+    # lib/utils/steuerzeichen.dart und scripts/steuerzeichen_schrift.py.
+    - family: NbSteuerzeichen
+      fonts:
+        - asset: assets/fonts/NbSteuerzeichen.ttf
 
 # Microsoft-Store-/Sideload-Paket (Windows). Bauen: dart run msix:create
 # TEST-Konfiguration: selbstsigniertes Zertifikat aus certs\ – `publisher` MUSS
@@ -111,7 +118,7 @@ msix_config:
   # (Add-AppxPackage ohne vorheriges Remove) → Taskleisten-/Startmenü-Pin bleibt.
   # Bei jedem Release Minor/Patch hochzählen; bei schnellen lokalen Re-Builds
   # derselben Release-Version die 4. Stelle (Revision) erhöhen.
-  msix_version: 1.31.12.0
+  msix_version: 1.31.13.0
   logo_path: assets/icon/icon_full.png
   # Sprachen, die das Paket als unterstützt meldet (ohne Angabe nur en-us).
   # Mit den Store-EINTRÄGEN hat das nichts zu tun: Die legt das Partner Center

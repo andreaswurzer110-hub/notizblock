@@ -89,7 +89,8 @@ nachschlagen, nicht neu ausprobieren:**
   `DialogBody`, Mehrfachauswahl, PDF-Text braucht `TextOverflow.span`
 - **Notiz-Typen** – Autopool-Format abwärtskompatibel halten, Einkaufsliste, Ordner (DB v4)
 - **Windows/Linux-Betrieb** – Autostart, Neustart nach Update, MSIX-Reinstall,
-  **nie die Build-Exe starten**, VS-C++-Workload, warme Hauptinstanz (Linux)
+  **nie die Build-Exe starten**, VS-C++-Workload, warme Hauptinstanz (Linux),
+  **Linux-Hilfsschrift für LF/CR + `anzeigeText()` für Vorschauen** (fontconfig-Suche)
 - **Packaging & Release** – Inno-Installer, Snap (**lokal in WSL**, `scripts/snap_bauen.sh`,
   Tag baut keinen Snap mehr; Start-Performance im Snap), Flatpak, `store-upload.yml`,
   Workflow-Änderungen greifen erst für **spätere** Tags, GitHub-Release ≠ Store-Upload

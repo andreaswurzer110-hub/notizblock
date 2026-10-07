@@ -8,6 +8,7 @@ import '../providers/notes_provider.dart';
 import '../services/google_drive_service.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../utils/date_display.dart';
+import '../utils/steuerzeichen.dart';
 
 /// Versionsverlauf einer Notiz: die in Google Drive liegenden früheren Stände
 /// ansehen und bei Bedarf wiederherstellen.
@@ -199,7 +200,7 @@ class _VersionListState extends State<_VersionList> {
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                 ],
-                Text(_previewOf(note)),
+                Text(anzeigeText(_previewOf(note))),
               ],
             ),
           ),

@@ -6,6 +6,7 @@ import '../services/google_drive_service.dart';
 import 'read_only_note_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../utils/date_display.dart';
+import '../utils/steuerzeichen.dart';
 
 /// Archiv & Wiederherstellen: zwei Tabs – archivierte Notizen (lokal) und
 /// gelöschte Notizen (aus dem Drive-Verlauf, geräteübergreifend, 30 Tage).
@@ -319,7 +320,7 @@ class _NoteRestoreCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    note.title.isNotEmpty ? note.title : note.content,
+                    note.title.isNotEmpty ? note.title : anzeigeText(note.content),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -330,7 +331,7 @@ class _NoteRestoreCard extends StatelessWidget {
                   if (note.title.isNotEmpty && note.content.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      note.content,
+                      anzeigeText(note.content),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: textColor.withValues(alpha: 0.85)),

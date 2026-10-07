@@ -26,6 +26,7 @@ import 'screens/autopool_editor_screen.dart';
 import 'screens/sticky_note_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/share_import.dart';
+import 'utils/steuerzeichen.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -281,7 +282,11 @@ class StickyNoteApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, brightness: Brightness.light),
+      theme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.light,
+        fontFamilyFallback: linuxErsatzschriften(),
+      ),
       // WICHTIG: Lokalisierung auch im Sticky-Fenster bereitstellen. Sonst ist
       // AppLocalizations.of(context) null und Widgets, die l10n nutzen (z.B. die
       // Autopool-Tabelle), stürzen beim Aufbau ab -> im Release nur ein graues
@@ -615,6 +620,7 @@ class _NotizblockAppState extends State<NotizblockApp>
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamilyFallback: linuxErsatzschriften(),
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5C6BC0), brightness: Brightness.light),
       scaffoldBackgroundColor: const Color(0xFFF5F5F5),
       appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0, scrolledUnderElevation: 1, systemOverlayStyle: SystemUiOverlayStyle.dark),
@@ -631,6 +637,7 @@ class _NotizblockAppState extends State<NotizblockApp>
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamilyFallback: linuxErsatzschriften(),
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF7C8FD9), brightness: Brightness.dark),
       scaffoldBackgroundColor: const Color(0xFF121212),
       appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0, scrolledUnderElevation: 1, systemOverlayStyle: SystemUiOverlayStyle.light),

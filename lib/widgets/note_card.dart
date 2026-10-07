@@ -3,6 +3,7 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../models/note.dart';
 import '../models/shopping_list.dart';
 import '../utils/date_display.dart';
+import '../utils/steuerzeichen.dart';
 
 class NoteCard extends StatelessWidget {
   final Note note;
@@ -117,7 +118,7 @@ class NoteCard extends StatelessWidget {
               if (note.content.isNotEmpty)
                 Flexible(
                   child: Text(
-                    note.content,
+                    anzeigeText(note.content),
                     style: TextStyle(
                       fontSize: isCompact ? 12 : 14,
                       color: textColor.withOpacity(0.85),
@@ -265,7 +266,7 @@ class NoteListTile extends StatelessWidget {
               )
             : null,
         title: Text(
-          note.title.isNotEmpty ? note.title : note.content,
+          note.title.isNotEmpty ? note.title : anzeigeText(note.content),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -292,7 +293,9 @@ class NoteListTile extends StatelessWidget {
   Widget? _buildSubtitle(
       BuildContext context, Color textColor, Color subtitleColor) {
     final preview =
-        note.title.isNotEmpty && note.content.isNotEmpty ? note.content : null;
+        note.title.isNotEmpty && note.content.isNotEmpty
+            ? anzeigeText(note.content)
+            : null;
 
     Widget? previewText() => preview == null
         ? null

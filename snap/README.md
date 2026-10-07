@@ -176,19 +176,53 @@ Suche = `FcFontMatch` über ~3.000 Schriften × ~252 Familiennamen mit der alten
 fontconfig → ~25–30 ms → 89 × ≈ 2,5 s auf dem Hauptthread. Langsamere CPU →
 proportional länger.
 
-**Lösungsansätze (noch NICHT umgesetzt, auf Zorin zu verifizieren):**
-- App: in der Anzeige `\r\n`/`\r` → `\n` normalisieren (nur Anzeige, nicht
-  speichern – sonst würde `modifiedAt` ohne echte Änderung steigen).
-- App: eine winzige Hilfsschrift als Asset mitliefern, die LF/CR (ggf. weitere
-  Steuerzeichen) als leere Glyphen enthält, und an `fontFamilyFallback` des
-  Themes hängen → Skia findet sie über den Asset-Schriftmanager, keine
-  fontconfig-Suche mehr.
-- Snap: auf `base: core24` + gnome-46-2404 (fontconfig 2.15) umstellen →
-  jede verbleibende Suche deutlich billiger.
-- Ergänzend: `fl_dart_project_set_ui_thread_policy(…_RUN_ON_SEPARATE_THREAD)`
-  hält das Fenster bedienbar (kein „reagiert nicht"), verkürzt aber nichts.
-Nach jedem Schritt mit `FC_DEBUG=1` + `scripts/fc_auswertung.py` und
-`scripts/linux_threads_messen.py` nachmessen.
+**Lösung (1.31.13, 2026-10-08) – zwei Teile:**
+- **Hilfsschrift `NbSteuerzeichen`** (`assets/fonts/NbSteuerzeichen.ttf`,
+  640 Bytes, erzeugt von `scripts/steuerzeichen_schrift.py`): nur leere
+  Glyphen (Breite 0) für U+000A und U+000D. Hängt **nur unter Linux** hinten an
+  Flutters Linux-Ersatzschriften (Ubuntu, Adwaita Sans, Cantarell, …) –
+  `linuxErsatzschriften()` in `lib/utils/steuerzeichen.dart`, eingebunden in
+  alle drei Themes (Hauptfenster hell/dunkel, Notizzettel). Skia findet LF/CR
+  dort und fragt fontconfig nicht mehr. Wirkt auch im Editor und in den
+  Notizzetteln, die bei jedem Tastendruck neu umbrechen.
+- **`anzeigeText()`**: `\r\n`/`\r` → `\n`, NUR in der Anzeige (Karte,
+  Listenzeile, Archiv, Versionsverlauf), nie gespeichert (`modifiedAt` bleibt).
+  Grund: Ein LF zählt nicht zur Zeilenhöhe, ein CR schon – über die
+  Hilfsschrift würde ein CR deren Höhe in die Zeile bringen (gemessen bis
+  0,8 px). Editor, Notizzettel und Lesemodus behalten den Text unverändert; dort
+  erzwingt `StrutStyle(forceStrutHeight: true)` die Zeilenhöhe, die Hilfsschrift
+  ändert nichts an Höhe oder Zeichenpositionen.
+
+**Gemessen:**
+
+| | vorher (Rev. 49) | nachher (Rev. 50, = 1.31.13) |
+|---|---|---|
+| Ersatzschrift-Suchen für Zeichen (FC_DEBUG, WSL-Snap) | 89 (LF ×50, CR ×39) | **0** |
+| Zorin-VM: Übersicht mit Notizen nach Haus-Klick (`notizblock-aw.messen`, 9 Läufe) | 3,10–3,14 s | **0,49–0,50 s** |
+| Zorin-VM: Fenster sichtbar | 0,40 s | 0,40–0,42 s |
+| Übersicht Liste + Kacheln, Bildschirmfoto vorher/nachher (WSL) | – | **0 Pixel Unterschied** |
+
+Layout-Probe (TextPainter, Roboto und Arial, mit/ohne `height`, mit
+Hilfsschrift in absurden Maßen): mit vereinheitlichten Zeilenenden identische
+Zeilenmaße und Zeichenpositionen; mit erzwungener Strut-Höhe auch bei CR.
+
+**Nicht umgesetzt / offen:**
+- Snap auf `base: core24` + gnome-46-2404 (fontconfig 2.15): würde jede noch
+  verbleibende fontconfig-Abfrage verbilligen. Es bleiben pro Start ~3.500
+  Abfragen mit je EINER Familie (Skias Auflösung von sans-serif-Aliassen) –
+  um Größenordnungen billiger als die 89 großen Suchen, auf Zorin nach dem Fix
+  nicht mehr spürbar. Nur angehen, falls auf langsamer Hardware noch etwas
+  auffällt.
+- `fl_dart_project_set_ui_thread_policy(…_RUN_ON_SEPARATE_THREAD)` hält das
+  Fenster bei Rechenlast bedienbar (kein „reagiert nicht"), verkürzt aber
+  nichts.
+- Neue Zeichen ohne Schrift (z. B. Tabulator) lösen dieselbe Suche aus.
+  Tabulator bewusst NICHT in der Hilfsschrift: Wie er heute gezeichnet wird,
+  ist nicht geprüft – eine leere Glyphe der Breite 0 könnte die Darstellung
+  ändern. In Andis Notizen kam er in der Messung nicht vor.
+
+Nachmessen: `FC_DEBUG=1` + `scripts/fc_auswertung.py` (Zeile „Gesuchte
+Zeichen" muss fehlen) und `scripts/linux_threads_messen.py`.
 
 **In der Cloud nicht reproduzierbar**, weil dort (a) fontconfig 2.15 bzw. nur 90
 Familien je Anfrage und (b) Unifont vorhanden war (LF-Suche erfolgreich). Dort
