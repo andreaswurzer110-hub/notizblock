@@ -142,39 +142,56 @@ verwerfen (`/usr/lib/snapd/snap-discard-ns notizblock-aw`) + Seitencache leeren
 (`echo 3 > /proc/sys/vm/drop_caches`), dann starten und per
 `xdotool search --onlyvisible --name '^Notizblock AW$'` auf das Fenster warten.
 
-### Offen: ~2,7 s bis die Notizen erscheinen (Zorin, ab 1.31.11)
+### Ursache gefunden: ~2,7 s bis die Notizen erscheinen (Zorin, Snap) – 2026-10-07
 
-Messung Andi (Zorin-18-VM, Snap-Rev. 49 mit Zeitstempeln, 9 Durchgänge): Fenster
-nach 0,4 s, Notizen nach 15–30 ms aus der DB gelesen – das **Bild mit den
-Notizen** kommt aber erst ~2,9 s nach dem Dart-Start (±15 ms). Danach meldet
-GTK einmal `Timed out waiting for OpenGL frame of size 1024x680 (have 1280x720)`.
-Auf dem i5-7200U ~10 s inkl. „reagiert nicht"-Dialog → der GTK-Hauptthread ist
-blockiert. **Wichtig:** Seit Flutter 3.44 läuft Dart unter Linux auf dem
-GTK-Hauptthread (`FL_UI_THREAD_POLICY_DEFAULT` = Plattform-Thread, siehe
-`fl_engine.cc`), jede Dart-Rechenpause friert also auch das Fenster ein. Die
-`Timed out`-Meldung selbst kostet nur 100 ms (`kCompositorRenderTimeoutMicroseconds`)
-und ist Folge, nicht Ursache.
+**Symptom:** Fenster nach 0,4 s, Notizen nach 15–30 ms aus der DB gelesen, das
+Bild mit den Notizen aber erst ~2,9 s nach Dart-Start (i5-7200U: ~10 s inkl.
+„reagiert nicht"-Dialog). Windows sofort, WSL/nativ schnell.
 
-**Am 2026-10-07 in einer Cloud-Sitzung NICHT nachstellbar** (überall < 0,15 s
-von „Notizen geladen" bis Bild), getestet mit nativem Build unter:
-GNOME Shell 46 headless + XWayland bei 1024×768 (Fenster wird wie bei Andi
-automatisch maximiert/verkleinert), Titelleiste vom Fenstermanager wie im Snap,
-Ubuntu-22.04-Bibliotheken wie core22 (GTK 3.24.33, Mesa 23.2 llvmpipe,
-fontconfig 2.13), 2.700–2.900 Schriften inkl. Noto/CJK/Emoji, Notizen mit Emoji
-und 5×20 KB Text, AT-SPI-Bus aktiv, Google-Anmeldung mit echtem Netzverkehr,
-Auto-Sync an, zwei laufende Notizzettel, ohne Mesa-Shader-Cache (+0,2 s),
-veralteter fontconfig-Cache (+0,55 s, aber VOR dem ersten Fenster und
-selbstheilend). → Bleibt: echte Snap-Hülle (AppArmor/seccomp, Portale,
-gnome-42-2204-Bibliotheken) oder Zorin-spezifisches.
+**Messkette (alles auf Andis Zorin-18-VM, Snap-Rev. 49):**
+1. `scripts/linux_threads_messen.py`: Hauptthread `*notizblock` 0,5–3,0 s
+   durchgehend 100 % eines Kerns (3,0 s CPU), Raster-Thread 50 ms → Rechenarbeit,
+   kein Warten, keine Grafik. Seit Flutter 3.44 läuft Dart unter Linux auf dem
+   GTK-Hauptthread (`FL_UI_THREAD_POLICY_DEFAULT`) → Fenster friert mit ein.
+2. `perf record -a -g` (nach `--comm notizblock` gefiltert): **62 %
+   libfontconfig.so.1.12.0, 32 % libc** (`strchr`), `libapp.so` 0,6 %.
+   Aufgelöst mit den Ubuntu-Debug-Symbolen (libfontconfig1-dbgsym
+   2.13.1-4.2ubuntu5, Build-ID 0bb435fd…): `FcCompareFamily` +
+   `FcStrCaseWalkerNext` = Vergleich der Familiennamen beim Schriftabgleich.
+   Der Snap bringt **fontconfig 2.13.1** (gnome-42-2204/core22) mit; ab 2.14
+   (Zorin selbst: 2.15) ist dieser Vergleich per Hash-Tabelle viel schneller.
+3. `FC_DEBUG=1` + `scripts/fc_auswertung.py`: **89 Ersatzschrift-Suchen mit je
+   ~252 Familiennamen** über 2.995 Schriften (Host 2.843 + 152 aus
+   gnome-platform), gesuchte Zeichen **U+000A (Zeilenumbruch) ×50, U+000D
+   (Wagenrücklauf) ×39**. Zum Vergleich in der Cloud (nativ, Testdaten): 6 Suchen
+   mit 90 Familien, nur für Emoji.
 
-**Thread-Messung auf Zorin (2026-10-07, `scripts/linux_threads_messen.py`):**
-Der Hauptthread (`*notizblock`) rechnet von 0,5 s bis 3,0 s **durchgehend mit
-100 % eines Kerns** (Summe 3,0 s CPU), der Raster-Thread nur 50 ms. Es ist also
-Rechenarbeit auf dem Hauptthread – kein Warten, keine Grafik. Sie liegt zwischen
-„Notizen geladen" und dem fertigen Bild mit den Notizen (Aufbau/Layout der
-Notizkarten). Ebenfalls lokal ausgeschlossen: fehlende Schriften
-„Roboto/Ubuntu/Cantarell" (Flutters Linux-Ersatzschriften-Kette).
-**Nächster Schritt:** `perf` systemweit aufzeichnen und nach `--comm notizblock`
-filtern → zeigt, in welcher Bibliothek die Zeit liegt (`libapp.so` = Dart-Code,
-`libflutter_linux_gtk.so` = Engine/Text-Layout, `libfontconfig`/`libharfbuzz`
-= Schriften …).
+**Mechanismus:** Die Notizkarte (`widgets/note_card.dart`) gibt den kompletten
+Notiztext inkl. `\n` bzw. `\r\n` an `Text(maxLines: …)`. Die Grundschrift
+(Roboto, auf Zorin installiert; ebenso DejaVu/Liberation/Ubuntu) hat keine
+Glyphen für LF/CR → Skias SkParagraph sucht per fontconfig eine Ersatzschrift.
+Keine Schrift im Snap deckt LF/CR ab (lokal nur „Unifont") → die Suche schlägt
+fehl, wird **nicht zwischengespeichert** und wiederholt sich je Absatz. Jede
+Suche = `FcFontMatch` über ~3.000 Schriften × ~252 Familiennamen mit der alten
+fontconfig → ~25–30 ms → 89 × ≈ 2,5 s auf dem Hauptthread. Langsamere CPU →
+proportional länger.
+
+**Lösungsansätze (noch NICHT umgesetzt, auf Zorin zu verifizieren):**
+- App: in der Anzeige `\r\n`/`\r` → `\n` normalisieren (nur Anzeige, nicht
+  speichern – sonst würde `modifiedAt` ohne echte Änderung steigen).
+- App: eine winzige Hilfsschrift als Asset mitliefern, die LF/CR (ggf. weitere
+  Steuerzeichen) als leere Glyphen enthält, und an `fontFamilyFallback` des
+  Themes hängen → Skia findet sie über den Asset-Schriftmanager, keine
+  fontconfig-Suche mehr.
+- Snap: auf `base: core24` + gnome-46-2404 (fontconfig 2.15) umstellen →
+  jede verbleibende Suche deutlich billiger.
+- Ergänzend: `fl_dart_project_set_ui_thread_policy(…_RUN_ON_SEPARATE_THREAD)`
+  hält das Fenster bedienbar (kein „reagiert nicht"), verkürzt aber nichts.
+Nach jedem Schritt mit `FC_DEBUG=1` + `scripts/fc_auswertung.py` und
+`scripts/linux_threads_messen.py` nachmessen.
+
+**In der Cloud nicht reproduzierbar**, weil dort (a) fontconfig 2.15 bzw. nur 90
+Familien je Anfrage und (b) Unifont vorhanden war (LF-Suche erfolgreich). Dort
+getestet und als Ursache ausgeschlossen: GNOME Shell 46 + XWayland 1024×768,
+Titelleiste vom Fenstermanager, Ubuntu-22.04-Bibliotheken, Emoji, lange Notizen,
+AT-SPI, Google-Login, Auto-Sync, Notizzettel, Shader-Cache, Schrift-Cache.
