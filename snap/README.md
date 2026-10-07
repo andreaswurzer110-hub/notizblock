@@ -167,7 +167,14 @@ veralteter fontconfig-Cache (+0,55 s, aber VOR dem ersten Fenster und
 selbstheilend). → Bleibt: echte Snap-Hülle (AppArmor/seccomp, Portale,
 gnome-42-2204-Bibliotheken) oder Zorin-spezifisches.
 
-**Nächster Schritt:** `scripts/linux_threads_messen.py` auf Zorin laufen lassen
-(kein root, keine Pakete nötig). Zeigt je Viertelsekunde, welcher Thread CPU
-verbraucht: rechnet der Hauptthread (`*notizblock`) die ganzen 2,7 s → Profil
-mit `perf`; ist er untätig → die App wartet auf etwas → `snap run --strace`.
+**Thread-Messung auf Zorin (2026-10-07, `scripts/linux_threads_messen.py`):**
+Der Hauptthread (`*notizblock`) rechnet von 0,5 s bis 3,0 s **durchgehend mit
+100 % eines Kerns** (Summe 3,0 s CPU), der Raster-Thread nur 50 ms. Es ist also
+Rechenarbeit auf dem Hauptthread – kein Warten, keine Grafik. Sie liegt zwischen
+„Notizen geladen" und dem fertigen Bild mit den Notizen (Aufbau/Layout der
+Notizkarten). Ebenfalls lokal ausgeschlossen: fehlende Schriften
+„Roboto/Ubuntu/Cantarell" (Flutters Linux-Ersatzschriften-Kette).
+**Nächster Schritt:** `perf` systemweit aufzeichnen und nach `--comm notizblock`
+filtern → zeigt, in welcher Bibliothek die Zeit liegt (`libapp.so` = Dart-Code,
+`libflutter_linux_gtk.so` = Engine/Text-Layout, `libfontconfig`/`libharfbuzz`
+= Schriften …).
