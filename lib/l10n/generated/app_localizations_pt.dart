@@ -181,6 +181,30 @@ class AppLocalizationsPt extends AppLocalizations {
   String get unpinWidget => 'Remover widget';
 
   @override
+  String get stickyClosesWindow => 'Fecha esta janela';
+
+  @override
+  String get openMainMenu => 'Abrir menu principal';
+
+  @override
+  String get moreOptions => 'Mais opções';
+
+  @override
+  String get noteNotFound => 'Nota não encontrada';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Ainda não há pastas. Você pode criar novas pastas na janela principal.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Movida para “$folder”';
+  }
+
+  @override
+  String get chooseColor => 'Escolher cor';
+
+  @override
   String get syncNow => 'Sincronizar agora';
 
   @override

@@ -181,6 +181,30 @@ class AppLocalizationsRu extends AppLocalizations {
   String get unpinWidget => 'Убрать виджет';
 
   @override
+  String get stickyClosesWindow => 'Закрывает это окно';
+
+  @override
+  String get openMainMenu => 'Открыть главное меню';
+
+  @override
+  String get moreOptions => 'Другие действия';
+
+  @override
+  String get noteNotFound => 'Заметка не найдена';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Папок пока нет. Новые папки можно создать в главном окне.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Перемещено в «$folder»';
+  }
+
+  @override
+  String get chooseColor => 'Выбрать цвет';
+
+  @override
   String get syncNow => 'Синхронизировать сейчас';
 
   @override

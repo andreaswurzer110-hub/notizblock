@@ -112,14 +112,12 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   Lizenztester kaufen (wird nicht abgebucht). Ohne Produkte meldet der Dialog nur
   „gerade nicht möglich".
 
-- **Notizzettel-Fenster (Desktop) folgen nicht der App-Sprache** (bemerkt 2026-10-06
-  bei den englischen MS-Store-Bildern): `StickyNoteApp` in `lib/main.dart` hat
-  `locale: const Locale('de')` fest, dazu hartkodierte deutsche Texte im
-  Sticky-Fenster → bei englischer App stehen dort „Artikel hinzufügen", „Erledigt",
-  deutsches Datum. Soll mit **1.32.0** (für alle Plattformen) die eingestellte
-  Sprache übernehmen (`SettingsStore` → `locale`). Andi: „fixen wir im nächsten
-  Update". Danach das fehlende 5. englische MS-Store-Bild (Einkaufsliste als
-  Notizzettel) nachreichen, Weg in `docs/ms-store-eintrag.md`.
+- **Notizzettel-Fenster folgen jetzt der App-Sprache – erledigt im Code für 1.32.0**
+  (2026-10-11): `stickyLocale` in `sticky_note_screen.dart` liest die Sprache aus
+  `settings.json` (vor runApp + bei jedem Abgleich, Sprachwechsel greift live),
+  alle Sticky-Texte über l10n, Datum über `DateDisplay`. Unter Linux/Xvfb
+  geprüft (en/fr). **Nach dem Release:** das fehlende 5. englische MS-Store-Bild
+  (Einkaufsliste als Notizzettel) nachreichen, Weg in `docs/ms-store-eintrag.md`.
 
 - **Linux/Snap: „In Datei drucken" über den System-Druckdialog scheitert** (gemeldet
   von Andi am 2026-08-23 auf Zorin, Snap-Build). Symptom: Der GTK-Speichern-Dialog

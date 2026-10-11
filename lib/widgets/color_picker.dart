@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'sheet_body.dart';
 import '../models/note.dart';
 
@@ -179,7 +180,7 @@ Future<String?> showColorPickerSheet(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Farbe wählen',
+              AppLocalizations.of(context)!.chooseColor,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),

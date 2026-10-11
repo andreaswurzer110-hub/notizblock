@@ -180,6 +180,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unpinWidget => 'Unpin widget';
 
   @override
+  String get stickyClosesWindow => 'Closes this window';
+
+  @override
+  String get openMainMenu => 'Open main menu';
+
+  @override
+  String get moreOptions => 'More options';
+
+  @override
+  String get noteNotFound => 'Note not found';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'No folders yet. You can create new folders in the main window.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Moved to “$folder”';
+  }
+
+  @override
+  String get chooseColor => 'Choose color';
+
+  @override
   String get syncNow => 'Sync now';
 
   @override

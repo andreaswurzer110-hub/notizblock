@@ -181,6 +181,30 @@ class AppLocalizationsNl extends AppLocalizations {
   String get unpinWidget => 'Widget losmaken';
 
   @override
+  String get stickyClosesWindow => 'Sluit dit venster';
+
+  @override
+  String get openMainMenu => 'Hoofdmenu openen';
+
+  @override
+  String get moreOptions => 'Meer opties';
+
+  @override
+  String get noteNotFound => 'Notitie niet gevonden';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Nog geen mappen. Nieuwe mappen maak je aan in het hoofdvenster.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Verplaatst naar “$folder”';
+  }
+
+  @override
+  String get chooseColor => 'Kleur kiezen';
+
+  @override
   String get syncNow => 'Nu synchroniseren';
 
   @override

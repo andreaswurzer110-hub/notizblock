@@ -181,6 +181,30 @@ class AppLocalizationsPl extends AppLocalizations {
   String get unpinWidget => 'Odepnij widżet';
 
   @override
+  String get stickyClosesWindow => 'Zamyka to okno';
+
+  @override
+  String get openMainMenu => 'Otwórz menu główne';
+
+  @override
+  String get moreOptions => 'Więcej opcji';
+
+  @override
+  String get noteNotFound => 'Nie znaleziono notatki';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Brak folderów. Nowe foldery możesz utworzyć w oknie głównym.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Przeniesiono do „$folder”';
+  }
+
+  @override
+  String get chooseColor => 'Wybierz kolor';
+
+  @override
   String get syncNow => 'Synchronizuj teraz';
 
   @override

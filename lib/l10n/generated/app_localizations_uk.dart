@@ -181,6 +181,30 @@ class AppLocalizationsUk extends AppLocalizations {
   String get unpinWidget => 'Прибрати віджет';
 
   @override
+  String get stickyClosesWindow => 'Закриває це вікно';
+
+  @override
+  String get openMainMenu => 'Відкрити головне меню';
+
+  @override
+  String get moreOptions => 'Інші дії';
+
+  @override
+  String get noteNotFound => 'Нотатку не знайдено';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Тек ще немає. Нові теки можна створити в головному вікні.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return 'Переміщено до «$folder»';
+  }
+
+  @override
+  String get chooseColor => 'Вибрати колір';
+
+  @override
   String get syncNow => 'Синхронізувати зараз';
 
   @override

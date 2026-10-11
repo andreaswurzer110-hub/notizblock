@@ -180,6 +180,29 @@ class AppLocalizationsJa extends AppLocalizations {
   String get unpinWidget => 'ウィジェットの固定を解除';
 
   @override
+  String get stickyClosesWindow => 'このウィンドウを閉じます';
+
+  @override
+  String get openMainMenu => 'メインメニューを開く';
+
+  @override
+  String get moreOptions => 'その他のオプション';
+
+  @override
+  String get noteNotFound => 'メモが見つかりません';
+
+  @override
+  String get stickyNoFoldersYet => 'フォルダはまだありません。新しいフォルダはメインウィンドウで作成できます。';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return '「$folder」に移動しました';
+  }
+
+  @override
+  String get chooseColor => '色を選択';
+
+  @override
   String get syncNow => '今すぐ同期';
 
   @override

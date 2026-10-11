@@ -438,6 +438,48 @@ abstract class AppLocalizations {
   /// **'Widget lösen'**
   String get unpinWidget;
 
+  /// No description provided for @stickyClosesWindow.
+  ///
+  /// In de, this message translates to:
+  /// **'Schließt dieses Fenster'**
+  String get stickyClosesWindow;
+
+  /// No description provided for @openMainMenu.
+  ///
+  /// In de, this message translates to:
+  /// **'Hauptmenü öffnen'**
+  String get openMainMenu;
+
+  /// No description provided for @moreOptions.
+  ///
+  /// In de, this message translates to:
+  /// **'Weitere Optionen'**
+  String get moreOptions;
+
+  /// No description provided for @noteNotFound.
+  ///
+  /// In de, this message translates to:
+  /// **'Notiz nicht gefunden'**
+  String get noteNotFound;
+
+  /// No description provided for @stickyNoFoldersYet.
+  ///
+  /// In de, this message translates to:
+  /// **'Noch keine Ordner. Neue Ordner legst du im Hauptfenster an.'**
+  String get stickyNoFoldersYet;
+
+  /// No description provided for @movedToFolderSnack.
+  ///
+  /// In de, this message translates to:
+  /// **'Nach „{folder}“ verschoben'**
+  String movedToFolderSnack(String folder);
+
+  /// No description provided for @chooseColor.
+  ///
+  /// In de, this message translates to:
+  /// **'Farbe wählen'**
+  String get chooseColor;
+
   /// No description provided for @syncNow.
   ///
   /// In de, this message translates to:

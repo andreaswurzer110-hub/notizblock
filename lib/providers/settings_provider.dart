@@ -90,6 +90,17 @@ class SettingsProvider with ChangeNotifier {
     }
   }
 
+  /// Die gespeicherte Sprache direkt aus dem [SettingsStore] (nach load/reload),
+  /// für die Notizzettel-Prozesse ohne SettingsProvider. Unbekannte Werte →
+  /// Deutsch, damit nie eine Locale ohne Übersetzung gesetzt wird.
+  static Locale storedLocale() {
+    final code = SettingsStore.getString(_localeKey);
+    return supportedLocales.firstWhere(
+      (l) => l.languageCode == code,
+      orElse: () => const Locale('de'),
+    );
+  }
+
   // Einstellungen laden
   Future<void> loadSettings() async {
     // Auf Desktop aus der eigenen settings.json (prozesssicher), auf Mobil aus

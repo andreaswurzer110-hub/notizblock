@@ -180,6 +180,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unpinWidget => '取消固定小组件';
 
   @override
+  String get stickyClosesWindow => '关闭此窗口';
+
+  @override
+  String get openMainMenu => '打开主菜单';
+
+  @override
+  String get moreOptions => '更多选项';
+
+  @override
+  String get noteNotFound => '未找到笔记';
+
+  @override
+  String get stickyNoFoldersYet => '还没有文件夹。可以在主窗口中新建文件夹。';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return '已移至“$folder”';
+  }
+
+  @override
+  String get chooseColor => '选择颜色';
+
+  @override
   String get syncNow => '立即同步';
 
   @override

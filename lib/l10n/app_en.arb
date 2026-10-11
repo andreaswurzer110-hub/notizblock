@@ -95,6 +95,20 @@
   "openInWindow": "Open in new window",
   "pinAsWidget": "Pin as widget",
   "unpinWidget": "Unpin widget",
+  "stickyClosesWindow": "Closes this window",
+  "openMainMenu": "Open main menu",
+  "moreOptions": "More options",
+  "noteNotFound": "Note not found",
+  "stickyNoFoldersYet": "No folders yet. You can create new folders in the main window.",
+  "movedToFolderSnack": "Moved to “{folder}”",
+  "@movedToFolderSnack": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseColor": "Choose color",
   "syncNow": "Sync now",
   "autostart": "Start automatically",
   "autostartSubtitle": "Open widgets automatically at system startup",

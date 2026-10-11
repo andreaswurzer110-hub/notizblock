@@ -57,6 +57,9 @@ void main(List<String> args) async {
       // (auch wenn das Hauptfenster geschlossen ist).
       await GoogleDriveService.instance.signInSilently();
     }
+    // Sprache der Hauptapp übernehmen (settings.json, nur lesen).
+    await SettingsStore.load();
+    stickyLocale.value = SettingsProvider.storedLocale();
     runApp(StickyNoteApp(noteId: noteId));
     return;
   }
@@ -252,21 +255,26 @@ class StickyNoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        fontFamilyFallback: linuxErsatzschriften(),
+    // Sprache wie in der Hauptapp (siehe stickyLocale); ändert sie sich dort,
+    // baut das Fenster mit der neuen Sprache neu – der Zustand bleibt erhalten.
+    return ValueListenableBuilder<Locale>(
+      valueListenable: stickyLocale,
+      builder: (context, locale, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.light,
+          fontFamilyFallback: linuxErsatzschriften(),
+        ),
+        // WICHTIG: Lokalisierung auch im Sticky-Fenster bereitstellen. Sonst ist
+        // AppLocalizations.of(context) null und Widgets, die l10n nutzen (z.B.
+        // die Autopool-Tabelle), stürzen beim Aufbau ab -> im Release nur ein
+        // graues Feld.
+        locale: locale,
+        supportedLocales: SettingsProvider.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: StickyNoteScreen(noteId: noteId),
       ),
-      // WICHTIG: Lokalisierung auch im Sticky-Fenster bereitstellen. Sonst ist
-      // AppLocalizations.of(context) null und Widgets, die l10n nutzen (z.B. die
-      // Autopool-Tabelle), stürzen beim Aufbau ab -> im Release nur ein graues
-      // Feld. Sprache fest Deutsch (passt zu den hartkodierten Sticky-Texten).
-      locale: const Locale('de'),
-      supportedLocales: SettingsProvider.supportedLocales,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      home: StickyNoteScreen(noteId: noteId),
     );
   }
 }

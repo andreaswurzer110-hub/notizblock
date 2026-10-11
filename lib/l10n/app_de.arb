@@ -95,6 +95,20 @@
   "openInWindow": "In neuem Fenster öffnen",
   "pinAsWidget": "Als Widget anheften",
   "unpinWidget": "Widget lösen",
+  "stickyClosesWindow": "Schließt dieses Fenster",
+  "openMainMenu": "Hauptmenü öffnen",
+  "moreOptions": "Weitere Optionen",
+  "noteNotFound": "Notiz nicht gefunden",
+  "stickyNoFoldersYet": "Noch keine Ordner. Neue Ordner legst du im Hauptfenster an.",
+  "movedToFolderSnack": "Nach „{folder}“ verschoben",
+  "@movedToFolderSnack": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "chooseColor": "Farbe wählen",
   "syncNow": "Jetzt synchronisieren",
   "autostart": "Automatisch starten",
   "autostartSubtitle": "Widgets automatisch beim Systemstart öffnen",

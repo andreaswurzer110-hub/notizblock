@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:ui' show BoxWidthStyle;
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:intl/intl.dart';
+import 'package:notizblock/l10n/generated/app_localizations.dart';
 import '../models/note.dart';
 import '../models/autopool.dart';
 import '../models/shopping_list.dart';
@@ -22,7 +22,15 @@ import '../widgets/note_context_menu.dart';
 import '../widgets/print_menu.dart';
 import '../widgets/sheet_body.dart';
 import '../widgets/version_history.dart';
+import '../utils/date_display.dart';
 import '../utils/prozess_start.dart';
+
+/// Sprache der Notizzettel-Fenster. Jedes Fenster ist ein eigener Prozess ohne
+/// SettingsProvider → die Sprache kommt aus `settings.json` (Schreiber ist die
+/// Hauptapp): main() setzt sie vor runApp, das Fenster liest sie bei jedem
+/// Abgleich neu (wie die Schriftgröße), damit ein Sprachwechsel im Hauptfenster
+/// auch offene Notizzettel umstellt. `StickyNoteApp` baut darauf auf.
+final ValueNotifier<Locale> stickyLocale = ValueNotifier(const Locale('de'));
 
 class StickyNoteScreen extends StatefulWidget {
   final String noteId;
@@ -130,12 +138,19 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
 
   Future<void> _loadFontScale() async {
     // Prozesssicher aus settings.json (Hauptapp ist der Schreiber). reload() für
-    // den aktuellen Stand – die Hauptapp kann die Schriftgröße geändert haben.
+    // den aktuellen Stand – die Hauptapp kann Schriftgröße/Sprache geändert haben.
     await SettingsStore.reload();
     final scale =
         SettingsStore.getDouble(SettingsProvider.noteFontScaleKey) ?? 1.0;
     if (mounted && scale != _fontScale) setState(() => _fontScale = scale);
+    stickyLocale.value = SettingsProvider.storedLocale();
   }
+
+  // Fenstertitel bzw. Menü-Überschrift: Notiztitel, sonst „Notiz" in der
+  // eingestellten Sprache.
+  String _windowTitle(Note note) => note.title.isNotEmpty
+      ? note.title
+      : AppLocalizations.of(context)!.noteTypeNote;
 
   // Automatischer Sync aus dem Sticky-Fenster (nur bei aktivem Auto-Sync).
   Future<void> _runStickyAutoSync() async {
@@ -188,8 +203,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       if (titleChanged) _titleController.text = note.title;
       setState(() => _note = note);
       if (_isDesktop) {
-        await windowManager
-            .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+        await windowManager.setTitle(_windowTitle(note));
       }
       return;
     }
@@ -208,8 +222,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
       if (titleChanged) _titleController.text = note.title;
       setState(() => _note = note);
       if (_isDesktop) {
-        await windowManager
-            .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+        await windowManager.setTitle(_windowTitle(note));
       }
       return;
     }
@@ -235,8 +248,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
 
     setState(() => _note = note); // Hintergrundfarbe aktualisieren
     if (_isDesktop) {
-      await windowManager
-          .setTitle(note.title.isNotEmpty ? note.title : 'Notiz');
+      await windowManager.setTitle(_windowTitle(note));
     }
   }
 
@@ -255,8 +267,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
             ? _note!.autopoolData
             : _note!.content;
         if (_isDesktop) {
-          final title = _note!.title.isNotEmpty ? _note!.title : 'Notiz';
-          await windowManager.setTitle(title);
+          await windowManager.setTitle(_windowTitle(_note!));
         }
       }
     } catch (e) {
@@ -530,6 +541,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     await _saveNote();
     if (!mounted) return;
     final note = _note!;
+    final l10n = AppLocalizations.of(context)!;
 
     await showModalBottomSheet(
       context: context,
@@ -546,7 +558,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Text(
-                  note.title.isNotEmpty ? note.title : 'Notiz',
+                  _windowTitle(note),
                   style: Theme.of(sheetContext)
                       .textTheme
                       .titleMedium
@@ -560,7 +572,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ListTile(
                 leading: Icon(
                     note.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-                title: Text(note.isPinned ? 'Nicht anheften' : 'Anheften'),
+                title: Text(note.isPinned ? l10n.unpin : l10n.pin),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _togglePin();
@@ -568,8 +580,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.widgets),
-                title: const Text('Widget lösen'),
-                subtitle: const Text('Schließt dieses Fenster'),
+                title: Text(l10n.unpinWidget),
+                subtitle: Text(l10n.stickyClosesWindow),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _unpinWidget();
@@ -577,7 +589,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
-                title: const Text('Farbe'),
+                title: Text(l10n.color),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _pickColor();
@@ -585,7 +597,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('In Ordner verschieben'),
+                title: Text(l10n.moveToFolder),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _moveToFolder();
@@ -593,7 +605,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.print_outlined),
-                title: const Text('Drucken'),
+                title: Text(l10n.printExport),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   showPrintMenu(context, _note ?? note);
@@ -601,7 +613,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.history),
-                title: const Text('Frühere Versionen'),
+                title: Text(l10n.versionHistory),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _showVersions();
@@ -609,7 +621,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.settings_outlined),
-                title: const Text('Einstellungen'),
+                title: Text(l10n.settings),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _openSettings();
@@ -617,7 +629,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.home_outlined),
-                title: const Text('Hauptmenü öffnen'),
+                title: Text(l10n.openMainMenu),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _openMainApp();
@@ -625,7 +637,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.archive_outlined),
-                title: const Text('Archivieren'),
+                title: Text(l10n.archive),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _archiveNote();
@@ -633,8 +645,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outlined, color: Colors.red),
-                title:
-                    const Text('Löschen', style: TextStyle(color: Colors.red)),
+                title: Text(l10n.delete,
+                    style: const TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _confirmDelete();
@@ -648,7 +660,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Erstellt: ${DateFormat('d. MMMM yyyy, HH:mm', 'de').format(note.createdAt)}',
+                      l10n.createdAt(
+                          DateDisplay.long(sheetContext, note.createdAt)),
                       style: Theme.of(sheetContext)
                           .textTheme
                           .bodySmall
@@ -656,7 +669,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Geändert: ${DateFormat('d. MMMM yyyy, HH:mm', 'de').format(note.modifiedAt)}',
+                      l10n.modifiedAt(
+                          DateDisplay.long(sheetContext, note.modifiedAt)),
                       style: Theme.of(sheetContext)
                           .textTheme
                           .bodySmall
@@ -754,20 +768,21 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   }
 
   Future<void> _confirmDelete() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Notiz löschen'),
-        content: const Text('Soll diese Notiz wirklich gelöscht werden?'),
+        title: Text(l10n.deleteNote),
+        content: Text(l10n.deleteNoteConfirm),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen')),
+              child: Text(l10n.cancel)),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Löschen'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -821,6 +836,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     final list = folders.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
 
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -832,19 +848,19 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('In Ordner verschieben',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(l10n.moveToFolder,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.folder_off_outlined),
-              title: const Text('Kein Ordner'),
+              title: Text(l10n.noFolder),
               trailing: note.folder.isEmpty ? const Icon(Icons.check) : null,
               onTap: () => Navigator.pop(ctx, ''),
             ),
@@ -856,11 +872,11 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                 onTap: () => Navigator.pop(ctx, f),
               ),
             if (list.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
+              Padding(
+                padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Noch keine Ordner. Neue Ordner legst du im Hauptfenster an.',
-                  style: TextStyle(color: Colors.grey),
+                  l10n.stickyNoFoldersYet,
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ),
           ],
@@ -874,8 +890,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(selected.isEmpty
-          ? 'Aus Ordner entfernt'
-          : 'Nach „$selected" verschoben'),
+          ? l10n.removedFromFolderSnack
+          : l10n.movedToFolderSnack(selected)),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 2),
     ));
@@ -910,10 +926,10 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Hinweis, wenn nicht bei Drive angemeldet (Sync-Button/Zeit durchgestrichen).
   void _showNotSignedIn() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Nicht bei Google Drive angemeldet'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.notSignedIn),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -960,9 +976,9 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
     }
 
     if (_note == null) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: Text('Notiz nicht gefunden'),
+          child: Text(AppLocalizations.of(context)!.noteNotFound),
         ),
       );
     }
@@ -1024,7 +1040,8 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                             forceStrutHeight: true,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Notiz schreiben...',
+                            hintText:
+                                AppLocalizations.of(context)!.contentHint,
                             hintStyle: TextStyle(
                                 color: _textColor.withValues(alpha: 0.35)),
                             border: InputBorder.none,
@@ -1050,6 +1067,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   // Hauptmenü (rechts). Das Haus-Symbol bewusst ganz rechts, damit die Leiste
   // einheitlich rechtsbündig zu den Aktions-Buttons der übrigen Ansichten ist.
   Widget _buildToolbar() {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       // Rechtsklick auf die Leiste öffnet dasselbe Optionen-Menü wie der
       // ⋮-Knopf. (Im Textfeld selbst bleibt das normale Text-Kontextmenü –
@@ -1060,15 +1078,13 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
         child: Row(
           children: [
             // Rückgängig/Wiederholen (für Text und Autopool-Tabelle).
-            _toolButton(Icons.undo, 'Rückgängig', _canUndo ? _undo : null),
-            _toolButton(Icons.redo, 'Wiederholen', _canRedo ? _redo : null),
+            _toolButton(Icons.undo, l10n.undo, _canUndo ? _undo : null),
+            _toolButton(Icons.redo, l10n.redo, _canRedo ? _redo : null),
             const Spacer(),
             // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
             // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.
             Tooltip(
-              message: _isSignedIn
-                  ? 'Synchronisieren'
-                  : 'Nicht bei Google Drive angemeldet',
+              message: _isSignedIn ? l10n.sync : l10n.notSignedIn,
               child: InkWell(
                 borderRadius: BorderRadius.circular(6),
                 onTap: _syncing
@@ -1078,7 +1094,7 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                   child: Text(
-                    DateFormat('d.M. HH:mm').format(_note!.modifiedAt),
+                    DateDisplay.shortDayTime(context, _note!.modifiedAt),
                     style: TextStyle(
                       fontSize: 13,
                       color: _textColor.withValues(alpha: 0.6),
@@ -1092,10 +1108,10 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
             const SizedBox(width: 2),
             _buildSyncButton(),
             // Hauptmenü (öffnet die Hauptapp-Notizliste).
-            _toolButton(Icons.home_outlined, 'Hauptmenü öffnen', _openMainApp),
+            _toolButton(Icons.home_outlined, l10n.openMainMenu, _openMainApp),
             // Alle weiteren Aktionen (wie das Dreipunkte-Menü im Editor):
             // Farbe, Ordner, Drucken, Archivieren, Löschen, Einstellungen …
-            _toolButton(Icons.more_vert, 'Weitere Optionen', _showMoreOptions),
+            _toolButton(Icons.more_vert, l10n.moreOptions, _showMoreOptions),
           ],
         ),
       ),
@@ -1118,13 +1134,13 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
   }
 
   Widget _buildSyncButton() {
+    final l10n = AppLocalizations.of(context)!;
     return IconButton(
       iconSize: 22,
       padding: const EdgeInsets.all(6),
       visualDensity: VisualDensity.compact,
       constraints: const BoxConstraints(),
-      tooltip:
-          _isSignedIn ? 'Synchronisieren' : 'Nicht bei Google Drive angemeldet',
+      tooltip: _isSignedIn ? l10n.sync : l10n.notSignedIn,
       onPressed: _syncing ? null : (_isSignedIn ? _syncNow : _showNotSignedIn),
       icon: _syncing
           ? SizedBox(

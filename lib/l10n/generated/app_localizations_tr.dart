@@ -181,6 +181,30 @@ class AppLocalizationsTr extends AppLocalizations {
   String get unpinWidget => 'Widget sabitlemesini kaldır';
 
   @override
+  String get stickyClosesWindow => 'Bu pencereyi kapatır';
+
+  @override
+  String get openMainMenu => 'Ana menüyü aç';
+
+  @override
+  String get moreOptions => 'Diğer seçenekler';
+
+  @override
+  String get noteNotFound => 'Not bulunamadı';
+
+  @override
+  String get stickyNoFoldersYet =>
+      'Henüz klasör yok. Yeni klasörleri ana pencerede oluşturabilirsiniz.';
+
+  @override
+  String movedToFolderSnack(String folder) {
+    return '“$folder” klasörüne taşındı';
+  }
+
+  @override
+  String get chooseColor => 'Renk seç';
+
+  @override
   String get syncNow => 'Şimdi eşitle';
 
   @override
