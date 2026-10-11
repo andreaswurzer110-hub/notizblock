@@ -49,7 +49,8 @@ Bunte Notizen und Notizzettel direkt auf dem Desktop – mit Ordnern, Einkaufsli
 ## Neuigkeiten in dieser Version (max. 1.500 Zeichen)
 
 ```
-• Tabellen-Notizen: Zeilen lassen sich jetzt mit einem Klick duplizieren
+• Notizzettel sprechen jetzt deine Sprache: Menüs, Einkaufsliste und Datum folgen der eingestellten App-Sprache
+• Neu unter „Über“: „Entwicklung unterstützen“ – freiwillig, es wird nichts freigeschaltet
 • Kleinere Verbesserungen und Fehlerbehebungen
 ```
 
@@ -188,7 +189,8 @@ Colorful notes and sticky notes right on your desktop – with folders, shopping
 ## What's new in this version
 
 ```
-• Table notes: duplicate a row with one click
+• Sticky notes now speak your language: menus, shopping lists and dates follow the app language
+• New under “About”: “Support development” – voluntary, nothing gets unlocked
 • Minor improvements and bug fixes
 ```
 
