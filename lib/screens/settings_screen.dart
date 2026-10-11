@@ -270,14 +270,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(l10n.creator),
             subtitle: const Text('Andreas Wurzer'),
           ),
-          // Entwicklung unterstützen – nur Android, über Google Play Billing
-          // (warum kein PayPal-Link: siehe SupportService).
-          if (SupportService.instance.isAvailableOnPlatform)
+          // Entwicklung unterstützen: Android über Google Play Billing (Dialog
+          // mit Beträgen), Desktop per Ko-fi-Link im Browser. Auf Android NIE
+          // den Link – Play verbietet ihn (siehe SupportService).
+          if (SupportService.instance.usesPlayBilling)
             ListTile(
               leading: const Icon(Icons.favorite_outline),
               title: Text(l10n.supportDevelopment),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _showSupportDialog(l10n),
+            )
+          else
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: Text(l10n.supportDevelopment),
+              subtitle: const Text('Ko-fi'),
+              onTap: _openSupportLink,
             ),
           // Genutzte Werkzeuge
           ListTile(
@@ -409,6 +417,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  // Desktop: Ko-fi-Seite im Browser öffnen; klappt das nicht, den Link als
+  // Hinweis einblenden (zum Abschreiben) – wie bei der Feedback-Mail.
+  Future<void> _openSupportLink() async {
+    var opened = false;
+    try {
+      opened = await launchUrl(
+        Uri.parse(SupportService.desktopUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(SupportService.desktopUrl),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // Mailprogramm mit der Feedback-Adresse öffnen; klappt das nicht, die Adresse

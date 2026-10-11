@@ -8,13 +8,16 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 /// Ergebnis eines Unterstützungs-Kaufs aus Sicht der Oberfläche.
 enum SupportResult { thanks, pending, canceled, failed }
 
-/// „Entwicklung unterstützen" – freiwilliger Betrag über Google Play Billing.
+/// „Entwicklung unterstützen" – freiwilliger Betrag.
 ///
-/// Nur Android: Google Play verbietet Links zu PayPal & Co. für Zahlungen an
-/// den Entwickler (Zahlungsrichtlinie – Apps wurden dafür schon entfernt), der
-/// zulässige Weg ist ein In-App-Kauf über Play. Die Produkte schalten nichts
-/// frei und sind Verbrauchsartikel (consumable), damit man auch mehrmals
-/// unterstützen kann.
+/// Android: über Google Play Billing. Google Play verbietet Links zu PayPal,
+/// Ko-fi & Co. für Zahlungen an den Entwickler (Zahlungsrichtlinie – Apps
+/// wurden dafür schon entfernt), der zulässige Weg ist ein In-App-Kauf über
+/// Play. Die Produkte schalten nichts frei und sind Verbrauchsartikel
+/// (consumable), damit man auch mehrmals unterstützen kann.
+///
+/// Windows/Linux: nur ein Link auf [desktopUrl] (Microsoft Store und Snap
+/// Store erlauben das bei Apps, die keine Spiele sind). NIE auf Android zeigen.
 ///
 /// Voraussetzung in der Play Console: Händlerkonto + unter „Monetarisieren →
 /// In-App-Produkte" genau die [productIds] angelegt und aktiv (Preise legt die
@@ -30,7 +33,9 @@ class SupportService {
     'support_large',
   };
 
-  bool get isAvailableOnPlatform => Platform.isAndroid;
+  static const String desktopUrl = 'https://ko-fi.com/andreaswurzer';
+
+  bool get usesPlayBilling => Platform.isAndroid;
 
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   Completer<SupportResult>? _waiting;
@@ -48,7 +53,7 @@ class SupportService {
   /// Verfügbare Beträge, aufsteigend nach Preis. Leer, wenn Play nicht
   /// erreichbar ist oder die Produkte (noch) nicht angelegt sind.
   Future<List<ProductDetails>> loadProducts() async {
-    if (!isAvailableOnPlatform) return const [];
+    if (!usesPlayBilling) return const [];
     try {
       final iap = InAppPurchase.instance;
       if (!await iap.isAvailable()) return const [];
@@ -119,7 +124,7 @@ class SupportService {
   /// Google den Betrag nach 3 Tagen zurück, und derselbe Betrag ließe sich bis
   /// dahin nicht erneut wählen. Läuft beim App-Start (nach dem ersten Frame).
   Future<void> finishOpenPurchases() async {
-    if (!isAvailableOnPlatform) return;
+    if (!usesPlayBilling) return;
     try {
       final iap = InAppPurchase.instance;
       if (!await iap.isAvailable()) return;

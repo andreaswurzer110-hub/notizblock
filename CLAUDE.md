@@ -104,7 +104,7 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
   (`lib/services/support_service.dart`). **Kein PayPal-/Ko-fi-Link auf Android** – Play
   verbietet externe Zahlungen an den Entwickler (WireGuard, AnkiDroid u. a. deswegen
-  beanstandet). Desktop zeigt die Zeile noch nicht (Link-Anbieter offen). Vor dem
+  beanstandet). Windows/Linux: Link auf `ko-fi.com/andreaswurzer` im Browser. Vor dem
   Release in der Play Console: (1) Zahlungsprofil/Händlerkonto, (2) EU-Händlerstatus
   (Adresse + Telefon werden öffentlich – Andi holt eigene SIM), (3) AAB mit der neuen
   BILLING-Berechtigung in den internen Test laden, (4) In-App-Produkte
