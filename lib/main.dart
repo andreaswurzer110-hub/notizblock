@@ -19,6 +19,7 @@ import 'services/settings_store.dart';
 import 'services/prefs_repair_service.dart';
 import 'services/autostart_service.dart';
 import 'services/restart_on_update_service.dart';
+import 'services/support_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/note_editor_screen.dart';
 import 'screens/autopool_editor_screen.dart';
@@ -363,6 +364,9 @@ class _NotizblockAppState extends State<NotizblockApp>
     // Navigator-/Provider-Ebene steht erst nach dem ersten Frame).
     if (Platform.isAndroid) {
       await _checkSharedText();
+      // Liegengebliebene „Entwicklung unterstützen"-Käufe abschließen (sonst
+      // erstattet Google sie nach 3 Tagen). Ohne Warten, blockiert nichts.
+      unawaited(SupportService.instance.finishOpenPurchases());
     }
     // Kaltstart per Ordner-Widget: den gewählten Ordner in der Notizliste
     // vorselektieren (HomeScreen ist bereits gebaut -> NotesProvider existiert).

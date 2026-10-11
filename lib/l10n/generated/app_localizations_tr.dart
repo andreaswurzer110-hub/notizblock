@@ -441,6 +441,26 @@ class AppLocalizationsTr extends AppLocalizations {
   String get feedback => 'Geri bildirim ve sorular';
 
   @override
+  String get supportDevelopment => 'Geliştirmeyi destekle';
+
+  @override
+  String get supportDevelopmentText =>
+      'Notizblock ücretsiz ve reklamsızdır. Uygulamayı beğendiyseniz, gönüllü bir miktarla geliştirilmesine destek olabilirsiniz. Hiçbir şeyin kilidi açılmaz – bu yalnızca bir teşekkürdür.';
+
+  @override
+  String get supportThanks => 'Desteğiniz için çok teşekkürler!';
+
+  @override
+  String get supportPending => 'Ödeme hâlâ işleniyor. Çok teşekkürler!';
+
+  @override
+  String get supportUnavailable =>
+      'Şu anda destek olmak mümkün değil. Lütfen daha sonra tekrar deneyin.';
+
+  @override
+  String get supportFailed => 'Ödeme gerçekleşmedi.';
+
+  @override
   String get close => 'Kapat';
 
   @override

@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/google_drive_service.dart';
 import '../services/autostart_service.dart';
+import '../services/support_service.dart';
 import '../providers/notes_provider.dart';
 import '../widgets/color_picker.dart';
 import '../widgets/sheet_body.dart';
 import 'archive_screen.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:in_app_purchase/in_app_purchase.dart' show ProductDetails;
 import '../app_info.dart';
 import '../utils/date_display.dart';
 
@@ -268,6 +270,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(l10n.creator),
             subtitle: const Text('Andreas Wurzer'),
           ),
+          // Entwicklung unterstützen – nur Android, über Google Play Billing
+          // (warum kein PayPal-Link: siehe SupportService).
+          if (SupportService.instance.isAvailableOnPlatform)
+            ListTile(
+              leading: const Icon(Icons.favorite_outline),
+              title: Text(l10n.supportDevelopment),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showSupportDialog(l10n),
+            ),
           // Genutzte Werkzeuge
           ListTile(
             leading: const Icon(Icons.build_outlined),
@@ -328,6 +339,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // „Entwicklung unterstützen": Beträge samt Preisen aus Google Play laden und
+  // zur Auswahl anbieten. Ein Tipp schließt den Dialog und startet den Kauf.
+  void _showSupportDialog(AppLocalizations l10n) {
+    final products = SupportService.instance.loadProducts();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(l10n.supportDevelopment),
+        content: DialogBody(
+          child: FutureBuilder<List<ProductDetails>>(
+            future: products,
+            builder: (context, snapshot) {
+              final children = <Widget>[
+                Text(l10n.supportDevelopmentText),
+                const SizedBox(height: 16),
+              ];
+              if (snapshot.connectionState != ConnectionState.done) {
+                children.add(const Center(child: CircularProgressIndicator()));
+              } else if (snapshot.data?.isNotEmpty != true) {
+                children.add(Text(l10n.supportUnavailable));
+              } else {
+                for (final product in snapshot.data!) {
+                  children.add(Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: FilledButton.tonalIcon(
+                      icon: const Icon(Icons.favorite_outline),
+                      label: Text(product.price),
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _buySupport(product, l10n);
+                      },
+                    ),
+                  ));
+                }
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.close),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _buySupport(ProductDetails product, AppLocalizations l10n) async {
+    final result = await SupportService.instance.buy(product);
+    if (!mounted) return;
+    final message = switch (result) {
+      SupportResult.thanks => l10n.supportThanks,
+      SupportResult.pending => l10n.supportPending,
+      SupportResult.failed => l10n.supportFailed,
+      SupportResult.canceled => null,
+    };
+    if (message == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 

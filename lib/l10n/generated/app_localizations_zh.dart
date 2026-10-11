@@ -435,6 +435,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get feedback => '反馈与提问';
 
   @override
+  String get supportDevelopment => '支持开发';
+
+  @override
+  String get supportDevelopmentText =>
+      'Notizblock 免费且无广告。如果你喜欢这个应用，可以自愿支付任意金额来支持后续开发。不会解锁任何功能——这只是一份心意。';
+
+  @override
+  String get supportThanks => '非常感谢你的支持！';
+
+  @override
+  String get supportPending => '付款仍在处理中。非常感谢！';
+
+  @override
+  String get supportUnavailable => '目前无法进行支持。请稍后再试。';
+
+  @override
+  String get supportFailed => '付款未成功。';
+
+  @override
   String get close => '关闭';
 
   @override

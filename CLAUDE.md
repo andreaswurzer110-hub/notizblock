@@ -100,6 +100,18 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
+- **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
+  (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
+  (`lib/services/support_service.dart`). **Kein PayPal-/Ko-fi-Link auf Android** – Play
+  verbietet externe Zahlungen an den Entwickler (WireGuard, AnkiDroid u. a. deswegen
+  beanstandet). Desktop zeigt die Zeile noch nicht (Link-Anbieter offen). Vor dem
+  Release in der Play Console: (1) Zahlungsprofil/Händlerkonto, (2) EU-Händlerstatus
+  (Adresse + Telefon werden öffentlich – Andi holt eigene SIM), (3) AAB mit der neuen
+  BILLING-Berechtigung in den internen Test laden, (4) In-App-Produkte
+  `support_small`/`support_medium`/`support_large` anlegen + aktivieren, (5) mit
+  Lizenztester kaufen (wird nicht abgebucht). Ohne Produkte meldet der Dialog nur
+  „gerade nicht möglich".
+
 - **Notizzettel-Fenster (Desktop) folgen nicht der App-Sprache** (bemerkt 2026-10-06
   bei den englischen MS-Store-Bildern): `StickyNoteApp` in `lib/main.dart` hat
   `locale: const Locale('de')` fest, dazu hartkodierte deutsche Texte im

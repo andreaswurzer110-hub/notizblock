@@ -440,6 +440,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedback => 'Feedback & questions';
 
   @override
+  String get supportDevelopment => 'Support development';
+
+  @override
+  String get supportDevelopmentText =>
+      'Notizblock is free and ad-free. If you like the app, you can support its further development with a voluntary amount. Nothing gets unlocked – it’s simply a thank-you.';
+
+  @override
+  String get supportThanks => 'Thank you very much for your support!';
+
+  @override
+  String get supportPending =>
+      'The payment is still being processed. Thank you!';
+
+  @override
+  String get supportUnavailable =>
+      'Supporting is not possible right now. Please try again later.';
+
+  @override
+  String get supportFailed => 'The payment did not go through.';
+
+  @override
   String get close => 'Close';
 
   @override

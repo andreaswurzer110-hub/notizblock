@@ -442,6 +442,27 @@ class AppLocalizationsNl extends AppLocalizations {
   String get feedback => 'Feedback en vragen';
 
   @override
+  String get supportDevelopment => 'Ontwikkeling steunen';
+
+  @override
+  String get supportDevelopmentText =>
+      'Notizblock is gratis en zonder advertenties. Vind je de app fijn, dan kun je de verdere ontwikkeling steunen met een vrijwillig bedrag. Er wordt niets ontgrendeld – het is gewoon een bedankje.';
+
+  @override
+  String get supportThanks => 'Hartelijk dank voor je steun!';
+
+  @override
+  String get supportPending =>
+      'De betaling wordt nog verwerkt. Hartelijk dank!';
+
+  @override
+  String get supportUnavailable =>
+      'Steunen is op dit moment niet mogelijk. Probeer het later opnieuw.';
+
+  @override
+  String get supportFailed => 'De betaling is niet gelukt.';
+
+  @override
   String get close => 'Sluiten';
 
   @override

@@ -441,6 +441,27 @@ class AppLocalizationsPt extends AppLocalizations {
   String get feedback => 'Comentários e dúvidas';
 
   @override
+  String get supportDevelopment => 'Apoiar o desenvolvimento';
+
+  @override
+  String get supportDevelopmentText =>
+      'O Notizblock é gratuito e sem anúncios. Se você gosta do app, pode apoiar o desenvolvimento com um valor voluntário. Nada é desbloqueado – é simplesmente um agradecimento.';
+
+  @override
+  String get supportThanks => 'Muito obrigado pelo seu apoio!';
+
+  @override
+  String get supportPending =>
+      'O pagamento ainda está sendo processado. Muito obrigado!';
+
+  @override
+  String get supportUnavailable =>
+      'No momento não é possível apoiar. Tente novamente mais tarde.';
+
+  @override
+  String get supportFailed => 'O pagamento não foi concluído.';
+
+  @override
   String get close => 'Fechar';
 
   @override

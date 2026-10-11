@@ -924,6 +924,42 @@ abstract class AppLocalizations {
   /// **'Feedback und Fragen'**
   String get feedback;
 
+  /// No description provided for @supportDevelopment.
+  ///
+  /// In de, this message translates to:
+  /// **'Entwicklung unterstützen'**
+  String get supportDevelopment;
+
+  /// No description provided for @supportDevelopmentText.
+  ///
+  /// In de, this message translates to:
+  /// **'Notizblock ist kostenlos und werbefrei. Wenn dir die App gefällt, kannst du die Weiterentwicklung mit einem freiwilligen Betrag unterstützen. Es wird nichts freigeschaltet – es ist ein reines Dankeschön.'**
+  String get supportDevelopmentText;
+
+  /// No description provided for @supportThanks.
+  ///
+  /// In de, this message translates to:
+  /// **'Vielen Dank für deine Unterstützung!'**
+  String get supportThanks;
+
+  /// No description provided for @supportPending.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Zahlung wird noch bearbeitet. Vielen Dank!'**
+  String get supportPending;
+
+  /// No description provided for @supportUnavailable.
+  ///
+  /// In de, this message translates to:
+  /// **'Unterstützen ist gerade nicht möglich. Bitte versuche es später noch einmal.'**
+  String get supportUnavailable;
+
+  /// No description provided for @supportFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Zahlung hat nicht geklappt.'**
+  String get supportFailed;
+
   /// No description provided for @close.
   ///
   /// In de, this message translates to:

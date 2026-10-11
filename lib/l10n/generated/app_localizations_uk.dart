@@ -440,6 +440,26 @@ class AppLocalizationsUk extends AppLocalizations {
   String get feedback => 'Відгуки та запитання';
 
   @override
+  String get supportDevelopment => 'Підтримати розробку';
+
+  @override
+  String get supportDevelopmentText =>
+      'Notizblock безкоштовний і без реклами. Якщо застосунок вам подобається, ви можете підтримати його розвиток добровільною сумою. Нічого не розблоковується – це просто подяка.';
+
+  @override
+  String get supportThanks => 'Щиро дякуємо за підтримку!';
+
+  @override
+  String get supportPending => 'Платіж ще обробляється. Щиро дякуємо!';
+
+  @override
+  String get supportUnavailable =>
+      'Зараз підтримати розробку неможливо. Спробуйте пізніше.';
+
+  @override
+  String get supportFailed => 'Платіж не вдався.';
+
+  @override
   String get close => 'Закрити';
 
   @override
