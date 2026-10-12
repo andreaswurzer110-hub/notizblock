@@ -113,11 +113,16 @@ Hintergrundbild gesetzt. Bildunterschriften (je max. 200 Zeichen):
 | `windows_en_2.png` | Organized in folders |
 | `windows_en_3.png` | Find anything fast |
 | `windows_en_4.png` | Light or dark |
+| `windows_en_5.png` | Shopping lists to check off |
 
-Kein englisches Einkaufslisten-Bild: Die Notizzettel-Fenster sind fest auf
-Deutsch (`StickyNoteApp`, `locale: de`) – ein Einkaufszettel zeigte im
-englischen Bild „Artikel hinzufügen“/„Erledigt“. Englische Verse: King James
-Version (gemeinfrei), Wortlaut gegen getbible.net `kjv` geprüft.
+`windows_en_5.png` kam erst mit 1.32.0 dazu (2026-10-12): Vorher waren die
+Notizzettel-Fenster fest auf Deutsch – ein Einkaufszettel zeigte im englischen
+Bild „Artikel hinzufügen“/„Erledigt“. Der Notizzettel wurde neu aus einer
+1.32.0-Vorführ-Kopie geholt. Das Hauptfenster stammt aus derselben Szene vom
+2026-10-06, damit es wie in den anderen Bildern Uhrzeiten statt „Tuesday“
+zeigt. Im Partner Center als drittes englisches Bild einreihen, wie das
+deutsche `windows_3.png`. Englische Verse: King James Version (gemeinfrei),
+Wortlaut gegen getbible.net `kjv` geprüft.
 
 **So entstanden:** Projektkopie im Scratchpad, darin NUR `CompanyName` in
 `windows/runner/Runner.rc` auf `notizblock-demo` geändert → path_provider legt
@@ -143,6 +148,10 @@ echten App reparierte die Verknüpfung (`_repairForeignShortcut`). **Nächstes
 Mal:** in der Kopie zusätzlich `refreshShortcutIfNeeded` sofort `return`en
 lassen – und danach prüfen, dass die Verknüpfung auf
 `AW.NotizblockAW_…!notizblock` (AppsFolder, ohne Datei-Ziel) zeigt.
+**So gemacht am 2026-10-12** (`refreshShortcutIfNeeded` und `_enableWindows`
+in der Kopie mit `return;` stillgelegt): Die Verknüpfung blieb unberührt.
+Das Aufnahme-Skript (`winfoto.ps1`) braucht Windows PowerShell 5.1
+(`powershell.exe -File …`), unter pwsh fehlt `System.Drawing.Bitmap`.
 
 ---
 

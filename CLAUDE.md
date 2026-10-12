@@ -117,8 +117,9 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   (2026-10-11): `stickyLocale` in `sticky_note_screen.dart` liest die Sprache aus
   `settings.json` (vor runApp + bei jedem Abgleich, Sprachwechsel greift live),
   alle Sticky-Texte über l10n, Datum über `DateDisplay`. Unter Linux/Xvfb
-  geprüft (en/fr). **Nach dem Release:** das fehlende 5. englische MS-Store-Bild
-  (Einkaufsliste als Notizzettel) nachreichen, Weg in `docs/ms-store-eintrag.md`.
+  geprüft (en/fr). Das 5. englische MS-Store-Bild (Einkaufsliste als
+  Notizzettel) ist gemacht: `store/windows/en/windows_en_5.png` (2026-10-12).
+  Andi lädt es mit der 1.32.0-MSIX im Partner Center hoch.
 
 - **Linux/Snap: „In Datei drucken" über den System-Druckdialog scheitert** (gemeldet
   von Andi am 2026-08-23 auf Zorin, Snap-Build). Symptom: Der GTK-Speichern-Dialog
