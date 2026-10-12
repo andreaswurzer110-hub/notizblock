@@ -112,6 +112,14 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   `support_small`/`support_medium`/`support_large` anlegen + aktivieren, (5) mit
   Lizenztester kaufen (wird nicht abgebucht). Ohne Produkte meldet der Dialog nur
   „gerade nicht möglich".
+  **Stand 2026-10-12:** (1) Zahlungsprofil besteht, (3) AAB 1.32.0 im internen
+  Test, (4) alle drei Produkte aktiv (Play Console → Notizblock → Mit Google Play
+  monetarisieren → Produkte → **Einmalkaufprodukte**; Kaufoption `kaufen`,
+  „Abwärtskompatibel“, 174 Länder, de + en-US): 1,99 / 4,99 / 9,99 € in AT/DE.
+  **Falle:** Der Bulk-Preis wird als NETTO genommen (1,99 → 2,39 € in AT) –
+  deshalb 1,65 / 4,16 / 8,33 eingegeben. Lizenztester = Liste „Intern Tester nur
+  Ich“. Offen: (2) EU-Händlerstatus nicht geprüft, (5) Testkauf durch Andi
+  (App aus dem internen Test über Play installieren), danach erst Produktion.
 
 - **Notizzettel-Fenster folgen jetzt der App-Sprache – erledigt im Code für 1.32.0**
   (2026-10-11): `stickyLocale` in `sticky_note_screen.dart` liest die Sprache aus
