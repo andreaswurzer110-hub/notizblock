@@ -4,6 +4,7 @@ import '../models/note.dart';
 import '../models/shopping_list.dart';
 import '../utils/date_display.dart';
 import '../utils/steuerzeichen.dart';
+import 'text_scale.dart';
 
 class NoteCard extends StatelessWidget {
   final Note note;
@@ -101,7 +102,8 @@ class NoteCard extends StatelessWidget {
 
               // Titel
               if (note.title.isNotEmpty) ...[
-                Text(
+                // Lange Wörter („Telefonnummern“) nicht mitten drin trennen.
+                WordSafeText(
                   note.title,
                   style: TextStyle(
                     fontSize: isCompact ? 14 : 16,

@@ -27,6 +27,7 @@ import 'screens/sticky_note_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/share_import.dart';
 import 'utils/steuerzeichen.dart';
+import 'widgets/text_scale.dart';
 
 bool get _isDesktop =>
     Platform.isWindows || Platform.isLinux || Platform.isMacOS;
@@ -273,6 +274,9 @@ class StickyNoteApp extends StatelessWidget {
         locale: locale,
         supportedLocales: SettingsProvider.supportedLocales,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
+        // Große Systemschrift (Windows-Textgröße) höchstens 1,5-fach.
+        builder: (context, child) => MediaQuery.withClampedTextScaling(
+            maxScaleFactor: maxTextScale, child: child!),
         home: StickyNoteScreen(noteId: noteId),
       ),
     );
@@ -526,6 +530,10 @@ class _NotizblockAppState extends State<NotizblockApp>
             themeMode: settings.themeMode,
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
+            // Große Systemschrift („ganz groß“ am Handy) höchstens 1,5-fach –
+            // darüber passen Leisten und Kartentitel nicht mehr.
+            builder: (context, child) => MediaQuery.withClampedTextScaling(
+                maxScaleFactor: maxTextScale, child: child!),
             // Kaltstart per Widget: Editor ist direkt die erste Seite (kein
             // Flackern). Sonst normale Notizliste.
             home: widget.initialNote != null

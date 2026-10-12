@@ -472,11 +472,13 @@ class ShoppingListViewState extends State<ShoppingListView> {
     final sortable =
         _items.where((i) => i.controller.text.trim().isNotEmpty).length > 1;
     return Row(
+      // spaceBetween statt Spacer: Der Knopf darf die ganze Breite nutzen (mit
+      // Spacer bekam er nur die Hälfte → „Artikel hi…“ bei großer Schrift).
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Flexible + Ellipse: im schmalen Sticky-Fenster wird die Beschriftung
-        // gekürzt, statt die Zeile überlaufen zu lassen.
+        // Flexible: im schmalen Sticky-Fenster wird die Beschriftung kleiner,
+        // statt die Zeile überlaufen zu lassen.
         Flexible(child: _addButton(l)),
-        const Spacer(),
         if (sortable)
           IconButton(
             icon: const Icon(Icons.sort_by_alpha),
@@ -501,12 +503,15 @@ class ShoppingListViewState extends State<ShoppingListView> {
           children: [
             Icon(Icons.add, size: 20, color: _tc),
             const SizedBox(width: 8),
+            // Lieber etwas kleiner als „Artikel …“.
             Flexible(
-              child: Text(
-                l.shoppingAddItem,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: _tc, fontWeight: FontWeight.w500),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  l.shoppingAddItem,
+                  softWrap: false,
+                  style: TextStyle(color: _tc, fontWeight: FontWeight.w500),
+                ),
               ),
             ),
           ],

@@ -1080,26 +1080,37 @@ class _StickyNoteScreenState extends State<StickyNoteScreen>
             // Rückgängig/Wiederholen (für Text und Autopool-Tabelle).
             _toolButton(Icons.undo, l10n.undo, _canUndo ? _undo : null),
             _toolButton(Icons.redo, l10n.redo, _canRedo ? _redo : null),
-            const Spacer(),
             // Zeit-Anzeige ist zugleich Sync-Auslöser (wie der Sync-Button rechts).
             // Nicht angemeldet -> durchgestrichen + Hinweis statt Sync.
-            Tooltip(
-              message: _isSignedIn ? l10n.sync : l10n.notSignedIn,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(6),
-                onTap: _syncing
-                    ? null
-                    : (_isSignedIn ? _syncNow : _showNotSignedIn),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Text(
-                    DateDisplay.shortDayTime(context, _note!.modifiedAt),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: _textColor.withValues(alpha: 0.6),
-                      decoration:
-                          _isSignedIn ? null : TextDecoration.lineThrough,
+            // Nimmt den freien Platz und wird bei großer Systemschrift kleiner,
+            // statt den ⋮-Knopf aus dem schmalen Fenster zu schieben.
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Tooltip(
+                  message: _isSignedIn ? l10n.sync : l10n.notSignedIn,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: _syncing
+                        ? null
+                        : (_isSignedIn ? _syncNow : _showNotSignedIn),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 4),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          DateDisplay.shortDayTime(
+                              context, _note!.modifiedAt),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _textColor.withValues(alpha: 0.6),
+                            decoration: _isSignedIn
+                                ? null
+                                : TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
