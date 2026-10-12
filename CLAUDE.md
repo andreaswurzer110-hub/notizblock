@@ -121,7 +121,12 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   Ich“. (5) Testkauf durch Andi hat funktioniert (2026-10-12). Offen: (2)
   EU-Händlerstatus (in der Console nicht gefunden, Richtlinienstatus ohne
   Probleme; Play-Eintrag zeigt Name/E-Mail/Adresse, keine Telefonnummer),
-  15-%-Servicegebühr anmelden (Zahlungsprofil → Kontogruppe), dann Produktion.
+  15-%-Servicegebühr: von Andi angemeldet (2026-10-12).
+  **ACHTUNG Adresse:** Sobald ein privates Konto über Play Geld verdient, zeigt
+  Google die volle Anschrift aus dem Zahlungsprofil öffentlich im Store-Eintrag
+  („App-Support“ → „Informationen zum Entwickler“). Andi will das nicht und
+  sieht sich nicht als Händler (Hobby). Entscheidung offen, ob die Play-Käufe
+  bleiben – bis dahin 1.32.0 auf Android NICHT in Produktion.
 
 - **Notizzettel-Fenster folgen jetzt der App-Sprache – erledigt im Code für 1.32.0**
   (2026-10-11): `stickyLocale` in `sticky_note_screen.dart` liest die Sprache aus
