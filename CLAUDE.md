@@ -118,8 +118,10 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   „Abwärtskompatibel“, 174 Länder, de + en-US): 1,99 / 4,99 / 9,99 € in AT/DE.
   **Falle:** Der Bulk-Preis wird als NETTO genommen (1,99 → 2,39 € in AT) –
   deshalb 1,65 / 4,16 / 8,33 eingegeben. Lizenztester = Liste „Intern Tester nur
-  Ich“. Offen: (2) EU-Händlerstatus nicht geprüft, (5) Testkauf durch Andi
-  (App aus dem internen Test über Play installieren), danach erst Produktion.
+  Ich“. (5) Testkauf durch Andi hat funktioniert (2026-10-12). Offen: (2)
+  EU-Händlerstatus (in der Console nicht gefunden, Richtlinienstatus ohne
+  Probleme; Play-Eintrag zeigt Name/E-Mail/Adresse, keine Telefonnummer),
+  15-%-Servicegebühr anmelden (Zahlungsprofil → Kontogruppe), dann Produktion.
 
 - **Notizzettel-Fenster folgen jetzt der App-Sprache – erledigt im Code für 1.32.0**
   (2026-10-11): `stickyLocale` in `sticky_note_screen.dart` liest die Sprache aus
