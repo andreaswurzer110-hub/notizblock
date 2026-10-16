@@ -102,6 +102,27 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
+- **Autopool „Scannen" (Android) – Code fertig, am Gerät noch NICHT getestet**
+  (2026-10-16, Cloud-Session; Branch `ccr-4bcee58f-i14glo`, PR an `main`; die passende
+  Datenschutz-Änderung liegt als PR im Repo `notizblock-privacy`). Button „Scannen"
+  neben „Zeile hinzufügen" → Kamera → Serien- und Inventarnummer per Barcode → neue
+  Zeile. Details + Schutzmechanismen: `docs/archiv/stolpersteine.md`, Eintrag
+  „Autopool Scannen". In der Cloud nur über `test/autopool_scan_test.dart` (Fake-Kamera)
+  geprüft – ein Android-Build war dort nicht möglich (kein SDK, `dl.google.com`
+  gesperrt). **Offen, in dieser Reihenfolge:**
+  (1) Branch auschecken, `flutter pub get`, `flutter build apk --debug` – baut es mit
+  `mobile_scanner` 7.4.2 (AGP 8.11.1, Kotlin 2.2.20, minSdk 24)?
+  (2) Am Handy testen: Berechtigung erlauben UND verweigern, echte Typenschilder/
+  Inventaretiketten (Code 128, QR, DataMatrix), Taschenlampe, App in den Hintergrund
+  und zurück, große Systemschrift, neue leere Notiz → Scan füllt die erste Zeile.
+  (3) Entscheidung Andi: ML Kit schickt laut Google Diagnosedaten (Geräte-/App-Infos,
+  Leistungswerte) an Google. Entweder so lassen (Datenschutzerklärung ist schon
+  angepasst; Play Console → „Datensicherheit" prüfen) oder auf einen Google-freien
+  zxing-Scanner umstellen (etwas weniger robust bei unscharfen/schrägen Codes).
+  (4) Neue Funktion = nächste Minor für alle Plattformen (nach 1.32.0 also 1.33.0,
+  `+13300`), Release-Notes. (5) Datenschutz-PR erst zum Release mergen – GitHub Pages
+  veröffentlicht `master` sofort.
+
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
   (`lib/services/support_service.dart`). **Kein PayPal-/Ko-fi-Link auf Android** – Play
