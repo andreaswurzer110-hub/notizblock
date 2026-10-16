@@ -112,16 +112,12 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   (Test + Emulator mit `font_scale 2.0`), Release-Build x64 im Emulator: Scanner öffnet
   die Kamera, ML Kit lädt, kein Absturz (R8). **Release:** 1.33.0 (`+13300`) nur für
   Android (Scan-Knopf gibt es nur dort), Tag `v1.33.0.0`, Play intern am 2026-10-16.
-  Windows/Linux bleiben auf 1.32.0. **Offen:**
-  (1) Am Handy testen: Berechtigung erlauben UND verweigern, echte Typenschilder/
-  Inventaretiketten (Code 128, QR, DataMatrix), Taschenlampe, App in den Hintergrund
-  und zurück, neue leere Notiz → Scan füllt die erste Zeile.
-  (2) Entscheidung Andi: ML Kit schickt laut Google Diagnosedaten (Geräte-/App-Infos,
-  Leistungswerte) an Google. Entweder so lassen (Datenschutzerklärung ist schon
-  angepasst; Play Console → „Datensicherheit" prüfen) oder auf einen Google-freien
-  zxing-Scanner umstellen (etwas weniger robust bei unscharfen/schrägen Codes).
-  (3) Datenschutz-PR im Repo `notizblock-privacy` erst zur Produktion mergen – GitHub
-  Pages veröffentlicht `master` sofort.
+  Windows/Linux bleiben auf 1.32.0. Andi hat 1.33.0 am Handy getestet: „funktioniert
+  grundsätzlich". Daraus **1.33.1:** „Scannen" auch im Zeilen-Kontextmenü – überschreibt
+  Nummern + Datum dieser Zeile (Duplizieren → Scannen), dazu brechen die Autopool-Menüs
+  bei großer Schrift um. **ML Kit bleibt** (Andi 2026-10-16: Diagnosedaten an Google
+  sind ihm egal), Datenschutzerklärung am 2026-10-16 veröffentlicht. **Offen:** Play
+  Console → „Datensicherheit" an ML Kit anpassen (Andi, von Hand).
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing

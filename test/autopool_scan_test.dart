@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -91,6 +92,91 @@ void main() {
       expect(DateDisplay.date(ctx, DateTime(2027, 1, 6)), expected[1]);
     });
   }
+
+  group('Zeilenmenü „Scannen“ überschreibt die Zeile', () {
+    const laptop = ['Laptop', 'IT', 'Wien', 'INV-1', 'SN-1', '1.9.26'];
+    // Zeile + ihr Duplikat (gleiches Gerät, neue Nummern kommen per Scan) und
+    // eine verkürzte Zeile ohne Serien-/Datumsspalte.
+    final data = jsonEncode([
+      {'cells': laptop, 'marked': false},
+      {'cells': laptop, 'marked': false},
+      {'cells': ['Drucker', 'IT'], 'marked': false, 'cols': 2},
+    ]);
+    List<dynamic> cells(String? json, int row) =>
+        ((jsonDecode(json!) as List)[row] as Map)['cells'] as List;
+
+    testWidgets('scanIntoRow: Nummern + Datum, Nicht-Gescanntes bleibt',
+        (tester) async {
+      final key = GlobalKey<AutopoolTableState>();
+      String? json;
+      await _pumpTable(tester, key, data, (j) => json = j);
+
+      key.currentState!.scanIntoRow(1,
+          inventory: 'INV-2', serial: 'SN-2', date: '16.10.26');
+      await tester.pumpAndSettle();
+      expect(jsonDecode(json!) as List, hasLength(3),
+          reason: 'keine neue Zeile');
+      expect(cells(json, 0), laptop);
+      expect(cells(json, 1),
+          ['Laptop', 'IT', 'Wien', 'INV-2', 'SN-2', '16.10.26']);
+
+      // Nur die Inventarnummer neu gescannt: die Seriennummer bleibt stehen.
+      key.currentState!
+          .scanIntoRow(1, inventory: 'INV-3', serial: '', date: '17.10.26');
+      await tester.pumpAndSettle();
+      expect(cells(json, 1),
+          ['Laptop', 'IT', 'Wien', 'INV-3', 'SN-2', '17.10.26']);
+
+      // Verkürzte Zeile hat keine Serien-/Datumsspalte → unverändert.
+      key.currentState!.scanIntoRow(2, inventory: 'X', serial: 'Y', date: 'Z');
+      await tester.pumpAndSettle();
+      expect(cells(json, 2), ['Drucker', 'IT']);
+    });
+
+    testWidgets('über das Zeilenmenü: Kamera auf, Duplikat überschrieben',
+        (tester) async {
+      final original = MobileScannerPlatform.instance;
+      final camera = FakeScannerPlatform();
+      MobileScannerPlatform.instance = camera;
+      addTearDown(() => MobileScannerPlatform.instance = original);
+      final key = GlobalKey<AutopoolTableState>();
+      String? json;
+      await _pumpTable(tester, key, data, (j) => json = j);
+
+      await _openRowMenu(tester, 1);
+      await tester.tap(_menuEntry('Scannen'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AutopoolScanScreen), findsOneWidget);
+
+      for (final code in ['INV-2', 'SN-2']) {
+        await _scan(tester, camera, [code]);
+        await tester.pump(const Duration(seconds: 2));
+      }
+      await tester.tap(find.text('Übernehmen'));
+      await tester.pumpAndSettle();
+
+      expect(jsonDecode(json!) as List, hasLength(3),
+          reason: 'keine neue Zeile');
+      expect(cells(json, 0), laptop);
+      expect(cells(json, 1).sublist(0, 5),
+          ['Laptop', 'IT', 'Wien', 'INV-2', 'SN-2']);
+      expect(cells(json, 1)[5], matches(RegExp(r'^\d{1,2}\.\d{1,2}\.\d{2}$')));
+    });
+
+    testWidgets('verkürzte Zeile bietet kein „Scannen“ an', (tester) async {
+      final key = GlobalKey<AutopoolTableState>();
+      await _pumpTable(tester, key, data, (_) {});
+
+      await _openRowMenu(tester, 0);
+      expect(_menuEntry('Scannen'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5)); // Menü schließen
+      await tester.pumpAndSettle();
+
+      await _openRowMenu(tester, 2);
+      expect(_menuEntry('Zeile duplizieren'), findsOneWidget);
+      expect(_menuEntry('Scannen'), findsNothing);
+    });
+  });
 
   group('AutopoolScanScreen', () {
     late MobileScannerPlatform original;
@@ -217,6 +303,17 @@ Future<void> _pumpTable(WidgetTester tester, GlobalKey<AutopoolTableState> key,
   )));
   await tester.pumpAndSettle();
 }
+
+// Zeilenmenü per Rechtsklick auf den Anfasser links öffnen.
+Future<void> _openRowMenu(WidgetTester tester, int row) async {
+  await tester.tap(find.byIcon(Icons.drag_indicator).at(row),
+      buttons: kSecondaryButton);
+  await tester.pumpAndSettle();
+}
+
+Finder _menuEntry(String label) => find.descendant(
+    of: find.byWidgetPredicate((w) => w is PopupMenuItem),
+    matching: find.text(label));
 
 // Öffnet den Scanner wie die Tabelle (mit umbenannter Inventar-Spalte).
 Future<void> _openScanner(WidgetTester tester,

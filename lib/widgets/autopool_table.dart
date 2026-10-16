@@ -33,7 +33,9 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 /// - **„Scannen"** (nur Android) neben „Zeile hinzufügen": öffnet die Kamera,
 ///   erfasst erst die Inventar-, dann die Seriennummer per Barcode und legt
 ///   daraus eine neue Zeile mit dem heutigen Datum an (s. [addScannedRow],
-///   `screens/autopool_scan_screen.dart`).
+///   `screens/autopool_scan_screen.dart`). Im Zeilen-Kontextmenü überschreibt
+///   „Scannen" stattdessen die Nummern + das Datum DIESER Zeile
+///   ([scanIntoRow]) – z.B. nach „Duplizieren" für ein gleichartiges Gerät.
 ///
 /// Über einen [GlobalKey] auf [AutopoolTableState] können Eltern den aktuellen
 /// Stand auslesen ([currentJson]), den Fokus prüfen ([hasFocus]) und externe
@@ -269,14 +271,42 @@ class AutopoolTableState extends State<AutopoolTable> {
     });
   }
 
+  /// Gescannte Nummern + Datum in eine bestehende volle Zeile schreiben
+  /// (Zeilen-Kontextmenü „Scannen"; typisch nach „Duplizieren": gleiches Gerät,
+  /// nur Inventar-/Seriennummer und Datum sind neu). Nur erfasste Nummern
+  /// überschreiben – eine nicht gescannte bleibt stehen, damit z.B. das bloße
+  /// Nachscannen der Inventarnummer die Seriennummer nicht löscht. Das Datum
+  /// wird immer auf heute gesetzt.
+  void scanIntoRow(
+    int index, {
+    required String inventory,
+    required String serial,
+    required String date,
+  }) {
+    if (index < 0 ||
+        index >= _rows.length ||
+        _rows[index].length != kAutopoolColCount) {
+      return;
+    }
+    setState(() {
+      final row = _rows[index];
+      if (inventory.isNotEmpty) row[kAutopoolInventoryCol].text = inventory;
+      if (serial.isNotEmpty) row[kAutopoolSerialCol].text = serial;
+      row[kAutopoolDateCol].text = date;
+      _moveMode = null;
+    });
+    _emitChange();
+  }
+
   // Sperre gegen Doppeltipp: sonst öffnen sich zwei Scanner (zwei Kamera-
   // Sitzungen) übereinander.
   bool _scanOpen = false;
 
-  Future<void> _scanNewRow(List<String> cols) async {
-    if (_scanOpen) return;
+  // Scanner öffnen; liefert die erfassten Nummern samt heutigem Datum (in der
+  // Sprache der App, der Scanner zeigt es schon an) oder null.
+  Future<(AutopoolScanResult, String)?> _scan(List<String> cols) async {
+    if (_scanOpen) return null;
     _scanOpen = true;
-    // Heutiges Datum in der Sprache der App; der Scanner zeigt es schon an.
     final today = DateDisplay.date(context, DateTime.now());
     final AutopoolScanResult? result;
     try {
@@ -290,9 +320,34 @@ class AutopoolTableState extends State<AutopoolTable> {
     } finally {
       _scanOpen = false;
     }
-    if (result == null || !mounted) return;
+    if (result == null || !mounted) return null;
+    return (result, today);
+  }
+
+  Future<void> _scanNewRow(List<String> cols) async {
+    final scan = await _scan(cols);
+    if (scan == null) return;
+    final (result, today) = scan;
     addScannedRow(
         inventory: result.inventory, serial: result.serial, date: today);
+  }
+
+  Future<void> _scanIntoRow(int index, List<String> cols) async {
+    // Die Zeile selbst merken, nicht nur ihren Index: Während die Kamera offen
+    // ist, kann ein Abgleich Zeilen verschieben oder ersetzen.
+    final row = _rows[index];
+    final scan = await _scan(cols);
+    if (scan == null) return;
+    final (result, today) = scan;
+    final now = _rows.indexOf(row);
+    if (now >= 0) {
+      scanIntoRow(now,
+          inventory: result.inventory, serial: result.serial, date: today);
+    } else {
+      // Zeile gibt es nicht mehr → Nummern nicht verlieren, neue Zeile.
+      addScannedRow(
+          inventory: result.inventory, serial: result.serial, date: today);
+    }
   }
 
   void _toggleMark(int index) {
@@ -338,6 +393,20 @@ class AutopoolTableState extends State<AutopoolTable> {
 
   // --- Kontextmenüs ---
 
+  // Inhalt eines Menüeintrags: Symbol + Text. Der Text bricht bei großer
+  // Systemschrift um, statt über den Rand zu laufen – Popup-Menüs sind höchstens
+  // 280 breit, „Markieren / Markierung entfernen" war bei 1,5-facher Schrift
+  // abgeschnitten.
+  static Widget _menuLabel(IconData icon, String label, {Color? color}) =>
+      Row(children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(label,
+              style: color == null ? null : TextStyle(color: color)),
+        ),
+      ]);
+
   RelativeRect _menuPosition(Offset globalPos) {
     final overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -347,8 +416,9 @@ class AutopoolTableState extends State<AutopoolTable> {
     );
   }
 
-  // Zeilen-Kontextmenü: Verschieben / Duplizieren / Einfärben / Markieren /
-  // Löschen.
+  // Zeilen-Kontextmenü: Verschieben / Duplizieren / Scannen (nur Android, nur
+  // volle Zeilen – nur die haben Serien- und Datumsspalte) / Einfärben /
+  // Markieren / Löschen.
   Future<void> _showRowMenu(int index, Offset globalPos) async {
     if (index < 0 || index >= _rows.length) return;
     final l = AppLocalizations.of(context)!;
@@ -360,45 +430,30 @@ class AutopoolTableState extends State<AutopoolTable> {
         if (_rows.length > 1)
           PopupMenuItem(
             value: 'move',
-            child: Row(children: [
-              const Icon(Icons.swap_vert, size: 20),
-              const SizedBox(width: 12),
-              Text(l.autopoolMoveRow),
-            ]),
+            child: _menuLabel(Icons.swap_vert, l.autopoolMoveRow),
           ),
         PopupMenuItem(
           value: 'duplicate',
-          child: Row(children: [
-            const Icon(Icons.content_copy, size: 20),
-            const SizedBox(width: 12),
-            Text(l.autopoolDuplicateRow),
-          ]),
+          child: _menuLabel(Icons.content_copy, l.autopoolDuplicateRow),
         ),
+        if (_canScan && _rows[index].length == kAutopoolColCount)
+          PopupMenuItem(
+            value: 'scan',
+            child: _menuLabel(Icons.qr_code_scanner, l.autopoolScan),
+          ),
         PopupMenuItem(
           value: 'color',
-          child: Row(children: [
-            const Icon(Icons.palette_outlined, size: 20),
-            const SizedBox(width: 12),
-            Text(l.autopoolRowColor),
-          ]),
+          child: _menuLabel(Icons.palette_outlined, l.autopoolRowColor),
         ),
         PopupMenuItem(
           value: 'mark',
-          child: Row(children: [
-            const Icon(Icons.format_strikethrough, size: 20),
-            const SizedBox(width: 12),
-            Text(l.autopoolMarkRow),
-          ]),
+          child: _menuLabel(Icons.format_strikethrough, l.autopoolMarkRow),
         ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'delete',
-          child: Row(children: [
-            const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-            const SizedBox(width: 12),
-            Text(l.autopoolDeleteRow,
-                style: const TextStyle(color: Colors.red)),
-          ]),
+          child: _menuLabel(Icons.delete_outline, l.autopoolDeleteRow,
+              color: Colors.red),
         ),
       ],
     );
@@ -410,6 +465,9 @@ class AutopoolTableState extends State<AutopoolTable> {
         break;
       case 'duplicate':
         _duplicateRow(index);
+        break;
+      case 'scan':
+        await _scanIntoRow(index, _columns(l));
         break;
       case 'color':
         final chosen = await showRowColorPickerSheet(
@@ -441,20 +499,12 @@ class AutopoolTableState extends State<AutopoolTable> {
       items: [
         PopupMenuItem(
           value: 'rename',
-          child: Row(children: [
-            const Icon(Icons.edit_outlined, size: 20),
-            const SizedBox(width: 12),
-            Text(l.autopoolRenameColumn),
-          ]),
+          child: _menuLabel(Icons.edit_outlined, l.autopoolRenameColumn),
         ),
         if (hasCustom)
           PopupMenuItem(
             value: 'reset',
-            child: Row(children: [
-              const Icon(Icons.restart_alt, size: 20),
-              const SizedBox(width: 12),
-              Text(l.autopoolResetColumn),
-            ]),
+            child: _menuLabel(Icons.restart_alt, l.autopoolResetColumn),
           ),
       ],
     );
@@ -555,15 +605,11 @@ class AutopoolTableState extends State<AutopoolTable> {
   Widget _addRowButton(AppLocalizations l) {
     PopupMenuItem<int> item(int cols, String label) => PopupMenuItem<int>(
           value: cols,
-          child: Row(children: [
-            Icon(
-                cols == kAutopoolColCount
-                    ? Icons.table_rows_outlined
-                    : Icons.view_column_outlined,
-                size: 20),
-            const SizedBox(width: 12),
-            Text(label),
-          ]),
+          child: _menuLabel(
+              cols == kAutopoolColCount
+                  ? Icons.table_rows_outlined
+                  : Icons.view_column_outlined,
+              label),
         );
     return PopupMenuButton<int>(
       tooltip: l.autopoolAddRow,

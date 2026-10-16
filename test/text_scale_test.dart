@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -184,6 +185,32 @@ void main() {
         expect(p.size.width,
             greaterThanOrEqualTo(p.getMaxIntrinsicWidth(double.infinity) - 0.5));
         expect(tester.getRect(find.text(label)).right, lessThanOrEqualTo(360));
+      }
+    });
+
+    testWidgets('$name: Autopool-Menüs ganz lesbar', (tester) async {
+      await loadFonts(tester);
+      phone(tester);
+      await tester.pumpWidget(app(Scaffold(
+        body: SingleChildScrollView(
+          child: AutopoolTable(initialData: '', onChanged: (_) {}),
+        ),
+      )));
+      await tester.pumpAndSettle();
+      // Zeilenmenü (Anfasser), Spaltenmenü (Überschrift), „Zeile hinzufügen“.
+      for (final (target, secondary) in [
+        (find.byIcon(Icons.drag_indicator), true),
+        (find.text('Inventarnummer').first, true),
+        (find.text('Zeile hinzufügen'), false),
+      ]) {
+        await tester.tap(target,
+            buttons: secondary ? kSecondaryButton : kPrimaryButton);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byWidgetPredicate((w) => w is PopupMenuItem),
+            findsWidgets);
+        await tester.tapAt(const Offset(350, 770)); // Menü schließen
+        await tester.pumpAndSettle();
       }
     });
 
