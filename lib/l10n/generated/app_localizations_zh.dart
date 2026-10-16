@@ -422,6 +422,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autopoolColumnLabel => '列名称';
 
   @override
+  String get autopoolScan => '扫描';
+
+  @override
+  String get autopoolScanTitle => '扫描设备';
+
+  @override
+  String autopoolScanAim(String field) {
+    return '将“$field”的条形码对准框内';
+  }
+
+  @override
+  String get autopoolScanComplete => '两个编号均已识别 – 点按“应用”即可添加';
+
+  @override
+  String get autopoolScanApply => '应用';
+
+  @override
+  String get autopoolScanTorch => '手电筒';
+
+  @override
+  String get autopoolScanNoPermission =>
+      '无法访问相机。请在 Android 设置中允许 Notizblock AW 使用相机。';
+
+  @override
+  String get autopoolScanCameraError => '无法启动相机。';
+
+  @override
   String get moveUp => '上移';
 
   @override

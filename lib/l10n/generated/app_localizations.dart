@@ -894,6 +894,54 @@ abstract class AppLocalizations {
   /// **'Spaltenname'**
   String get autopoolColumnLabel;
 
+  /// No description provided for @autopoolScan.
+  ///
+  /// In de, this message translates to:
+  /// **'Scannen'**
+  String get autopoolScan;
+
+  /// No description provided for @autopoolScanTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'Gerät scannen'**
+  String get autopoolScanTitle;
+
+  /// No description provided for @autopoolScanAim.
+  ///
+  /// In de, this message translates to:
+  /// **'Barcode für „{field}“ in den Rahmen halten'**
+  String autopoolScanAim(String field);
+
+  /// No description provided for @autopoolScanComplete.
+  ///
+  /// In de, this message translates to:
+  /// **'Beide Nummern erfasst – mit „Übernehmen“ eintragen'**
+  String get autopoolScanComplete;
+
+  /// No description provided for @autopoolScanApply.
+  ///
+  /// In de, this message translates to:
+  /// **'Übernehmen'**
+  String get autopoolScanApply;
+
+  /// No description provided for @autopoolScanTorch.
+  ///
+  /// In de, this message translates to:
+  /// **'Taschenlampe'**
+  String get autopoolScanTorch;
+
+  /// No description provided for @autopoolScanNoPermission.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein Zugriff auf die Kamera. Bitte in den Android-Einstellungen für Notizblock AW erlauben.'**
+  String get autopoolScanNoPermission;
+
+  /// No description provided for @autopoolScanCameraError.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Kamera konnte nicht gestartet werden.'**
+  String get autopoolScanCameraError;
+
   /// No description provided for @moveUp.
   ///
   /// In de, this message translates to:

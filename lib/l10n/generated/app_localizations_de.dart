@@ -428,6 +428,35 @@ class AppLocalizationsDe extends AppLocalizations {
   String get autopoolColumnLabel => 'Spaltenname';
 
   @override
+  String get autopoolScan => 'Scannen';
+
+  @override
+  String get autopoolScanTitle => 'Gerät scannen';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Barcode für „$field“ in den Rahmen halten';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Beide Nummern erfasst – mit „Übernehmen“ eintragen';
+
+  @override
+  String get autopoolScanApply => 'Übernehmen';
+
+  @override
+  String get autopoolScanTorch => 'Taschenlampe';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Kein Zugriff auf die Kamera. Bitte in den Android-Einstellungen für Notizblock AW erlauben.';
+
+  @override
+  String get autopoolScanCameraError =>
+      'Die Kamera konnte nicht gestartet werden.';
+
+  @override
   String get moveUp => 'Nach oben';
 
   @override

@@ -422,6 +422,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autopoolColumnLabel => '列名';
 
   @override
+  String get autopoolScan => 'スキャン';
+
+  @override
+  String get autopoolScanTitle => 'デバイスをスキャン';
+
+  @override
+  String autopoolScanAim(String field) {
+    return '「$field」のバーコードを枠内に合わせてください';
+  }
+
+  @override
+  String get autopoolScanComplete => '両方の番号を読み取りました。「適用」をタップして追加します';
+
+  @override
+  String get autopoolScanApply => '適用';
+
+  @override
+  String get autopoolScanTorch => 'ライト';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'カメラにアクセスできません。Android の設定で Notizblock AW にカメラの使用を許可してください。';
+
+  @override
+  String get autopoolScanCameraError => 'カメラを起動できませんでした。';
+
+  @override
   String get moveUp => '上へ';
 
   @override

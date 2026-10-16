@@ -24,6 +24,7 @@ Kernfunktionen:
 - **Widgets (Android):** home_widget
 - **Desktop-Fenster:** window_manager (Position/Größe der Sticky-Notes), url_launcher (OAuth-Browser)
 - **UI:** flutter_staggered_grid_view, Material Design
+- **Barcode-Scan (nur Android, Autopool „Scannen"):** mobile_scanner (gebündeltes ML Kit)
 - **Sonstiges:** uuid, intl, shared_preferences, flutter_localizations
 
 ## Architektur

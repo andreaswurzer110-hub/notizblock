@@ -429,6 +429,34 @@ class AppLocalizationsNl extends AppLocalizations {
   String get autopoolColumnLabel => 'Kolomnaam';
 
   @override
+  String get autopoolScan => 'Scannen';
+
+  @override
+  String get autopoolScanTitle => 'Apparaat scannen';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Houd de barcode voor “$field” binnen het kader';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Beide nummers vastgelegd – tik op “Toepassen” om ze toe te voegen';
+
+  @override
+  String get autopoolScanApply => 'Toepassen';
+
+  @override
+  String get autopoolScanTorch => 'Zaklamp';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Geen toegang tot de camera. Sta dit toe voor Notizblock AW in de Android-instellingen.';
+
+  @override
+  String get autopoolScanCameraError => 'De camera kon niet worden gestart.';
+
+  @override
   String get moveUp => 'Omhoog';
 
   @override

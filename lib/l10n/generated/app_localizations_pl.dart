@@ -427,6 +427,34 @@ class AppLocalizationsPl extends AppLocalizations {
   String get autopoolColumnLabel => 'Nazwa kolumny';
 
   @override
+  String get autopoolScan => 'Skanuj';
+
+  @override
+  String get autopoolScanTitle => 'Skanuj urządzenie';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Umieść kod kreskowy „$field” w ramce';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Oba numery odczytane – dotknij „Zastosuj”, aby je dodać';
+
+  @override
+  String get autopoolScanApply => 'Zastosuj';
+
+  @override
+  String get autopoolScanTorch => 'Latarka';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Brak dostępu do aparatu. Zezwól na to dla Notizblock AW w ustawieniach Androida.';
+
+  @override
+  String get autopoolScanCameraError => 'Nie udało się uruchomić aparatu.';
+
+  @override
   String get moveUp => 'W górę';
 
   @override

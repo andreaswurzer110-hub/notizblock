@@ -428,6 +428,34 @@ class AppLocalizationsTr extends AppLocalizations {
   String get autopoolColumnLabel => 'Sütun adı';
 
   @override
+  String get autopoolScan => 'Tara';
+
+  @override
+  String get autopoolScanTitle => 'Cihazı tara';
+
+  @override
+  String autopoolScanAim(String field) {
+    return '“$field” barkodunu çerçevenin içine getirin';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'İki numara da okundu – eklemek için “Uygula”ya dokunun';
+
+  @override
+  String get autopoolScanApply => 'Uygula';
+
+  @override
+  String get autopoolScanTorch => 'El feneri';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Kameraya erişim yok. Lütfen Android ayarlarından Notizblock AW için izin verin.';
+
+  @override
+  String get autopoolScanCameraError => 'Kamera başlatılamadı.';
+
+  @override
   String get moveUp => 'Yukarı taşı';
 
   @override

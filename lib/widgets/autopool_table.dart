@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../models/autopool.dart';
+import '../screens/autopool_scan_screen.dart';
 import 'color_picker.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
@@ -27,6 +28,9 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 /// - **Spaltenüberschriften umbenennbar** per Rechtsklick / langem Druck auf die
 ///   Überschrift (eigener Name pro Notiz; auf Standard zurücksetzbar).
 /// - Felder sind umrahmt und wachsen mit dem Inhalt (kein Abschneiden).
+/// - **„Scannen"** (nur Android) neben „Zeile hinzufügen": öffnet die Kamera,
+///   erfasst Serien- + Inventarnummer per Barcode und legt daraus eine neue
+///   Zeile an (s. [addScannedRow], `screens/autopool_scan_screen.dart`).
 ///
 /// Über einen [GlobalKey] auf [AutopoolTableState] können Eltern den aktuellen
 /// Stand auslesen ([currentJson]), den Fokus prüfen ([hasFocus]) und externe
@@ -68,6 +72,10 @@ class AutopoolTableState extends State<AutopoolTable> {
 
   bool get _isDesktop =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
+  // Kamera-Scan nur auf Android: Desktop-Rechner haben selten eine brauchbare
+  // Kamera, und ein USB-Handscanner tippt dort ohnehin direkt ins Feld.
+  bool get _canScan => Platform.isAndroid;
 
   final List<List<TextEditingController>> _rows = [];
   final List<List<FocusNode>> _focus = [];
@@ -221,6 +229,54 @@ class AutopoolTableState extends State<AutopoolTable> {
       _moveMode = null;
     });
     _emitChange();
+  }
+
+  /// Neue volle Zeile mit gescannter Serien- und Inventarnummer (vom „Scannen"-
+  /// Button). Ist die letzte Zeile eine völlig leere volle Zeile ohne Markierung
+  /// und Farbe (z.B. die Startzeile einer neuen Notiz), wird sie befüllt statt
+  /// eine weitere anzuhängen. Danach wird die Zeile ins Bild gescrollt.
+  void addScannedRow({required String serial, required String inventory}) {
+    final last = _rows.length - 1;
+    final reuseLast = _rows[last].length == kAutopoolColCount &&
+        _rows[last].every((c) => c.text.trim().isEmpty) &&
+        !_marked[last] &&
+        _colors[last] == null;
+    setState(() {
+      if (!reuseLast) _addEmptyRowInternal();
+      _rows.last[kAutopoolInventoryCol].text = inventory;
+      _rows.last[kAutopoolSerialCol].text = serial;
+      _moveMode = null;
+    });
+    _emitChange();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _focus.last.first.context;
+      if (ctx != null && ctx.mounted) {
+        Scrollable.ensureVisible(ctx,
+            alignment: 0.5, duration: const Duration(milliseconds: 300));
+      }
+    });
+  }
+
+  // Sperre gegen Doppeltipp: sonst öffnen sich zwei Scanner (zwei Kamera-
+  // Sitzungen) übereinander.
+  bool _scanOpen = false;
+
+  Future<void> _scanNewRow(List<String> cols) async {
+    if (_scanOpen) return;
+    _scanOpen = true;
+    final AutopoolScanResult? result;
+    try {
+      result = await showAutopoolScanner(
+        context,
+        serialLabel: _colLabel(kAutopoolSerialCol, cols),
+        inventoryLabel: _colLabel(kAutopoolInventoryCol, cols),
+      );
+    } finally {
+      _scanOpen = false;
+    }
+    if (result == null || !mounted) return;
+    addScannedRow(serial: result.serial, inventory: result.inventory);
   }
 
   void _toggleMark(int index) {
@@ -463,9 +519,15 @@ class AutopoolTableState extends State<AutopoolTable> {
               itemBuilder: (context, i) => _buildRow(i, cols, narrow),
             ),
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _addRowButton(l),
+            // Wrap statt Row: bei großer Schrift auf schmalen Handys rutscht
+            // „Scannen" in die nächste Zeile, statt abgeschnitten zu werden.
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 4,
+              children: [
+                _addRowButton(l),
+                if (_canScan) _scanButton(l, cols),
+              ],
             ),
           ],
         );
@@ -510,6 +572,32 @@ class AutopoolTableState extends State<AutopoolTable> {
               ),
             ),
             Icon(Icons.arrow_drop_down, size: 20, color: widget.textColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // „Scannen": Kamera öffnen, Serien- + Inventarnummer erfassen → neue Zeile.
+  // Optik wie „Zeile hinzufügen".
+  Widget _scanButton(AppLocalizations l, List<String> cols) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _scanNewRow(cols),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.qr_code_scanner, size: 20, color: widget.textColor),
+            const SizedBox(width: 8),
+            Text(
+              l.autopoolScan,
+              style: TextStyle(
+                color: widget.textColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),

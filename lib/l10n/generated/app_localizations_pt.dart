@@ -428,6 +428,34 @@ class AppLocalizationsPt extends AppLocalizations {
   String get autopoolColumnLabel => 'Nome da coluna';
 
   @override
+  String get autopoolScan => 'Escanear';
+
+  @override
+  String get autopoolScanTitle => 'Escanear dispositivo';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Posicione o código de barras de “$field” dentro da moldura';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Os dois números foram lidos – toque em “Aplicar” para adicioná-los';
+
+  @override
+  String get autopoolScanApply => 'Aplicar';
+
+  @override
+  String get autopoolScanTorch => 'Lanterna';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Sem acesso à câmera. Permita o acesso para o Notizblock AW nas configurações do Android.';
+
+  @override
+  String get autopoolScanCameraError => 'Não foi possível iniciar a câmera.';
+
+  @override
   String get moveUp => 'Mover para cima';
 
   @override

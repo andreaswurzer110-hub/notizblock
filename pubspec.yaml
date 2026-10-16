@@ -69,6 +69,12 @@ dependencies:
   in_app_purchase: ^3.3.1
   in_app_purchase_android: ^0.5.3 # direkt: Verbrauchen/Nachholen alter Käufe
 
+  # Autopool „Scannen" (nur Android): Serien-/Inventarnummer per Kamera-Barcode.
+  # Gebündeltes ML-Kit-Modell (läuft offline auf dem Gerät, macht die App ein
+  # paar MB größer). Desktop bindet kein natives Plugin ein. Siehe
+  # screens/autopool_scan_screen.dart.
+  mobile_scanner: ^7.4.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

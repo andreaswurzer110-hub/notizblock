@@ -429,6 +429,35 @@ class AppLocalizationsFr extends AppLocalizations {
   String get autopoolColumnLabel => 'Nom de la colonne';
 
   @override
+  String get autopoolScan => 'Scanner';
+
+  @override
+  String get autopoolScanTitle => 'Scanner un appareil';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Placez le code-barres de « $field » dans le cadre';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Les deux numéros sont saisis – touchez « Appliquer » pour les ajouter';
+
+  @override
+  String get autopoolScanApply => 'Appliquer';
+
+  @override
+  String get autopoolScanTorch => 'Lampe torche';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Pas d’accès à l’appareil photo. Veuillez l’autoriser pour Notizblock AW dans les paramètres Android.';
+
+  @override
+  String get autopoolScanCameraError =>
+      'Impossible de démarrer l’appareil photo.';
+
+  @override
   String get moveUp => 'Monter';
 
   @override

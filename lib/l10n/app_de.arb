@@ -223,6 +223,21 @@
   "autopoolRenameColumn": "Spalte umbenennen",
   "autopoolResetColumn": "Auf Standard zurücksetzen",
   "autopoolColumnLabel": "Spaltenname",
+  "autopoolScan": "Scannen",
+  "autopoolScanTitle": "Gerät scannen",
+  "autopoolScanAim": "Barcode für „{field}“ in den Rahmen halten",
+  "@autopoolScanAim": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "autopoolScanComplete": "Beide Nummern erfasst – mit „Übernehmen“ eintragen",
+  "autopoolScanApply": "Übernehmen",
+  "autopoolScanTorch": "Taschenlampe",
+  "autopoolScanNoPermission": "Kein Zugriff auf die Kamera. Bitte in den Android-Einstellungen für Notizblock AW erlauben.",
+  "autopoolScanCameraError": "Die Kamera konnte nicht gestartet werden.",
   "moveUp": "Nach oben",
   "moveDown": "Nach unten",
   "openLink": "Link öffnen",

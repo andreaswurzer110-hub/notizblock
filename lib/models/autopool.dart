@@ -4,6 +4,21 @@ import 'dart:convert';
 /// Dienststelle&Version, Ort, Inventarnummer, Seriennummer, Datum).
 const int kAutopoolColCount = 6;
 
+/// Spaltenindizes, die der Scanner befüllt (siehe AutopoolTable.addScannedRow).
+const int kAutopoolInventoryCol = 3;
+const int kAutopoolSerialCol = 4;
+
+/// Gescannten Barcode-Inhalt für eine Zelle aufbereiten: Steuerzeichen,
+/// Zeilenumbrüche und Tabs (kommen in QR-/DataMatrix-Codes vor) sowie mehrfache
+/// Leerzeichen werden zu einem Leerzeichen, außen getrimmt. null → ''.
+String cleanScannedCode(String? raw) {
+  if (raw == null) return '';
+  return raw
+      .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
 /// Erlaubte Feldanzahlen einer Zeile: volle Zeile (6) oder verkürzt (4/2).
 /// Eine verkürzte Zeile rendert nur die ersten N Spalten (siehe AutopoolTable):
 /// auf dem Handy weniger gestapelte Unterzeilen, auf dem Desktop füllen die

@@ -427,6 +427,34 @@ class AppLocalizationsUk extends AppLocalizations {
   String get autopoolColumnLabel => 'Назва стовпця';
 
   @override
+  String get autopoolScan => 'Сканувати';
+
+  @override
+  String get autopoolScanTitle => 'Сканувати пристрій';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Наведіть рамку на штрихкод «$field»';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Обидва номери зчитано – натисніть «Застосувати», щоб додати';
+
+  @override
+  String get autopoolScanApply => 'Застосувати';
+
+  @override
+  String get autopoolScanTorch => 'Ліхтарик';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'Немає доступу до камери. Дозвольте його для Notizblock AW у налаштуваннях Android.';
+
+  @override
+  String get autopoolScanCameraError => 'Не вдалося запустити камеру.';
+
+  @override
   String get moveUp => 'Вгору';
 
   @override

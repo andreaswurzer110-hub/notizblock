@@ -427,6 +427,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autopoolColumnLabel => 'Column name';
 
   @override
+  String get autopoolScan => 'Scan';
+
+  @override
+  String get autopoolScanTitle => 'Scan device';
+
+  @override
+  String autopoolScanAim(String field) {
+    return 'Hold the barcode for “$field” inside the frame';
+  }
+
+  @override
+  String get autopoolScanComplete =>
+      'Both numbers captured – tap “Apply” to add them';
+
+  @override
+  String get autopoolScanApply => 'Apply';
+
+  @override
+  String get autopoolScanTorch => 'Flashlight';
+
+  @override
+  String get autopoolScanNoPermission =>
+      'No access to the camera. Please allow it for Notizblock AW in the Android settings.';
+
+  @override
+  String get autopoolScanCameraError => 'The camera could not be started.';
+
+  @override
   String get moveUp => 'Move up';
 
   @override
