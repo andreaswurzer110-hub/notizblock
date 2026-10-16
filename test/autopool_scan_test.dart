@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -7,11 +6,14 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:notizblock/models/autopool.dart';
 import 'package:notizblock/screens/autopool_scan_screen.dart';
+import 'package:notizblock/utils/date_display.dart';
 import 'package:notizblock/widgets/autopool_table.dart';
 
-/// Autopool „Scannen": Serien- und Inventarnummer per Kamera erfassen und als
-/// neue Zeile in die Tabelle übernehmen. Die Kamera ersetzt hier eine Fake-
-/// Plattform, die Barcodes auf Zuruf liefert.
+import 'fake_scanner_platform.dart';
+
+/// Autopool „Scannen": erst Inventar-, dann Seriennummer per Kamera erfassen
+/// und mit dem heutigen Datum als neue Zeile in die Tabelle übernehmen. Die
+/// Kamera ersetzt hier eine Fake-Plattform, die Barcodes auf Zuruf liefert.
 void main() {
   group('cleanScannedCode', () {
     test('trimmt und fasst Leerraum/Steuerzeichen zusammen', () {
@@ -29,17 +31,20 @@ void main() {
       String? json;
       await _pumpTable(tester, key, '', (j) => json = j);
 
-      key.currentState!.addScannedRow(serial: 'SN-1', inventory: 'INV-1');
+      key.currentState!.addScannedRow(
+          inventory: 'INV-1', serial: 'SN-1', date: '16.10.26');
       await tester.pumpAndSettle();
       var rows = jsonDecode(json!) as List;
       expect(rows, hasLength(1), reason: 'leere Startzeile wird befüllt');
-      expect((rows[0] as Map)['cells'], ['', '', '', 'INV-1', 'SN-1', '']);
+      expect((rows[0] as Map)['cells'],
+          ['', '', '', 'INV-1', 'SN-1', '16.10.26']);
 
-      key.currentState!.addScannedRow(serial: 'SN-2', inventory: '');
+      key.currentState!.addScannedRow(
+          inventory: '', serial: 'SN-2', date: '16.10.26');
       await tester.pumpAndSettle();
       rows = jsonDecode(json!) as List;
       expect(rows, hasLength(2));
-      expect((rows[1] as Map)['cells'], ['', '', '', '', 'SN-2', '']);
+      expect((rows[1] as Map)['cells'], ['', '', '', '', 'SN-2', '16.10.26']);
       // Die Werte stehen sichtbar in den Feldern.
       expect(find.text('INV-1'), findsOneWidget);
       expect(find.text('SN-2'), findsOneWidget);
@@ -55,49 +60,76 @@ void main() {
           ']';
       await _pumpTable(tester, key, data, (j) => json = j);
 
-      key.currentState!.addScannedRow(serial: 'SN-9', inventory: 'INV-9');
+      key.currentState!.addScannedRow(
+          inventory: 'INV-9', serial: 'SN-9', date: '16.10.26');
       await tester.pumpAndSettle();
       final rows = jsonDecode(json!) as List;
       expect(rows, hasLength(3));
-      expect((rows[2] as Map)['cells'], ['', '', '', 'INV-9', 'SN-9', '']);
+      expect((rows[2] as Map)['cells'],
+          ['', '', '', 'INV-9', 'SN-9', '16.10.26']);
     });
   });
+
+  // Datum für die neue Zeile: Jahr nur zweistellig (Andis Wunsch), Reihenfolge
+  // und Trenner wie in der Sprache der App üblich.
+  for (final (lang, expected) in [
+    ('de', ['16.10.26', '6.1.27']),
+    ('en', ['10/16/26', '1/6/27']),
+  ]) {
+    testWidgets('DateDisplay.date ($lang): zweistelliges Jahr', (tester) async {
+      late BuildContext ctx;
+      await tester.pumpWidget(MaterialApp(
+        locale: Locale(lang),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(builder: (context) {
+          ctx = context;
+          return const SizedBox();
+        }),
+      ));
+      expect(DateDisplay.date(ctx, DateTime(2026, 10, 16)), expected[0]);
+      expect(DateDisplay.date(ctx, DateTime(2027, 1, 6)), expected[1]);
+    });
+  }
 
   group('AutopoolScanScreen', () {
     late MobileScannerPlatform original;
     setUp(() => original = MobileScannerPlatform.instance);
     tearDown(() => MobileScannerPlatform.instance = original);
 
-    testWidgets('erst Serien-, dann Inventarnummer; Doppeltes zählt nicht',
+    testWidgets('erst Inventar-, dann Seriennummer; Doppeltes zählt nicht',
         (tester) async {
-      final camera = _FakeScannerPlatform();
+      final camera = FakeScannerPlatform();
       MobileScannerPlatform.instance = camera;
       final results = <AutopoolScanResult?>[];
       await _openScanner(tester, results.add);
 
       expect(_applyButton(tester).enabled, isFalse);
-      expect(find.text('Barcode für „Seriennummer“ in den Rahmen halten'),
+      expect(find.text('Barcode für „Inv.-Nr.“ in den Rahmen halten'),
+          findsOneWidget);
+      // Das Datum kommt von selbst und steht schon da.
+      expect(find.textContaining('16.10.26', findRichText: true),
           findsOneWidget);
 
-      await _scan(tester, camera, ['  SN-4711 \n']);
-      expect(find.text('SN-4711'), findsOneWidget);
-      expect(find.text('Barcode für „Inv.-Nr.“ in den Rahmen halten'),
+      await _scan(tester, camera, ['  INV-0815 \n']);
+      expect(find.text('INV-0815'), findsOneWidget);
+      expect(find.text('Barcode für „Seriennummer“ in den Rahmen halten'),
           findsOneWidget);
       expect(_applyButton(tester).enabled, isTrue);
 
       // Kurz nach einem Treffer zählt nichts (Zeit zum Weiterschwenken).
-      await _scan(tester, camera, ['INV-1']);
-      expect(find.text('INV-1'), findsNothing);
+      await _scan(tester, camera, ['SN-1']);
+      expect(find.text('SN-1'), findsNothing);
       await tester.pump(const Duration(seconds: 2));
 
       // Derselbe Code steht noch im Bild → landet nicht im zweiten Feld.
-      await _scan(tester, camera, ['SN-4711']);
-      expect(find.text('SN-4711'), findsOneWidget);
+      await _scan(tester, camera, ['INV-0815']);
+      expect(find.text('INV-0815'), findsOneWidget);
       expect(find.text('–'), findsOneWidget);
 
       // Mehrere Codes in einem Bild: der erste noch nicht erfasste zählt.
-      await _scan(tester, camera, ['SN-4711', 'INV-0815']);
-      expect(find.text('INV-0815'), findsOneWidget);
+      await _scan(tester, camera, ['INV-0815', 'SN-4711']);
+      expect(find.text('SN-4711'), findsOneWidget);
       expect(
           find.text('Beide Nummern erfasst – mit „Übernehmen“ eintragen'),
           findsOneWidget);
@@ -115,7 +147,7 @@ void main() {
     });
 
     testWidgets('Feld antippen scannt es neu, ✕ leert es', (tester) async {
-      final camera = _FakeScannerPlatform();
+      final camera = FakeScannerPlatform();
       MobileScannerPlatform.instance = camera;
       await _openScanner(tester, (_) {});
 
@@ -123,26 +155,26 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('FALSCH'), findsOneWidget);
 
-      // Seriennummer wieder zum Ziel machen und richtig scannen.
-      await tester.tap(find.text('Seriennummer'));
+      // Inventarnummer wieder zum Ziel machen und richtig scannen.
+      await tester.tap(find.text('Inv.-Nr.'));
       await tester.pump();
-      await _scan(tester, camera, ['SN-RICHTIG']);
+      await _scan(tester, camera, ['INV-RICHTIG']);
       await tester.pump(const Duration(seconds: 2));
-      expect(find.text('SN-RICHTIG'), findsOneWidget);
+      expect(find.text('INV-RICHTIG'), findsOneWidget);
       expect(find.text('FALSCH'), findsNothing);
-      expect(find.text('Barcode für „Inv.-Nr.“ in den Rahmen halten'),
+      expect(find.text('Barcode für „Seriennummer“ in den Rahmen halten'),
           findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.close));
       await tester.pump();
-      expect(find.text('SN-RICHTIG'), findsNothing);
+      expect(find.text('INV-RICHTIG'), findsNothing);
       expect(_applyButton(tester).enabled, isFalse);
-      expect(find.text('Barcode für „Seriennummer“ in den Rahmen halten'),
+      expect(find.text('Barcode für „Inv.-Nr.“ in den Rahmen halten'),
           findsOneWidget);
     });
 
     testWidgets('Zurück ohne Übernehmen liefert nichts', (tester) async {
-      final camera = _FakeScannerPlatform();
+      final camera = FakeScannerPlatform();
       MobileScannerPlatform.instance = camera;
       final results = <AutopoolScanResult?>[];
       await _openScanner(tester, results.add);
@@ -154,7 +186,7 @@ void main() {
     });
 
     testWidgets('verweigerte Kamera zeigt einen Hinweis', (tester) async {
-      MobileScannerPlatform.instance = _FakeScannerPlatform(
+      MobileScannerPlatform.instance = FakeScannerPlatform(
         startError: const MobileScannerException(
             errorCode: MobileScannerErrorCode.permissionDenied),
       );
@@ -195,8 +227,10 @@ Future<void> _openScanner(WidgetTester tester,
         child: ElevatedButton(
           onPressed: () async => onResult(await showAutopoolScanner(
             context,
-            serialLabel: 'Seriennummer',
             inventoryLabel: 'Inv.-Nr.',
+            serialLabel: 'Seriennummer',
+            dateLabel: 'Datum',
+            date: '16.10.26',
           )),
           child: const Text('öffnen'),
         ),
@@ -209,7 +243,7 @@ Future<void> _openScanner(WidgetTester tester,
 
 // Barcode „vor die Kamera halten“ und das Ereignis zustellen lassen, bevor der
 // nächste Frame gezeichnet wird (pump() ohne Dauer zeichnet sonst zuerst).
-Future<void> _scan(WidgetTester tester, _FakeScannerPlatform camera,
+Future<void> _scan(WidgetTester tester, FakeScannerPlatform camera,
     List<String> codes) async {
   camera.emit(codes);
   await tester.pump(Duration.zero);
@@ -220,49 +254,3 @@ ButtonStyleButton _applyButton(WidgetTester tester) =>
       of: find.text('Übernehmen'),
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
     ));
-
-/// Kamera-Ersatz: startet sofort und liefert Barcodes über [emit].
-class _FakeScannerPlatform extends MobileScannerPlatform {
-  _FakeScannerPlatform({this.startError});
-
-  final MobileScannerException? startError;
-  final _barcodes = StreamController<BarcodeCapture?>.broadcast();
-
-  void emit(List<String> codes) => _barcodes.add(BarcodeCapture(
-        barcodes: [for (final c in codes) Barcode(rawValue: c)],
-      ));
-
-  @override
-  Stream<BarcodeCapture?> get barcodesStream => _barcodes.stream;
-
-  @override
-  Stream<TorchState> get torchStateStream => const Stream.empty();
-
-  @override
-  Stream<double> get zoomScaleStateStream => const Stream.empty();
-
-  @override
-  Widget buildCameraView() => const ColoredBox(color: Colors.black);
-
-  @override
-  Future<MobileScannerViewAttributes> start(StartOptions startOptions) async {
-    if (startError != null) throw startError!;
-    return const MobileScannerViewAttributes(
-      cameraDirection: CameraFacing.back,
-      currentTorchMode: TorchState.off,
-      size: Size(1080, 1920),
-    );
-  }
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> pause() async {}
-
-  @override
-  Future<void> updateScanWindow(Rect? window) async {}
-
-  @override
-  Future<void> dispose() async {}
-}

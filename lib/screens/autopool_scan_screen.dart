@@ -17,41 +17,51 @@ class AutopoolScanResult {
 
 /// Öffnet den Scanner für ein neues Autopool-Gerät. Liefert null, wenn ohne
 /// „Übernehmen" zurückgegangen wurde. Die Feldnamen kommen vom Aufrufer, damit
-/// umbenannte Spaltenüberschriften auch hier erscheinen.
+/// umbenannte Spaltenüberschriften auch hier erscheinen; [date] ist das
+/// heutige Datum, das die Tabelle in die neue Zeile schreibt (hier nur
+/// angezeigt).
 Future<AutopoolScanResult?> showAutopoolScanner(
   BuildContext context, {
-  required String serialLabel,
   required String inventoryLabel,
+  required String serialLabel,
+  required String dateLabel,
+  required String date,
 }) {
   return Navigator.of(context).push<AutopoolScanResult>(
     MaterialPageRoute(
       builder: (_) => AutopoolScanScreen(
-        serialLabel: serialLabel,
         inventoryLabel: inventoryLabel,
+        serialLabel: serialLabel,
+        dateLabel: dateLabel,
+        date: date,
       ),
     ),
   );
 }
 
-/// Kamera-Scanner (nur Android) für Serien- und Inventarnummer eines Geräts.
+/// Kamera-Scanner (nur Android) für Inventar- und Seriennummer eines Geräts.
 ///
-/// Ablauf: Der erste erkannte Barcode geht in die Seriennummer, danach springt
-/// das Ziel von selbst zur Inventarnummer. Ein Tipp auf ein Feld macht es zum
-/// Ziel (z.B. um eine falsch erwischte Nummer neu zu scannen). „Übernehmen"
-/// gibt beide zurück; die Tabelle legt daraus eine neue Zeile an. Korrigiert
-/// wird danach ganz normal in der Tabelle.
+/// Ablauf: Der erste erkannte Barcode geht in die Inventarnummer, danach
+/// springt das Ziel von selbst zur Seriennummer. Ein Tipp auf ein Feld macht es
+/// zum Ziel (z.B. um eine falsch erwischte Nummer neu zu scannen). „Übernehmen"
+/// gibt beide zurück; die Tabelle legt daraus eine neue Zeile mit dem heutigen
+/// Datum an. Korrigiert wird danach ganz normal in der Tabelle.
 ///
 /// Nur Barcodes innerhalb des Rahmens zählen (`scanWindow`) – Typenschilder
 /// tragen oft mehrere Codes nebeneinander (Seriennummer, Artikelnummer, MAC …).
 /// Die Bilder werden nur auf dem Gerät ausgewertet (ML Kit), nicht gespeichert.
 class AutopoolScanScreen extends StatefulWidget {
-  final String serialLabel;
   final String inventoryLabel;
+  final String serialLabel;
+  final String dateLabel;
+  final String date;
 
   const AutopoolScanScreen({
     super.key,
-    required this.serialLabel,
     required this.inventoryLabel,
+    required this.serialLabel,
+    required this.dateLabel,
+    required this.date,
   });
 
   @override
@@ -60,9 +70,9 @@ class AutopoolScanScreen extends StatefulWidget {
 
 class _AutopoolScanScreenState extends State<AutopoolScanScreen>
     with WidgetsBindingObserver {
-  // Feldindizes = Scan-Reihenfolge: erst Serien-, dann Inventarnummer.
-  static const int _serial = 0;
-  static const int _inventory = 1;
+  // Feldindizes = Scan-Reihenfolge: erst Inventar-, dann Seriennummer.
+  static const int _inventory = 0;
+  static const int _serial = 1;
 
   // Nach einem Treffer kurz nichts annehmen: Zeit, um zum nächsten Etikett zu
   // schwenken, ohne dass ein Nachbarcode sofort im nächsten Feld landet.
@@ -77,7 +87,7 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
 
   final List<String> _values = ['', ''];
   // Feld, in das der nächste Treffer geht; null = beide erfasst (Scan ruht).
-  int? _target = _serial;
+  int? _target = _inventory;
   // Läuft nach jedem Treffer; solange er aktiv ist, zählt kein Code.
   Timer? _pauseTimer;
 
@@ -136,7 +146,7 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
     for (final barcode in capture.barcodes) {
       final code = cleanScannedCode(barcode.rawValue);
       // Schon erfasst? Dann steht derselbe Code nach dem Treffer noch im Bild –
-      // Serien- und Inventarnummer sind nie gleich.
+      // Inventar- und Seriennummer sind nie gleich.
       if (code.isEmpty || _values.contains(code)) continue;
       HapticFeedback.mediumImpact();
       _pauseTimer = Timer(_pauseAfterHit, () {});
@@ -174,7 +184,7 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final labels = [widget.serialLabel, widget.inventoryLabel];
+    final labels = [widget.inventoryLabel, widget.serialLabel];
     final target = _target;
     return Scaffold(
       backgroundColor: Colors.black,
@@ -327,7 +337,8 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
             children: [
               for (var i = 0; i < _values.length; i++)
                 _fieldTile(l, i, labels[i]),
-              const SizedBox(height: 8),
+              _dateLine(),
+              const SizedBox(height: 4),
               FilledButton.icon(
                 onPressed: _values.any((v) => v.isNotEmpty) ? _apply : null,
                 icon: const Icon(Icons.check),
@@ -336,6 +347,35 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Datum, das automatisch in die neue Zeile kommt – nur zur Info, nicht
+  // antippbar (wird ja nicht gescannt).
+  Widget _dateLine() {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final fg = scheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Row(
+        children: [
+          Icon(Icons.event, color: fg),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(
+                    text: '${widget.dateLabel}  ',
+                    style: textTheme.labelMedium?.copyWith(color: fg)),
+                TextSpan(
+                    text: widget.date,
+                    style: textTheme.bodyLarge?.copyWith(color: fg)),
+              ]),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 import 'package:notizblock/models/note.dart';
+import 'package:notizblock/screens/autopool_scan_screen.dart';
 import 'package:notizblock/screens/sticky_note_screen.dart';
 import 'package:notizblock/services/database_service.dart';
+import 'package:notizblock/widgets/autopool_table.dart';
 import 'package:notizblock/widgets/note_card.dart';
 import 'package:notizblock/widgets/shopping_list_view.dart';
 import 'package:notizblock/widgets/text_scale.dart';
@@ -15,6 +18,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'fake_scanner_platform.dart';
 
 /// Wie Android ab Version 14 bei 200 %: kleine Schrift wächst stärker als
 /// große (12 → 24, 24 → ~36, ab ~60 kaum noch).
@@ -160,6 +165,56 @@ void main() {
             lessThanOrEqualTo(width));
       });
     }
+
+    testWidgets('$name: Autopool-Knöpfe unter der Tabelle ganz lesbar',
+        (tester) async {
+      await loadFonts(tester);
+      phone(tester);
+      await tester.pumpWidget(app(Scaffold(
+        body: SingleChildScrollView(
+          child: AutopoolTable(initialData: '', onChanged: (_) {}),
+        ),
+      )));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // „Scannen“ rutscht notfalls in die nächste Zeile, abgeschnitten wird
+      // keiner der beiden Knöpfe.
+      for (final label in ['Zeile hinzufügen', 'Scannen']) {
+        final p = tester.renderObject<RenderParagraph>(find.text(label));
+        expect(p.size.width,
+            greaterThanOrEqualTo(p.getMaxIntrinsicWidth(double.infinity) - 0.5));
+        expect(tester.getRect(find.text(label)).right, lessThanOrEqualTo(360));
+      }
+    });
+
+    testWidgets('$name: Autopool-Scanner passt aufs Handy', (tester) async {
+      await loadFonts(tester);
+      phone(tester);
+      final camera = FakeScannerPlatform();
+      final original = MobileScannerPlatform.instance;
+      MobileScannerPlatform.instance = camera;
+      addTearDown(() => MobileScannerPlatform.instance = original);
+      await tester.pumpWidget(app(const AutopoolScanScreen(
+        inventoryLabel: 'Inventarnummer',
+        serialLabel: 'Seriennummer',
+        dateLabel: 'Datum',
+        date: '16.10.26',
+      )));
+      await tester.pumpAndSettle();
+      // Beide Nummern erfasst: so voll wird die Feldleiste unten.
+      for (final code in ['INV-2026-004711', 'SN-5CG1234XYZ']) {
+        camera.emit([code]);
+        await tester.pump(Duration.zero);
+        await tester.pump(const Duration(seconds: 2));
+      }
+      expect(tester.takeException(), isNull);
+      expect(find.text('SN-5CG1234XYZ'), findsOneWidget);
+      // „Übernehmen“ ganz im Bild, und für die Kamera bleibt genug Platz.
+      expect(tester.getRect(find.text('Übernehmen')).bottom,
+          lessThanOrEqualTo(780));
+      expect(tester.getSize(find.byType(MobileScanner)).height,
+          greaterThan(250));
+    });
 
     testWidgets('$name: Notizzettel-Leiste passt ins Fenster', (tester) async {
       await loadFonts(tester);

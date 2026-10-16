@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/autopool.dart';
 import '../screens/autopool_scan_screen.dart';
+import '../utils/date_display.dart';
 import 'color_picker.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
 
@@ -29,8 +31,9 @@ import 'package:notizblock/l10n/generated/app_localizations.dart';
 ///   Überschrift (eigener Name pro Notiz; auf Standard zurücksetzbar).
 /// - Felder sind umrahmt und wachsen mit dem Inhalt (kein Abschneiden).
 /// - **„Scannen"** (nur Android) neben „Zeile hinzufügen": öffnet die Kamera,
-///   erfasst Serien- + Inventarnummer per Barcode und legt daraus eine neue
-///   Zeile an (s. [addScannedRow], `screens/autopool_scan_screen.dart`).
+///   erfasst erst die Inventar-, dann die Seriennummer per Barcode und legt
+///   daraus eine neue Zeile mit dem heutigen Datum an (s. [addScannedRow],
+///   `screens/autopool_scan_screen.dart`).
 ///
 /// Über einen [GlobalKey] auf [AutopoolTableState] können Eltern den aktuellen
 /// Stand auslesen ([currentJson]), den Fokus prüfen ([hasFocus]) und externe
@@ -75,7 +78,9 @@ class AutopoolTableState extends State<AutopoolTable> {
 
   // Kamera-Scan nur auf Android: Desktop-Rechner haben selten eine brauchbare
   // Kamera, und ein USB-Handscanner tippt dort ohnehin direkt ins Feld.
-  bool get _canScan => Platform.isAndroid;
+  // defaultTargetPlatform statt Platform.isAndroid: gleich auf dem Gerät, aber
+  // Widget-Tests (laufen als „Android") sehen den Button und prüfen die Leiste.
+  bool get _canScan => defaultTargetPlatform == TargetPlatform.android;
 
   final List<List<TextEditingController>> _rows = [];
   final List<List<FocusNode>> _focus = [];
@@ -231,11 +236,16 @@ class AutopoolTableState extends State<AutopoolTable> {
     _emitChange();
   }
 
-  /// Neue volle Zeile mit gescannter Serien- und Inventarnummer (vom „Scannen"-
-  /// Button). Ist die letzte Zeile eine völlig leere volle Zeile ohne Markierung
-  /// und Farbe (z.B. die Startzeile einer neuen Notiz), wird sie befüllt statt
-  /// eine weitere anzuhängen. Danach wird die Zeile ins Bild gescrollt.
-  void addScannedRow({required String serial, required String inventory}) {
+  /// Neue volle Zeile mit gescannter Inventar- und Seriennummer und dem Datum
+  /// (vom „Scannen"-Button). Ist die letzte Zeile eine völlig leere volle Zeile
+  /// ohne Markierung und Farbe (z.B. die Startzeile einer neuen Notiz), wird sie
+  /// befüllt statt eine weitere anzuhängen. Danach wird die Zeile ins Bild
+  /// gescrollt.
+  void addScannedRow({
+    required String inventory,
+    required String serial,
+    required String date,
+  }) {
     final last = _rows.length - 1;
     final reuseLast = _rows[last].length == kAutopoolColCount &&
         _rows[last].every((c) => c.text.trim().isEmpty) &&
@@ -245,6 +255,7 @@ class AutopoolTableState extends State<AutopoolTable> {
       if (!reuseLast) _addEmptyRowInternal();
       _rows.last[kAutopoolInventoryCol].text = inventory;
       _rows.last[kAutopoolSerialCol].text = serial;
+      _rows.last[kAutopoolDateCol].text = date;
       _moveMode = null;
     });
     _emitChange();
@@ -265,18 +276,23 @@ class AutopoolTableState extends State<AutopoolTable> {
   Future<void> _scanNewRow(List<String> cols) async {
     if (_scanOpen) return;
     _scanOpen = true;
+    // Heutiges Datum in der Sprache der App; der Scanner zeigt es schon an.
+    final today = DateDisplay.date(context, DateTime.now());
     final AutopoolScanResult? result;
     try {
       result = await showAutopoolScanner(
         context,
-        serialLabel: _colLabel(kAutopoolSerialCol, cols),
         inventoryLabel: _colLabel(kAutopoolInventoryCol, cols),
+        serialLabel: _colLabel(kAutopoolSerialCol, cols),
+        dateLabel: _colLabel(kAutopoolDateCol, cols),
+        date: today,
       );
     } finally {
       _scanOpen = false;
     }
     if (result == null || !mounted) return;
-    addScannedRow(serial: result.serial, inventory: result.inventory);
+    addScannedRow(
+        inventory: result.inventory, serial: result.serial, date: today);
   }
 
   void _toggleMark(int index) {
@@ -578,7 +594,7 @@ class AutopoolTableState extends State<AutopoolTable> {
     );
   }
 
-  // „Scannen": Kamera öffnen, Serien- + Inventarnummer erfassen → neue Zeile.
+  // „Scannen": Kamera öffnen, Inventar- + Seriennummer erfassen → neue Zeile.
   // Optik wie „Zeile hinzufügen".
   Widget _scanButton(AppLocalizations l, List<String> cols) {
     return InkWell(

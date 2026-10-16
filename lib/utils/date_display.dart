@@ -70,6 +70,21 @@ class DateDisplay {
         'MM-dd',
       );
 
+  /// Datum rein numerisch mit zweistelligem Jahr („16.10.26"), z.B. für die
+  /// Datumsspalte der Autopool-Tabelle (Andis Wunsch: Jahr nur zweistellig).
+  /// Reihenfolge und Trenner kommen aus dem Muster der Sprache, nur das Jahr
+  /// wird gekürzt.
+  static String date(BuildContext context, DateTime date) => _safe(
+        () {
+          final locale = _locale(context);
+          final pattern = DateFormat.yMd(locale).pattern!;
+          return DateFormat(pattern.replaceAll(RegExp('y+'), 'yy'), locale)
+              .format(date);
+        },
+        date,
+        'yy-MM-dd',
+      );
+
   /// Tag und Monat rein numerisch („4.8.").
   static String dayMonthNumeric(BuildContext context, DateTime date) => _safe(
         () => DateFormat.Md(_locale(context)).format(date),

@@ -7,6 +7,7 @@ const int kAutopoolColCount = 6;
 /// Spaltenindizes, die der Scanner befüllt (siehe AutopoolTable.addScannedRow).
 const int kAutopoolInventoryCol = 3;
 const int kAutopoolSerialCol = 4;
+const int kAutopoolDateCol = 5;
 
 /// Gescannten Barcode-Inhalt für eine Zelle aufbereiten: Steuerzeichen,
 /// Zeilenumbrüche und Tabs (kommen in QR-/DataMatrix-Codes vor) sowie mehrfache

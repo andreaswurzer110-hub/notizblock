@@ -105,13 +105,15 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 - **Autopool „Scannen" (Android) – Code fertig, am Gerät noch NICHT getestet**
   (2026-10-16, Cloud-Session; Branch `ccr-4bcee58f-i14glo`, PR an `main`; die passende
   Datenschutz-Änderung liegt als PR im Repo `notizblock-privacy`). Button „Scannen"
-  neben „Zeile hinzufügen" → Kamera → Serien- und Inventarnummer per Barcode → neue
-  Zeile. Details + Schutzmechanismen: `docs/archiv/stolpersteine.md`, Eintrag
+  neben „Zeile hinzufügen" → Kamera → erst Inventar-, dann Seriennummer per Barcode →
+  neue Zeile, das heutige Datum kommt von selbst dazu (Andis Wunsch, lokal am
+  2026-10-16 umgebaut; die Cloud-Fassung hatte Seriennummer zuerst und kein Datum).
+  Details + Schutzmechanismen: `docs/archiv/stolpersteine.md`, Eintrag
   „Autopool Scannen". In der Cloud nur über `test/autopool_scan_test.dart` (Fake-Kamera)
   geprüft – ein Android-Build war dort nicht möglich (kein SDK, `dl.google.com`
   gesperrt). **Offen, in dieser Reihenfolge:**
-  (1) Branch auschecken, `flutter pub get`, `flutter build apk --debug` – baut es mit
-  `mobile_scanner` 7.4.2 (AGP 8.11.1, Kotlin 2.2.20, minSdk 24)?
+  (1) ~~Baut es mit `mobile_scanner` 7.4.2 (AGP 8.11.1, Kotlin 2.2.20, minSdk 24)?~~
+  Ja – `flutter build apk --debug` lief am 2026-10-16 lokal durch.
   (2) Am Handy testen: Berechtigung erlauben UND verweigern, echte Typenschilder/
   Inventaretiketten (Code 128, QR, DataMatrix), Taschenlampe, App in den Hintergrund
   und zurück, große Systemschrift, neue leere Notiz → Scan füllt die erste Zeile.
