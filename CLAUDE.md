@@ -102,28 +102,26 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
-- **Autopool „Scannen" (Android) – Code fertig, am Gerät noch NICHT getestet**
-  (2026-10-16, Cloud-Session; Branch `ccr-4bcee58f-i14glo`, PR an `main`; die passende
-  Datenschutz-Änderung liegt als PR im Repo `notizblock-privacy`). Button „Scannen"
-  neben „Zeile hinzufügen" → Kamera → erst Inventar-, dann Seriennummer per Barcode →
-  neue Zeile, das heutige Datum kommt von selbst dazu (Andis Wunsch, lokal am
-  2026-10-16 umgebaut; die Cloud-Fassung hatte Seriennummer zuerst und kein Datum).
-  Details + Schutzmechanismen: `docs/archiv/stolpersteine.md`, Eintrag
-  „Autopool Scannen". In der Cloud nur über `test/autopool_scan_test.dart` (Fake-Kamera)
-  geprüft – ein Android-Build war dort nicht möglich (kein SDK, `dl.google.com`
-  gesperrt). **Offen, in dieser Reihenfolge:**
-  (1) ~~Baut es mit `mobile_scanner` 7.4.2 (AGP 8.11.1, Kotlin 2.2.20, minSdk 24)?~~
-  Ja – `flutter build apk --debug` lief am 2026-10-16 lokal durch.
-  (2) Am Handy testen: Berechtigung erlauben UND verweigern, echte Typenschilder/
+- **Autopool „Scannen" (Android) – 1.33.0 im internen Test, am echten Handy noch NICHT getestet**
+  (2026-10-16): Button „Scannen" neben „Zeile hinzufügen" → Kamera → erst Inventar-,
+  dann Seriennummer per Barcode → neue Zeile, das heutige Datum kommt von selbst dazu
+  (zweistelliges Jahr, de „16.10.26"). In einer Cloud-Session gebaut (PR #1, per
+  Fast-Forward nach `main`), lokal auf Andis Wunsch umgebaut (Cloud hatte Seriennummer
+  zuerst und kein Datum). Details + Schutzmechanismen: `docs/archiv/stolpersteine.md`,
+  Eintrag „Autopool Scannen". **Geprüft:** Widget-Tests mit Fake-Kamera, große Schrift
+  (Test + Emulator mit `font_scale 2.0`), Release-Build x64 im Emulator: Scanner öffnet
+  die Kamera, ML Kit lädt, kein Absturz (R8). **Release:** 1.33.0 (`+13300`) nur für
+  Android (Scan-Knopf gibt es nur dort), Tag `v1.33.0.0`, Play intern am 2026-10-16.
+  Windows/Linux bleiben auf 1.32.0. **Offen:**
+  (1) Am Handy testen: Berechtigung erlauben UND verweigern, echte Typenschilder/
   Inventaretiketten (Code 128, QR, DataMatrix), Taschenlampe, App in den Hintergrund
-  und zurück, große Systemschrift, neue leere Notiz → Scan füllt die erste Zeile.
-  (3) Entscheidung Andi: ML Kit schickt laut Google Diagnosedaten (Geräte-/App-Infos,
+  und zurück, neue leere Notiz → Scan füllt die erste Zeile.
+  (2) Entscheidung Andi: ML Kit schickt laut Google Diagnosedaten (Geräte-/App-Infos,
   Leistungswerte) an Google. Entweder so lassen (Datenschutzerklärung ist schon
   angepasst; Play Console → „Datensicherheit" prüfen) oder auf einen Google-freien
   zxing-Scanner umstellen (etwas weniger robust bei unscharfen/schrägen Codes).
-  (4) Neue Funktion = nächste Minor für alle Plattformen (nach 1.32.0 also 1.33.0,
-  `+13300`), Release-Notes. (5) Datenschutz-PR erst zum Release mergen – GitHub Pages
-  veröffentlicht `master` sofort.
+  (3) Datenschutz-PR im Repo `notizblock-privacy` erst zur Produktion mergen – GitHub
+  Pages veröffentlicht `master` sofort.
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
