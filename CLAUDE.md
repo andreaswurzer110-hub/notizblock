@@ -102,7 +102,7 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
-- **Autopool „Scannen" (Android) – 1.33.0 im internen Test, am echten Handy noch NICHT getestet**
+- **Autopool „Scannen" (Android) – 1.33.1 im internen Test, von Andi am Handy getestet**
   (2026-10-16): Button „Scannen" neben „Zeile hinzufügen" → Kamera → erst Inventar-,
   dann Seriennummer per Barcode → neue Zeile, das heutige Datum kommt von selbst dazu
   (zweistelliges Jahr, de „16.10.26"). In einer Cloud-Session gebaut (PR #1, per
@@ -115,9 +115,12 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   Windows/Linux bleiben auf 1.32.0. Andi hat 1.33.0 am Handy getestet: „funktioniert
   grundsätzlich". Daraus **1.33.1:** „Scannen" auch im Zeilen-Kontextmenü – überschreibt
   Nummern + Datum dieser Zeile (Duplizieren → Scannen), dazu brechen die Autopool-Menüs
-  bei großer Schrift um. **ML Kit bleibt** (Andi 2026-10-16: Diagnosedaten an Google
-  sind ihm egal), Datenschutzerklärung am 2026-10-16 veröffentlicht. **Offen:** Play
-  Console → „Datensicherheit" an ML Kit anpassen (Andi, von Hand).
+  bei großer Schrift um; Tag `v1.33.1.0`, Play intern am 2026-10-16. **ML Kit bleibt**
+  (Andi 2026-10-16: Diagnosedaten an Google sind ihm egal). **Offen:** (1) Datenschutz-PR
+  `notizblock-privacy` #1 mergen – Andi wollte ihn sofort veröffentlicht haben, das
+  Mergen aus Claude heraus blockte die Rechteprüfung („Merge ohne Review“), Andi
+  merged selbst. (2) Play Console → „Datensicherheit" an ML Kit anpassen (Andi, von
+  Hand).
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
