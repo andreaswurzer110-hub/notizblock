@@ -116,11 +116,10 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   grundsätzlich". Daraus **1.33.1:** „Scannen" auch im Zeilen-Kontextmenü – überschreibt
   Nummern + Datum dieser Zeile (Duplizieren → Scannen), dazu brechen die Autopool-Menüs
   bei großer Schrift um; Tag `v1.33.1.0`, Play intern am 2026-10-16. **ML Kit bleibt**
-  (Andi 2026-10-16: Diagnosedaten an Google sind ihm egal). **Offen:** (1) Datenschutz-PR
-  `notizblock-privacy` #1 mergen – Andi wollte ihn sofort veröffentlicht haben, das
-  Mergen aus Claude heraus blockte die Rechteprüfung („Merge ohne Review“), Andi
-  merged selbst. (2) Play Console → „Datensicherheit" an ML Kit anpassen (Andi, von
-  Hand).
+  (Andi 2026-10-16: Diagnosedaten an Google sind ihm egal). Datenschutz-PR
+  `notizblock-privacy` #1 am 2026-10-16 auf Andis Auftrag gemergt, Seite online.
+  **Offen:** Play Console → „Datensicherheit" an ML Kit anpassen (Diagnose + Kennung
+  pro Installation, Zweck Analyse, nicht geteilt, verschlüsselt).
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
