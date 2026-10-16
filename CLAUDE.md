@@ -127,7 +127,9 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   (geschlossener Test „Alpha“, eingereicht 2026-10-16) durch ist, unter
   „Veröffentlichungen – Übersicht“ → „1 Änderung zur Überprüfung einreichen“. Andi will
   die laufende Prüfung NICHT neu starten lassen (Einreichen während einer Prüfung bricht
-  sie ab und verlängert die Wartezeit).
+  sie ab und verlängert die Wartezeit). **Achtung:** Verwaltete Veröffentlichung ist aus –
+  ein neuer Upload über `Release.ps1`/Store-Upload reicht die gespeicherte Änderung
+  automatisch mit ein. Bis dahin also nichts hochladen.
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
