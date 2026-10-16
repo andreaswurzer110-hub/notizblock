@@ -188,6 +188,19 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   xdg-desktop-portal-Dialog statt des GTK-Choosers **innerhalb** der Sandbox —
   vergleichbar zum zenity-Problem in [[pdf-zu-bild-projekt]].
 
+- **Navigationsleiste verdeckt den unteren Rand (Android 15+, randlose Anzeige) – kein
+  akutes Problem, beim nächsten Android-Release beheben (Patch, nur Android)** (2026-10-16):
+  Ganz nach unten gescrollt kann die letzte Notiz unter der Navigationsleiste liegen. Diese
+  Listen haben ein festes `padding:` und rechnen den unteren Abstand deshalb nicht selbst
+  dazu: `home_screen.dart` `_buildGridView` + `_buildListView`, `archive_screen.dart`
+  (Archiv- und Papierkorb-Liste). Fix wie in den Editoren: unten
+  `+ MediaQuery.viewPaddingOf(context).bottom` – der Wert passt sich selbst an (3 Tasten,
+  Gesten, Android ≤ 14 = 0, Querformat), nie eine feste Zahl. Im Emulator mit
+  3-Tasten-Navigation prüfen. Die Play-Console-Meldung „Die randlose Anzeige funktioniert
+  möglicherweise nicht für alle Nutzer“ ist bei Flutter ein Fehlalarm (flutter/flutter#169810)
+  und bleibt auch danach – ignorieren. NICHT `windowOptOutEdgeToEdgeEnforcement` setzen
+  (ab Android 16 wirkungslos).
+
 ## Anpassen / prüfen ‹von Andi›
 
 - **applicationId / Package-Name:** **`at.aw.notizblock`** (finale Play-Store-Identität, in `android/app/build.gradle.kts`). Interner Kotlin-Namespace bleibt bewusst `com.example.notizblock` (die 3 Klassen unter `kotlin/com/example/notizblock/`) – für OAuth/Store zählt nur die applicationId.
