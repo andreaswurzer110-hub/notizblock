@@ -118,8 +118,16 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   bei großer Schrift um; Tag `v1.33.1.0`, Play intern am 2026-10-16. **ML Kit bleibt**
   (Andi 2026-10-16: Diagnosedaten an Google sind ihm egal). Datenschutz-PR
   `notizblock-privacy` #1 am 2026-10-16 auf Andis Auftrag gemergt, Seite online.
-  **Offen:** Play Console → „Datensicherheit" an ML Kit anpassen (Diagnose + Kennung
-  pro Installation, Zweck Analyse, nicht geteilt, verschlüsselt).
+  **Datensicherheit (Play Console) am 2026-10-16 angepasst und GESPEICHERT, aber noch
+  NICHT eingereicht:** vorher „keine Daten erhoben“, jetzt erhoben (optional, Zweck
+  Analyse, nicht geteilt, nicht nur sitzungsspezifisch): App-Info → Diagnosedaten +
+  Geräte- oder andere IDs (ML Kit, Kennung pro Installation); verschlüsselt übertragen;
+  Konto: keins in der App, Anmeldung mit bestehendem Google-Konto nur für Drive;
+  Löschfrage (optional) leer. **Offen:** Sobald die laufende Prüfung von 1.33.1
+  (geschlossener Test „Alpha“, eingereicht 2026-10-16) durch ist, unter
+  „Veröffentlichungen – Übersicht“ → „1 Änderung zur Überprüfung einreichen“. Andi will
+  die laufende Prüfung NICHT neu starten lassen (Einreichen während einer Prüfung bricht
+  sie ab und verlängert die Wartezeit).
 
 - **„Entwicklung unterstützen" (Android, 1.32.0) – Code fertig, Play Console fehlt noch**
   (2026-10-11): Zeile unter „Ersteller" → Dialog mit Beträgen aus Google Play Billing
