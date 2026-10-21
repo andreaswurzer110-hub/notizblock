@@ -105,10 +105,13 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 - **1.33.2 (2026-10-21) – Sync: keine falschen Konfliktwarnungen, alle Plattformen.**
   Andi bekam am Handy die rote Konfliktwarnung, obwohl er nur dort geändert hatte (PC
   lief mit offenen Notizzetteln). Ursache + Fix: `docs/archiv/stolpersteine.md`, Eintrag
-  „Nur hochladen, was das Gerät selbst geändert hat". Gebaut (AAB, Windows lokal
-  installiert, Snap), **noch nicht hochgeladen**: Play-Upload reicht die zurückgehaltene
-  Datensicherheit mit ein (siehe unten) – erst auf Andis Wort. Wirkt erst, wenn ALLE
-  Geräte (Handy, PC, Linux-Laptop) 1.33.2 haben.
+  „Nur hochladen, was das Gerät selbst geändert hat". Am 2026-10-21 auf Andis Wort
+  ausgeliefert: Play **interner Test** (`+13302`, die gespeicherte Datensicherheit ging
+  damit ausdrücklich mit in die Prüfung), Snap **edge** Rev. 54, Windows hier lokal
+  installiert; Store-MSIX `build\msix\Notizblock-1.33.2.0-Store.msix` reicht Andi selbst
+  ein. Wirkt erst, wenn ALLE Geräte (Handy, PC, Linux-Laptop) 1.33.2 haben.
+  Nebenbei: `output_name` der Test-MSIX in `pubspec.yaml` steht noch auf 1.31.12.0
+  (nur der Dateiname, Inhalt stimmt).
 
 - **Autopool „Scannen" (Android) – 1.33.1 im internen Test, von Andi am Handy getestet**
   (2026-10-16): Button „Scannen" neben „Zeile hinzufügen" → Kamera → erst Inventar-,
