@@ -102,6 +102,14 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
+- **1.33.2 (2026-10-21) – Sync: keine falschen Konfliktwarnungen, alle Plattformen.**
+  Andi bekam am Handy die rote Konfliktwarnung, obwohl er nur dort geändert hatte (PC
+  lief mit offenen Notizzetteln). Ursache + Fix: `docs/archiv/stolpersteine.md`, Eintrag
+  „Nur hochladen, was das Gerät selbst geändert hat". Gebaut (AAB, Windows lokal
+  installiert, Snap), **noch nicht hochgeladen**: Play-Upload reicht die zurückgehaltene
+  Datensicherheit mit ein (siehe unten) – erst auf Andis Wort. Wirkt erst, wenn ALLE
+  Geräte (Handy, PC, Linux-Laptop) 1.33.2 haben.
+
 - **Autopool „Scannen" (Android) – 1.33.1 im internen Test, von Andi am Handy getestet**
   (2026-10-16): Button „Scannen" neben „Zeile hinzufügen" → Kamera → erst Inventar-,
   dann Seriennummer per Barcode → neue Zeile, das heutige Datum kommt von selbst dazu
