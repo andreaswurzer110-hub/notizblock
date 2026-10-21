@@ -163,4 +163,34 @@ void main() {
       isFalse,
     );
   });
+
+  group('Hochladen nur bei eigener Änderung (needsUpload)', () {
+    test('eben geholte Fassung wird nicht erneut hochgeladen', () {
+      // PC hat die Handy-Fassung v12 geholt (Basis = v12). Ein anderes
+      // Notizzettel-Fenster hält sie wegen des zurückgedrehten Zeitstempels
+      // für eine lokale Änderung – trotzdem darf nichts hochgehen.
+      expect(GoogleDriveService.needsUpload(base: v12, local: v12), isFalse);
+    });
+
+    test('echte lokale Änderung wird hochgeladen', () {
+      expect(GoogleDriveService.needsUpload(base: v12, local: v1220), isTrue);
+    });
+
+    test('unbekannte Basis -> hochladen wie bisher', () {
+      expect(GoogleDriveService.needsUpload(base: null, local: v12), isTrue);
+    });
+  });
+
+  group('Remote-Abfrage überlappt (remoteListingSince)', () {
+    test('fragt zwei Minuten vor dem Wasserstand ab', () {
+      expect(
+        GoogleDriveService.remoteListingSince('2026-10-21T12:00:21.169Z'),
+        '2026-10-21T11:58:21.169Z',
+      );
+    });
+
+    test('ohne Wasserstand alles abfragen', () {
+      expect(GoogleDriveService.remoteListingSince(null), isNull);
+    });
+  });
 }

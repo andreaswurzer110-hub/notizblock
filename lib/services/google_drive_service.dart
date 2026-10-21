@@ -697,9 +697,14 @@ class GoogleDriveService {
       final pendingDeletions =
           await DatabaseService.instance.getPendingDeletions();
 
+      // Etwas überlappend abfragen (siehe remoteListingSince): Dateien, die
+      // ein anderes Gerät kurz vor unserem eigenen Upload abgelegt hat, sonst
+      // für immer übersehen.
+      final remoteSince = remoteListingSince(lastRemoteSync);
+
       // ---- PULL: geänderte Remote-Notizen ----
       final remoteNoteFiles =
-          await _listFiles(notesFolderId, modifiedAfter: lastRemoteSync);
+          await _listFiles(notesFolderId, modifiedAfter: remoteSince);
       for (final f in remoteNoteFiles) {
         maxSeen = _laterOf(maxSeen, f.modifiedTime);
         final content = await _downloadFile(f.id!);
@@ -765,7 +770,7 @@ class GoogleDriveService {
 
       // ---- PULL: Tombstones (Löschungen von anderen Geräten) ----
       final remoteTombs =
-          await _listFiles(tombFolderId, modifiedAfter: lastRemoteSync);
+          await _listFiles(tombFolderId, modifiedAfter: remoteSince);
       for (final f in remoteTombs) {
         maxSeen = _laterOf(maxSeen, f.modifiedTime);
         final content = await _downloadFile(f.id!);
@@ -792,6 +797,15 @@ class GoogleDriveService {
         // Damit erkennt das ANDERE Gerät, ob seine Fassung dabei übersprungen
         // wurde – es sieht sonst nur „neuere Datei" und merkt den Verlust nicht.
         final basedOn = await DatabaseService.instance.getSyncBase(note.id);
+        // Nur hochladen, was DIESES Gerät seit dem letzten Austausch wirklich
+        // geändert hat (siehe needsUpload). Sonst lädt ein PC mit mehreren
+        // Notizzettel-Fenstern eine gerade vom Handy geholte Fassung als
+        // „eigene Änderung" wieder hoch – und war das Handy inzwischen weiter,
+        // überschreibt er dessen neueren Stand mit dem älteren.
+        if (!needsUpload(
+            base: basedOn, local: note.modifiedAt.toIso8601String())) {
+          continue;
+        }
         final mt = await _putFile(notesFolderId, '${note.id}.json',
             jsonEncode(_notePayload(note, basedOn, device)));
         // Basis SOFORT nach dem Upload fortschreiben – vor allem, was danach
@@ -867,6 +881,8 @@ class GoogleDriveService {
       // Zeitstempel fortschreiben: Start-Watermark verwenden, damit während des
       // Syncs gespeicherte Änderungen im nächsten Lauf erfasst werden.
       await prefs.setString(_lastSyncKey, localSyncStart.toIso8601String());
+      // Nie zurückdrehen: die Überlappung kann ältere Dateien liefern.
+      maxSeen = _laterOf(DateTime.tryParse(lastRemoteSync ?? ''), maxSeen);
       if (maxSeen != null) {
         await prefs.setString(
             _lastRemoteSyncKey, maxSeen.toUtc().toIso8601String());
@@ -1300,6 +1316,41 @@ class GoogleDriveService {
         if (basedOn != null) _basedOnKey: basedOn,
         if (writer != null) _writerKey: writer,
       };
+
+  /// Muss die lokale Fassung hochgeladen werden?
+  ///
+  /// Nur wenn sie sich vom zuletzt mit Drive ausgetauschten Stand [base]
+  /// unterscheidet. Die Liste „seit dem letzten Sync geändert" allein reicht
+  /// nicht: Hauptfenster und Notizzettel-Fenster syncen als eigene Prozesse
+  /// und drehen sich dabei `last_sync_timestamp` gegenseitig zurück. Dann
+  /// gilt eine eben vom Handy GEHOLTE Fassung als lokal geändert und wurde mit
+  /// dem PC als Schreiber erneut hochgeladen (2026-10-21 im Drive-Verlauf
+  /// gesehen, auch vom Linux-Laptop). Harmlos, solange Drive denselben Stand
+  /// hält – hat das Handy inzwischen weitergeschrieben, wird dessen neuere
+  /// Fassung mit der älteren überschrieben und das Handy meldet Konflikt,
+  /// obwohl am PC niemand etwas geändert hat. Nebenbei verdrängten diese
+  /// Doppel-Uploads echte Stände aus dem Versionsverlauf (30 pro Notiz).
+  /// Unbekannte Basis (`null`) → hochladen wie bisher.
+  static bool needsUpload({required String? base, required String local}) =>
+      base != local;
+
+  /// Überlappung der Remote-Abfrage, siehe [remoteListingSince].
+  static const Duration remoteListingOverlap = Duration(minutes: 2);
+
+  /// Ab welcher Drive-Zeit geänderte Dateien abgefragt werden.
+  ///
+  /// `last_remote_sync_time` wird auch durch die Serverzeit der EIGENEN
+  /// Uploads fortgeschrieben. Legt ein anderes Gerät zwischen unserer Abfrage
+  /// und unserem Upload eine Datei ab, liegt deren Zeit VOR dem neuen
+  /// Wasserstand – sie würde nie geholt, der PC bliebe auf dem alten Stand und
+  /// schriebe ihn später zurück. Deshalb ein Stück überlappend abfragen.
+  /// Doppelt gelieferte Dateien sind unschädlich: Drive hält immer nur die
+  /// jüngste Datei pro Notiz, die ist dann unsere eigene oder unsere Basis.
+  static String? remoteListingSince(String? lastRemoteSync) {
+    final t = DateTime.tryParse(lastRemoteSync ?? '');
+    if (t == null) return lastRemoteSync;
+    return t.toUtc().subtract(remoteListingOverlap).toIso8601String();
+  }
 
   /// Geht bei diesem Zusammenführen eine Änderung VERLOREN?
   ///
