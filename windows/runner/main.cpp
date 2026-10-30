@@ -22,9 +22,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
 
+  // Notizzettel laufen als eigene Prozesse (--sticky-note <id>) und merken sich
+  // ihre Lage selbst (StickyNoteService); nur das Hauptfenster merkt sie hier.
+  const bool is_sticky_note = !command_line_arguments.empty() &&
+                              command_line_arguments[0] == "--sticky-note";
+
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
+  window.SetRememberPlacement(!is_sticky_note);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
   if (!window.Create(L"Notizblock AW", origin, size)) {

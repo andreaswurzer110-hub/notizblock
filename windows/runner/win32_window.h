@@ -39,6 +39,12 @@ class Win32Window {
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();
 
+  // Ob sich das Fenster Lage und Größe merkt (Standard: ja, unter dem Titel aus
+  // |Create|). Muss vor |Create| fallen. Nebenfenster wie die Notizzettel des
+  // Notizblocks schalten es ab, damit sie die Lage des Hauptfensters nicht
+  // überschreiben.
+  void SetRememberPlacement(bool remember);
+
   // Release OS resources associated with window.
   void Destroy();
 
@@ -90,7 +96,21 @@ class Win32Window {
   // Update the window frame's theme to match the system theme.
   static void UpdateTheme(HWND const window);
 
+  // Liest die beim letzten Schließen gemerkte Lage. False, wenn keine da ist
+  // oder sie auf keinem angeschlossenen Bildschirm mehr sichtbar wäre.
+  bool LoadPlacement(RECT* rect, bool* maximized) const;
+
+  // Merkt sich Lage, Größe und „maximiert“ des Fensters für den nächsten Start.
+  void SavePlacement() const;
+
   bool quit_on_close_ = false;
+
+  // Lage merken: Name des Registry-Werts (leer = nicht merken).
+  bool remember_placement_ = true;
+  std::wstring placement_key_;
+
+  // Beim letzten Schließen war das Fenster maximiert.
+  bool start_maximized_ = false;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

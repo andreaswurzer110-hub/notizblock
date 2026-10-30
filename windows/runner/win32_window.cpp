@@ -3,6 +3,8 @@
 #include <dwmapi.h>
 #include <flutter_windows.h>
 
+#include <algorithm>
+
 #include "resource.h"
 
 namespace {
@@ -51,6 +53,26 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
     enable_non_client_dpi_scaling(hwnd);
   }
   FreeLibrary(user32_module);
+}
+
+/// Hier merken sich alle Apps von Andreas ihre Fensterlage, je App ein Wert.
+constexpr const wchar_t kPlacementRegKey[] = L"Software\\AW\\Fensterlage";
+
+/// So wird die Lage gespeichert: Bildschirmkoordinaten in physischen Pixeln.
+struct StoredPlacement {
+  LONG left;
+  LONG top;
+  LONG right;
+  LONG bottom;
+  LONG maximized;
+};
+
+/// Freier Bereich (ohne Taskleiste) des Bildschirms, auf dem |monitor| liegt.
+RECT WorkArea(HMONITOR monitor) {
+  MONITORINFO info{};
+  info.cbSize = sizeof(info);
+  GetMonitorInfo(monitor, &info);
+  return info.rcWork;
 }
 
 }  // namespace
@@ -121,24 +143,43 @@ Win32Window::~Win32Window() {
 }
 
 bool Win32Window::Create(const std::wstring& title,
-                         const Point& origin,
+                         const Point& /*origin*/,
                          const Size& size) {
   Destroy();
 
   const wchar_t* window_class =
       WindowClassRegistrar::GetInstance()->GetWindowClass();
 
-  const POINT target_point = {static_cast<LONG>(origin.x),
-                              static_cast<LONG>(origin.y)};
-  HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
-  UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
-  double scale_factor = dpi / 96.0;
+  placement_key_ = remember_placement_ ? title : std::wstring();
+
+  // Wieder dort, wo das Fenster beim letzten Schließen war. Beim ersten Start
+  // (oder wenn der Bildschirm von damals fehlt) mittig im freien Bereich des
+  // Bildschirms mit dem Mauszeiger, nicht hinter einer Taskleiste und nie
+  // größer als dieser Bereich. |origin| bleibt dafür unbenutzt.
+  RECT frame;
+  if (!LoadPlacement(&frame, &start_maximized_)) {
+    POINT cursor{};
+    GetCursorPos(&cursor);
+    HMONITOR monitor = MonitorFromPoint(cursor, MONITOR_DEFAULTTOPRIMARY);
+    UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
+    double scale_factor = dpi / 96.0;
+    const RECT work = WorkArea(monitor);
+    const LONG work_width = work.right - work.left;
+    const LONG work_height = work.bottom - work.top;
+    const LONG width =
+        std::min<LONG>(Scale(size.width, scale_factor), work_width);
+    const LONG height =
+        std::min<LONG>(Scale(size.height, scale_factor), work_height);
+    frame.left = work.left + (work_width - width) / 2;
+    frame.top = work.top + (work_height - height) / 2;
+    frame.right = frame.left + width;
+    frame.bottom = frame.top + height;
+  }
 
   HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
-      Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, scale_factor), Scale(size.height, scale_factor),
-      nullptr, nullptr, GetModuleHandle(nullptr), this);
+      window_class, title.c_str(), WS_OVERLAPPEDWINDOW, frame.left, frame.top,
+      frame.right - frame.left, frame.bottom - frame.top, nullptr, nullptr,
+      GetModuleHandle(nullptr), this);
 
   if (!window) {
     return false;
@@ -150,7 +191,87 @@ bool Win32Window::Create(const std::wstring& title,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_,
+                    start_maximized_ ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
+}
+
+void Win32Window::SetRememberPlacement(bool remember) {
+  remember_placement_ = remember;
+}
+
+bool Win32Window::LoadPlacement(RECT* rect, bool* maximized) const {
+  if (placement_key_.empty()) {
+    return false;
+  }
+  StoredPlacement stored{};
+  DWORD stored_size = sizeof(stored);
+  if (RegGetValue(HKEY_CURRENT_USER, kPlacementRegKey, placement_key_.c_str(),
+                  RRF_RT_REG_BINARY, nullptr, &stored,
+                  &stored_size) != ERROR_SUCCESS ||
+      stored_size != sizeof(stored)) {
+    return false;
+  }
+  RECT saved = {stored.left, stored.top, stored.right, stored.bottom};
+  if (saved.right - saved.left < 100 || saved.bottom - saved.top < 100) {
+    return false;
+  }
+
+  // Die Titelleiste muss auf einem angeschlossenen Bildschirm greifbar sein,
+  // sonst (Bildschirm abgesteckt) lieber neu mittig öffnen.
+  RECT title_bar = {saved.left, saved.top, saved.right, saved.top + 40};
+  HMONITOR monitor = MonitorFromRect(&title_bar, MONITOR_DEFAULTTONULL);
+  if (monitor == nullptr) {
+    return false;
+  }
+  const RECT work = WorkArea(monitor);
+  RECT visible;
+  if (!IntersectRect(&visible, &title_bar, &work) ||
+      visible.right - visible.left < 150) {
+    return false;
+  }
+
+  // Ist der freie Bereich kleiner geworden (andere Auflösung, Taskleiste
+  // verschoben), das Fenster hineinschieben und notfalls verkleinern.
+  const LONG width = std::min(saved.right - saved.left, work.right - work.left);
+  const LONG height = std::min(saved.bottom - saved.top, work.bottom - work.top);
+  rect->left = std::max(work.left, std::min(saved.left, work.right - width));
+  rect->top = std::max(work.top, std::min(saved.top, work.bottom - height));
+  rect->right = rect->left + width;
+  rect->bottom = rect->top + height;
+  *maximized = stored.maximized != 0;
+  return true;
+}
+
+void Win32Window::SavePlacement() const {
+  if (placement_key_.empty() || window_handle_ == nullptr) {
+    return;
+  }
+  WINDOWPLACEMENT placement{};
+  placement.length = sizeof(placement);
+  if (!GetWindowPlacement(window_handle_, &placement)) {
+    return;
+  }
+
+  // rcNormalPosition zählt ab dem freien Bereich des Hauptbildschirms
+  // (Taskleiste links oder oben verschiebt ihn); umrechnen in Bildschirm-
+  // koordinaten, wie CreateWindow sie erwartet.
+  HMONITOR primary = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+  MONITORINFO info{};
+  info.cbSize = sizeof(info);
+  GetMonitorInfo(primary, &info);
+  const LONG dx = info.rcWork.left - info.rcMonitor.left;
+  const LONG dy = info.rcWork.top - info.rcMonitor.top;
+
+  const RECT& normal = placement.rcNormalPosition;
+  StoredPlacement stored = {
+      normal.left + dx, normal.top + dy, normal.right + dx, normal.bottom + dy,
+      placement.showCmd == SW_SHOWMAXIMIZED ||
+              (placement.showCmd == SW_SHOWMINIMIZED &&
+               (placement.flags & WPF_RESTORETOMAXIMIZED) != 0)
+          ? 1
+          : 0};
+  RegSetKeyValue(HKEY_CURRENT_USER, kPlacementRegKey, placement_key_.c_str(),
+                 REG_BINARY, &stored, sizeof(stored));
 }
 
 // static
@@ -167,6 +288,14 @@ LRESULT CALLBACK Win32Window::WndProc(HWND const window,
     EnableFullDpiSupportIfAvailable(window);
     that->window_handle_ = window;
   } else if (Win32Window* that = GetThisFromHandle(window)) {
+    // Lage merken, bevor Plugins (z. B. window_manager) die Nachricht für sich
+    // beanspruchen: beim Schließen, beim Verstecken in den Infobereich und
+    // beim Abmelden/Herunterfahren, das keinen WM_DESTROY mehr schickt.
+    if (message == WM_DESTROY ||
+        (message == WM_SHOWWINDOW && wparam == FALSE) ||
+        (message == WM_ENDSESSION && wparam == TRUE)) {
+      that->SavePlacement();
+    }
     return that->MessageHandler(window, message, wparam, lparam);
   }
 
