@@ -102,7 +102,7 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
-- **1.34.0 (2026-11-06) – nur Android, gebaut, Upload wartet auf Andis OK:** Autopool-Scanner
+- **1.34.0 (2026-11-06) – nur Android, mit Andis OK im internen Test (Tag `v1.34.0.0`):** Autopool-Scanner
   liest kleine und hell auf dunkel gelaserte Codes („Foto“/„Galerie“ + `CodeFinder.kt`), bietet bei
   Codes mit mehreren Angaben die Teile zur Auswahl an (Seriennummer aus dem Data-Matrix-Code einer
   HP-Dockingstation) und zoomt live mit zwei Fingern. Details: `docs/archiv/stolpersteine.md`,
