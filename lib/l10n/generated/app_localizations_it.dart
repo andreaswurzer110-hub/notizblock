@@ -456,6 +456,38 @@ class AppLocalizationsIt extends AppLocalizations {
   String get autopoolScanCameraError => 'Impossibile avviare la fotocamera.';
 
   @override
+  String get autopoolScanPhoto => 'Foto';
+
+  @override
+  String get autopoolScanGallery => 'Galleria';
+
+  @override
+  String get autopoolScanSmallHint =>
+      'Codice piccolo? Ingrandisci con due dita o tocca «Foto»';
+
+  @override
+  String get autopoolScanSearching => 'Ricerca dei codici…';
+
+  @override
+  String get autopoolScanNothing =>
+      'Nessun codice trovato. Avvicinati, aumenta la luce o tieni il telefono più dritto.';
+
+  @override
+  String get autopoolScanUnreadable => 'Impossibile leggere l’immagine.';
+
+  @override
+  String get autopoolScanPhotoFailed =>
+      'Impossibile aprire l’app della fotocamera.';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return 'Cosa va in «$field»?';
+  }
+
+  @override
+  String get autopoolScanWhole => 'contenuto completo';
+
+  @override
   String get moveUp => 'Su';
 
   @override

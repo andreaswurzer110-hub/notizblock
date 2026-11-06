@@ -942,6 +942,60 @@ abstract class AppLocalizations {
   /// **'Die Kamera konnte nicht gestartet werden.'**
   String get autopoolScanCameraError;
 
+  /// No description provided for @autopoolScanPhoto.
+  ///
+  /// In de, this message translates to:
+  /// **'Foto'**
+  String get autopoolScanPhoto;
+
+  /// No description provided for @autopoolScanGallery.
+  ///
+  /// In de, this message translates to:
+  /// **'Galerie'**
+  String get autopoolScanGallery;
+
+  /// No description provided for @autopoolScanSmallHint.
+  ///
+  /// In de, this message translates to:
+  /// **'Kleiner Code? Mit zwei Fingern zoomen oder „Foto“ antippen'**
+  String get autopoolScanSmallHint;
+
+  /// No description provided for @autopoolScanSearching.
+  ///
+  /// In de, this message translates to:
+  /// **'Codes werden gesucht …'**
+  String get autopoolScanSearching;
+
+  /// No description provided for @autopoolScanNothing.
+  ///
+  /// In de, this message translates to:
+  /// **'Kein Code gefunden. Näher heran, mehr Licht oder das Handy gerader halten.'**
+  String get autopoolScanNothing;
+
+  /// No description provided for @autopoolScanUnreadable.
+  ///
+  /// In de, this message translates to:
+  /// **'Das Bild ließ sich nicht lesen.'**
+  String get autopoolScanUnreadable;
+
+  /// No description provided for @autopoolScanPhotoFailed.
+  ///
+  /// In de, this message translates to:
+  /// **'Die Kamera-App ließ sich nicht öffnen.'**
+  String get autopoolScanPhotoFailed;
+
+  /// No description provided for @autopoolScanChoose.
+  ///
+  /// In de, this message translates to:
+  /// **'Was soll in „{field}“?'**
+  String autopoolScanChoose(String field);
+
+  /// No description provided for @autopoolScanWhole.
+  ///
+  /// In de, this message translates to:
+  /// **'ganzer Inhalt'**
+  String get autopoolScanWhole;
+
   /// No description provided for @moveUp.
   ///
   /// In de, this message translates to:

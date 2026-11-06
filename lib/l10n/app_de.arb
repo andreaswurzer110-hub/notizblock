@@ -238,6 +238,22 @@
   "autopoolScanTorch": "Taschenlampe",
   "autopoolScanNoPermission": "Kein Zugriff auf die Kamera. Bitte in den Android-Einstellungen für Notizblock AW erlauben.",
   "autopoolScanCameraError": "Die Kamera konnte nicht gestartet werden.",
+  "autopoolScanPhoto": "Foto",
+  "autopoolScanGallery": "Galerie",
+  "autopoolScanSmallHint": "Kleiner Code? Mit zwei Fingern zoomen oder „Foto“ antippen",
+  "autopoolScanSearching": "Codes werden gesucht …",
+  "autopoolScanNothing": "Kein Code gefunden. Näher heran, mehr Licht oder das Handy gerader halten.",
+  "autopoolScanUnreadable": "Das Bild ließ sich nicht lesen.",
+  "autopoolScanPhotoFailed": "Die Kamera-App ließ sich nicht öffnen.",
+  "autopoolScanChoose": "Was soll in „{field}“?",
+  "@autopoolScanChoose": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "autopoolScanWhole": "ganzer Inhalt",
   "moveUp": "Nach oben",
   "moveDown": "Nach unten",
   "openLink": "Link öffnen",

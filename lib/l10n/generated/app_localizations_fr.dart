@@ -458,6 +458,38 @@ class AppLocalizationsFr extends AppLocalizations {
       'Impossible de démarrer l’appareil photo.';
 
   @override
+  String get autopoolScanPhoto => 'Photo';
+
+  @override
+  String get autopoolScanGallery => 'Galerie';
+
+  @override
+  String get autopoolScanSmallHint =>
+      'Petit code ? Zoomez à deux doigts ou touchez « Photo »';
+
+  @override
+  String get autopoolScanSearching => 'Recherche des codes…';
+
+  @override
+  String get autopoolScanNothing =>
+      'Aucun code trouvé. Approchez-vous, ajoutez de la lumière ou tenez le téléphone plus droit.';
+
+  @override
+  String get autopoolScanUnreadable => 'Impossible de lire l’image.';
+
+  @override
+  String get autopoolScanPhotoFailed =>
+      'Impossible d’ouvrir l’application appareil photo.';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return 'Que mettre dans « $field » ?';
+  }
+
+  @override
+  String get autopoolScanWhole => 'contenu complet';
+
+  @override
   String get moveUp => 'Monter';
 
   @override

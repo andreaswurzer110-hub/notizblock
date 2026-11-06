@@ -70,3 +70,9 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Autopool-Scanner „Foto“/„Galerie“ (CodeFinder): dieselbe gebündelte ML-Kit-Fassung,
+    // die mobile_scanner schon mitbringt – kostet also keinen Platz.
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+}

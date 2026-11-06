@@ -243,6 +243,38 @@ void main() {
           greaterThan(250));
     });
 
+    testWidgets('$name: Foto/Galerie und Auswahl der Code-Teile passen',
+        (tester) async {
+      await loadFonts(tester);
+      phone(tester);
+      final camera = FakeScannerPlatform();
+      final original = MobileScannerPlatform.instance;
+      MobileScannerPlatform.instance = camera;
+      addTearDown(() => MobileScannerPlatform.instance = original);
+      await tester.pumpWidget(app(const AutopoolScanScreen(
+        inventoryLabel: 'Inventarnummer',
+        serialLabel: 'Seriennummer',
+        dateLabel: 'Datum',
+        date: '16.10.26',
+      )));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // Knöpfe ganz im Kamerabereich, ohne Überlauf.
+      final kamera = tester.getRect(find.byType(MobileScanner));
+      for (final label in ['Foto', 'Galerie']) {
+        expect(kamera.contains(tester.getRect(find.text(label)).bottomRight),
+            isTrue, reason: label);
+      }
+      // Code mit mehreren Angaben → Auswahl.
+      camera.emit(['HP USB-C Dock G5,L61609-001,84-3A-5B-F5-17-CC,'
+          '5CG302RL6X,1y0y0y']);
+      await tester.pump(Duration.zero);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('5CG302RL6X'), findsOneWidget);
+      expect(find.textContaining('Was soll in'), findsOneWidget);
+    });
+
     testWidgets('$name: Notizzettel-Leiste passt ins Fenster', (tester) async {
       await loadFonts(tester);
       tester.view.physicalSize = const Size(320, 340);

@@ -449,6 +449,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autopoolScanCameraError => '无法启动相机。';
 
   @override
+  String get autopoolScanPhoto => '拍照';
+
+  @override
+  String get autopoolScanGallery => '相册';
+
+  @override
+  String get autopoolScanSmallHint => '代码太小？用两指放大或点按“拍照”';
+
+  @override
+  String get autopoolScanSearching => '正在查找代码…';
+
+  @override
+  String get autopoolScanNothing => '未找到代码。请靠近一些、增加光线或把手机拿正。';
+
+  @override
+  String get autopoolScanUnreadable => '无法读取图片。';
+
+  @override
+  String get autopoolScanPhotoFailed => '无法打开相机应用。';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return '“$field”中填入哪一项？';
+  }
+
+  @override
+  String get autopoolScanWhole => '全部内容';
+
+  @override
   String get moveUp => '上移';
 
   @override

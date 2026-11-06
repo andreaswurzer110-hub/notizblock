@@ -50,6 +50,13 @@ Future<AutopoolScanResult?> showAutopoolScanner(
 /// Nur Barcodes innerhalb des Rahmens zählen (`scanWindow`) – Typenschilder
 /// tragen oft mehrere Codes nebeneinander (Seriennummer, Artikelnummer, MAC …).
 /// Die Bilder werden nur auf dem Gerät ausgewertet (ML Kit), nicht gespeichert.
+///
+/// Seit 1.34.0: Mit zwei Fingern zoomt die Kamera (kleine Codes). Was live nicht
+/// klappt – kleine oder hell auf dunkel gelaserte Codes wie der Data-Matrix-Code
+/// am Boden einer Dockingstation –, liest „Foto“ bzw. „Galerie“: ein richtiges
+/// Foto, ausgewertet von `CodeFinder` in MainActivity (Kanal `notizblock/codes`).
+/// Trägt ein Code mehrere Angaben („Modell,Teilenummer,MAC,Seriennummer,…“),
+/// fragt der Scanner, welche ins Feld soll ([scannedCodeParts]).
 class AutopoolScanScreen extends StatefulWidget {
   final String inventoryLabel;
   final String serialLabel;
@@ -85,11 +92,25 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
       MobileScannerController(autoStart: false);
   StreamSubscription<BarcodeCapture>? _subscription;
 
+  // Foto/Galerie: Android holt das Bild und sucht darin die Codes.
+  static const MethodChannel _codes = MethodChannel('notizblock/codes');
+
   final List<String> _values = ['', ''];
   // Feld, in das der nächste Treffer geht; null = beide erfasst (Scan ruht).
   int? _target = _inventory;
   // Läuft nach jedem Treffer; solange er aktiv ist, zählt kein Code.
   Timer? _pauseTimer;
+  // Ein Foto wird ausgewertet bzw. die Auswahl der Teile ist offen – solange
+  // zählt live kein Code.
+  bool _busy = false;
+  bool _choosing = false;
+  // Codes mit mehreren Angaben, die live schon zur Auswahl standen. Sie bleiben
+  // nach der Auswahl im Bild und kämen sonst sofort fürs nächste Feld wieder.
+  final Set<String> _offered = {};
+  // Zoom der Kamera (0–1): zuletzt gewünscht und beim Aufsetzen der zwei
+  // Finger. Selbst gemerkt – nicht jede Kamera meldet ihn zurück.
+  double _zoom = 0;
+  double _zoomAtStart = 0;
 
   @override
   void initState() {
@@ -112,6 +133,7 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
   // Startfehler (z.B. Kamera verweigert) landen im Controller-Zustand und zeigt
   // der errorBuilder; hier nur nichts unbehandelt hochwerfen lassen.
   Future<void> _startCamera() async {
+    _zoom = 0; // ein Neustart der Kamera beginnt ohne Zoom
     try {
       await _scanner.start();
     } catch (e) {
@@ -141,21 +163,121 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
 
   void _onBarcodes(BarcodeCapture capture) {
     final target = _target;
-    if (!mounted || target == null) return;
+    if (!mounted || target == null || _busy || _choosing) return;
     if (_pauseTimer?.isActive ?? false) return;
     for (final barcode in capture.barcodes) {
       final code = cleanScannedCode(barcode.rawValue);
       // Schon erfasst? Dann steht derselbe Code nach dem Treffer noch im Bild –
       // Inventar- und Seriennummer sind nie gleich.
       if (code.isEmpty || _values.contains(code)) continue;
+      // Mehrere Angaben in einem Code: fragen, welche ins Feld soll.
+      if (scannedCodeParts(barcode.rawValue).isNotEmpty) {
+        if (!_offered.add(code)) continue;
+        HapticFeedback.mediumImpact();
+        unawaited(_offer([barcode.rawValue!]));
+        return;
+      }
       HapticFeedback.mediumImpact();
-      _pauseTimer = Timer(_pauseAfterHit, () {});
-      setState(() {
-        _values[target] = code;
-        _target = _nextEmpty(after: target);
-      });
+      _take(code);
       return;
     }
+  }
+
+  // Wert ins aktuelle Ziel, danach weiter zum nächsten leeren Feld.
+  void _take(String code) {
+    final target = _target;
+    if (target == null || code.isEmpty) return;
+    _pauseTimer?.cancel();
+    _pauseTimer = Timer(_pauseAfterHit, () {});
+    setState(() {
+      _values[target] = code;
+      _target = _nextEmpty(after: target);
+    });
+  }
+
+  // Gefundene Codes anbieten. Einer ohne Teile wird gleich übernommen, sonst
+  // entscheidet die Auswahl (ganzer Code oder einer seiner Teile).
+  Future<void> _offer(List<String> raws) async {
+    final target = _target;
+    if (target == null) return;
+    final groups = <(String, List<String>)>[];
+    for (final raw in raws) {
+      final whole = cleanScannedCode(raw);
+      if (whole.isEmpty || groups.any((g) => g.$1 == whole)) continue;
+      groups.add((whole, scannedCodeParts(raw)));
+    }
+    if (groups.isEmpty) return;
+    if (groups.length == 1 && groups.single.$2.isEmpty) {
+      _take(groups.single.$1);
+      return;
+    }
+    setState(() => _choosing = true);
+    final labels = [widget.inventoryLabel, widget.serialLabel];
+    final chosen = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _CodeChoice(
+        title: AppLocalizations.of(context)!.autopoolScanChoose(labels[target]),
+        groups: groups,
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _choosing = false);
+    if (chosen != null) _take(chosen);
+  }
+
+  // „Foto“ (Kamera-App, volle Auflösung) bzw. „Galerie“: Android holt das Bild,
+  // CodeFinder sucht darin – auch kleine und hell auf dunkel gelaserte Codes.
+  Future<void> _photo({required bool camera}) async {
+    if (_target == null || _busy) return;
+    final l = AppLocalizations.of(context)!;
+    setState(() => _busy = true);
+    Object? answer;
+    try {
+      // Die Kamera-App braucht die Kamera; der Lebenszyklus startet den
+      // Live-Scanner beim Zurückkommen wieder.
+      if (camera) await _scanner.stop();
+      answer = await _codes.invokeMethod<Object?>(
+          'photoCodes', {'source': camera ? 'camera' : 'gallery'});
+    } catch (e) {
+      answer = {'error': 'unreadable'};
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (camera && !_scanner.value.isRunning) unawaited(_startCamera());
+    if (answer is! Map) return; // abgebrochen
+    final error = answer['error'];
+    final codes = [
+      for (final c in (answer['codes'] as List? ?? const []))
+        if (c is Map && (c['value'] ?? '').toString().isNotEmpty)
+          c['value'].toString(),
+    ];
+    if (error != null || codes.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(error == 'camera'
+              ? l.autopoolScanPhotoFailed
+              : error != null
+                  ? l.autopoolScanUnreadable
+                  : l.autopoolScanNothing),
+        ));
+      return;
+    }
+    await _offer(codes);
+  }
+
+  // Zwei Finger zoomen die Kamera – für kleine Codes. 0 = weit, 1 = stärkster
+  // Zoom; Auseinanderziehen auf die doppelte Fingerweite bringt etwa die Hälfte.
+  void _onZoomStart(ScaleStartDetails d) {
+    _zoomAtStart = _zoom;
+  }
+
+  void _onZoomUpdate(ScaleUpdateDetails d) {
+    if (d.pointerCount < 2) return;
+    _zoom = (_zoomAtStart + (d.scale - 1) * 0.5).clamp(0.0, 1.0);
+    _scanner.setZoomScale(_zoom).catchError((Object e) {});
   }
 
   // Nächstes noch leeres Feld nach [after] (reihum) oder null, wenn alle voll.
@@ -171,6 +293,8 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
     setState(() {
       _values[field] = '';
       _target = field;
+      // Ausdrücklich neu scannen: Codes mit mehreren Angaben wieder anbieten.
+      _offered.clear();
     });
   }
 
@@ -224,11 +348,15 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
         return Stack(
           fit: StackFit.expand,
           children: [
-            MobileScanner(
-              controller: _scanner,
-              scanWindow: window,
-              tapToFocus: true,
-              errorBuilder: (context, error) => _cameraError(l, error),
+            GestureDetector(
+              onScaleStart: _onZoomStart,
+              onScaleUpdate: _onZoomUpdate,
+              child: MobileScanner(
+                controller: _scanner,
+                scanWindow: window,
+                tapToFocus: true,
+                errorBuilder: (context, error) => _cameraError(l, error),
+              ),
             ),
             IgnorePointer(
               child: ScanWindowOverlay(
@@ -256,11 +384,23 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          hint,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 15),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              hint,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 15),
+                            ),
+                            if (_target != null)
+                              Text(
+                                l.autopoolScanSmallHint,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 13),
+                              ),
+                          ],
                         ),
                       ),
                     );
@@ -268,6 +408,56 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
                 ),
               ),
             ),
+            // Foto/Galerie – für Codes, die live nicht klappen.
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _target == null || _busy
+                        ? null
+                        : () => _photo(camera: true),
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: Text(l.autopoolScanPhoto),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: _target == null || _busy
+                        ? null
+                        : () => _photo(camera: false),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: Text(l.autopoolScanGallery),
+                  ),
+                ],
+              ),
+            ),
+            if (_busy)
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black54,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(color: Colors.white),
+                          const SizedBox(height: 16),
+                          Text(
+                            l.autopoolScanSearching,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -396,7 +586,10 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () => setState(() => _target = field),
+          onTap: () => setState(() {
+            _target = field;
+            _offered.clear();
+          }),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
             child: Row(
@@ -438,6 +631,54 @@ class _AutopoolScanScreenState extends State<AutopoolScanScreen>
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Auswahl, was von den gefundenen Codes ins Feld soll: bei einem Code mit
+/// mehreren Angaben jede einzeln (meist will man genau eine, z.B. die
+/// Seriennummer), darunter der ganze Inhalt.
+class _CodeChoice extends StatelessWidget {
+  final String title;
+  final List<(String, List<String>)> groups;
+
+  const _CodeChoice({required this.title, required this.groups});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.75),
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.only(bottom: 8),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(title, style: theme.textTheme.titleMedium),
+            ),
+            for (final (i, (whole, parts)) in groups.indexed) ...[
+              if (i > 0) const Divider(),
+              for (final part in parts)
+                ListTile(
+                  leading: const Icon(Icons.label_outline),
+                  title: Text(part),
+                  onTap: () => Navigator.of(context).pop(part),
+                ),
+              ListTile(
+                leading: const Icon(Icons.qr_code_2),
+                title: Text(whole,
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: parts.isEmpty ? null : Text(l.autopoolScanWhole),
+                onTap: () => Navigator.of(context).pop(whole),
+              ),
+            ],
+          ],
         ),
       ),
     );

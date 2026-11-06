@@ -455,6 +455,37 @@ class AppLocalizationsRu extends AppLocalizations {
   String get autopoolScanCameraError => 'Не удалось запустить камеру.';
 
   @override
+  String get autopoolScanPhoto => 'Фото';
+
+  @override
+  String get autopoolScanGallery => 'Галерея';
+
+  @override
+  String get autopoolScanSmallHint =>
+      'Маленький код? Увеличьте двумя пальцами или нажмите «Фото»';
+
+  @override
+  String get autopoolScanSearching => 'Поиск кодов…';
+
+  @override
+  String get autopoolScanNothing =>
+      'Код не найден. Поднесите ближе, добавьте света или держите телефон ровнее.';
+
+  @override
+  String get autopoolScanUnreadable => 'Не удалось прочитать изображение.';
+
+  @override
+  String get autopoolScanPhotoFailed => 'Не удалось открыть приложение камеры.';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return 'Что вставить в «$field»?';
+  }
+
+  @override
+  String get autopoolScanWhole => 'всё содержимое';
+
+  @override
   String get moveUp => 'Вверх';
 
   @override

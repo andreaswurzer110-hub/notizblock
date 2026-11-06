@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:notizblock/l10n/generated/app_localizations.dart';
@@ -22,6 +23,24 @@ void main() {
       expect(cleanScannedCode('  SN-4711 \n'), 'SN-4711');
       expect(cleanScannedCode('INV\t0815\r\nA'), 'INV 0815 A');
       expect(cleanScannedCode('A\u0000B\u001DC'), 'A B C');
+    });
+  });
+
+  group('scannedCodeParts', () {
+    test('zerlegt Codes mit mehreren Angaben, sonst leer', () {
+      expect(scannedCodeParts(_dock), [
+        'HP USB-C Dock G5',
+        'L61609-001',
+        '84-3A-5B-F5-17-CC',
+        '5CG302RL6X',
+        '1y0y0y',
+      ]);
+      expect(scannedCodeParts('SN-4711'), isEmpty);
+      expect(scannedCodeParts(null), isEmpty);
+      expect(scannedCodeParts('A;B'), ['A', 'B']);
+      expect(scannedCodeParts('01\u001D21XYZ\u001D'), ['01', '21XYZ']);
+      // Nur eine Angabe neben leeren Teilen: ganzer Code.
+      expect(scannedCodeParts('SN-1,, '), isEmpty);
     });
   });
 
@@ -271,6 +290,124 @@ void main() {
       expect(results, [null]);
     });
 
+    testWidgets('Code mit mehreren Angaben: Teil wählen, kommt nicht wieder',
+        (tester) async {
+      final camera = FakeScannerPlatform();
+      MobileScannerPlatform.instance = camera;
+      final results = <AutopoolScanResult?>[];
+      await _openScanner(tester, results.add);
+
+      await _scan(tester, camera, ['INV-0815']);
+      await tester.pump(const Duration(seconds: 2));
+      // Der Dock-Code: Auswahl statt des ganzen Inhalts im Feld.
+      await _scan(tester, camera, [_dock]);
+      await tester.pumpAndSettle();
+      expect(find.text('Was soll in „Seriennummer“?'), findsOneWidget);
+      expect(find.text('ganzer Inhalt'), findsOneWidget);
+      await tester.tap(find.text('5CG302RL6X'));
+      await tester.pumpAndSettle();
+      expect(find.text('5CG302RL6X'), findsOneWidget);
+      expect(find.text('INV-0815'), findsOneWidget);
+
+      // Derselbe Code steht noch im Bild: keine zweite Auswahl.
+      await tester.tap(find.byIcon(Icons.close).first); // Inventar leeren …
+      await tester.pump();
+      await tester.tap(find.text('Inv.-Nr.'));
+      await tester.pump(const Duration(seconds: 2));
+      // … nach ausdrücklichem Neu-Scannen wird er wieder angeboten.
+      await _scan(tester, camera, [_dock]);
+      await tester.pumpAndSettle();
+      expect(find.text('Was soll in „Inv.-Nr.“?'), findsOneWidget);
+      // Abbrechen (außerhalb tippen): nichts übernommen, kein erneutes Angebot.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
+      await _scan(tester, camera, [_dock]);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Was soll in'), findsNothing);
+      expect(find.text('–'), findsOneWidget);
+
+      await tester.tap(find.text('Übernehmen'));
+      await tester.pumpAndSettle();
+      expect(results.single!.serial, '5CG302RL6X');
+      expect(results.single!.inventory, '');
+    });
+
+    group('Foto/Galerie', () {
+      const kanal = MethodChannel('notizblock/codes');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      late List<MethodCall> calls;
+      Object? answer;
+      setUp(() {
+        calls = [];
+        messenger.setMockMethodCallHandler(kanal, (call) async {
+          calls.add(call);
+          return answer;
+        });
+      });
+      tearDown(() => messenger.setMockMethodCallHandler(kanal, null));
+
+      testWidgets('Foto liefert den Dock-Code → Teil wählen', (tester) async {
+        MobileScannerPlatform.instance = FakeScannerPlatform();
+        final results = <AutopoolScanResult?>[];
+        await _openScanner(tester, results.add);
+        await tester.tap(find.text('Inv.-Nr.'));
+        await tester.pump();
+
+        answer = {
+          'codes': [
+            {'value': _dock, 'format': 16},
+          ],
+        };
+        await tester.tap(find.text('Foto'));
+        await tester.pumpAndSettle();
+        expect(calls.single.arguments, {'source': 'camera'});
+        expect(find.text('Was soll in „Inv.-Nr.“?'), findsOneWidget);
+        await tester.tap(find.text('L61609-001'));
+        await tester.pumpAndSettle();
+        expect(find.text('L61609-001'), findsOneWidget);
+
+        // Galerie mit einem einfachen Code: gleich ins nächste Feld.
+        answer = {
+          'codes': [
+            {'value': 'SN-4711', 'format': 256},
+          ],
+        };
+        await tester.tap(find.text('Galerie'));
+        await tester.pumpAndSettle();
+        expect(calls.last.arguments, {'source': 'gallery'});
+        expect(find.textContaining('Was soll in'), findsNothing);
+        await tester.tap(find.text('Übernehmen'));
+        await tester.pumpAndSettle();
+        expect(results.single!.inventory, 'L61609-001');
+        expect(results.single!.serial, 'SN-4711');
+      });
+
+      testWidgets('nichts gefunden, abgebrochen, Kamera-App fehlt',
+          (tester) async {
+        MobileScannerPlatform.instance = FakeScannerPlatform();
+        await _openScanner(tester, (_) {});
+
+        answer = {'codes': <Object?>[]};
+        await tester.tap(find.text('Foto'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Kein Code gefunden'), findsOneWidget);
+
+        answer = null; // zurück ohne Foto
+        await tester.tap(find.text('Galerie'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Was soll in'), findsNothing);
+        expect(find.text('–'), findsNWidgets(2));
+
+        answer = {'error': 'camera'};
+        await tester.tap(find.text('Foto'));
+        await tester.pumpAndSettle();
+        expect(find.text('Die Kamera-App ließ sich nicht öffnen.'),
+            findsOneWidget);
+      });
+    });
+
     testWidgets('verweigerte Kamera zeigt einen Hinweis', (tester) async {
       MobileScannerPlatform.instance = FakeScannerPlatform(
         startError: const MobileScannerException(
@@ -351,3 +488,8 @@ ButtonStyleButton _applyButton(WidgetTester tester) =>
       of: find.text('Übernehmen'),
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
     ));
+
+// Data-Matrix-Code am Boden einer HP-Dockingstation (Andis Foto, 2026-11-06):
+// Modell, Teilenummer, MAC, Seriennummer, Garantie.
+const _dock =
+    'HP USB-C Dock G5,L61609-001,84-3A-5B-F5-17-CC,5CG302RL6X,1y0y0y';

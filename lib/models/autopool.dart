@@ -20,6 +20,20 @@ String cleanScannedCode(String? raw) {
       .trim();
 }
 
+/// Teile eines Codes, der mehrere Angaben trägt – etwa der Data-Matrix-Code am
+/// Boden einer HP-Dockingstation: „Modell,Teilenummer,MAC,Seriennummer,Garantie“.
+/// Getrennt wird an Komma, Strichpunkt, senkrechtem Strich, Tabulator,
+/// Zeilenumbruch und den GS1-Trennzeichen (GS/RS). Leer, wenn der Code nur eine
+/// Angabe hat – dann gilt er ganz (seit 1.34.0).
+List<String> scannedCodeParts(String? raw) {
+  if (raw == null) return const [];
+  final parts = [
+    for (final p in raw.split(RegExp('[,;|\t\r\n\u001D\u001E]')))
+      if (cleanScannedCode(p).isNotEmpty) cleanScannedCode(p),
+  ];
+  return parts.length >= 2 ? parts : const [];
+}
+
 /// Erlaubte Feldanzahlen einer Zeile: volle Zeile (6) oder verkürzt (4/2).
 /// Eine verkürzte Zeile rendert nur die ersten N Spalten (siehe AutopoolTable):
 /// auf dem Handy weniger gestapelte Unterzeilen, auf dem Desktop füllen die

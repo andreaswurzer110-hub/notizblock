@@ -456,6 +456,37 @@ class AppLocalizationsTr extends AppLocalizations {
   String get autopoolScanCameraError => 'Kamera başlatılamadı.';
 
   @override
+  String get autopoolScanPhoto => 'Fotoğraf';
+
+  @override
+  String get autopoolScanGallery => 'Galeri';
+
+  @override
+  String get autopoolScanSmallHint =>
+      'Küçük kod mu? İki parmakla yakınlaştırın veya “Fotoğraf”a dokunun';
+
+  @override
+  String get autopoolScanSearching => 'Kodlar aranıyor…';
+
+  @override
+  String get autopoolScanNothing =>
+      'Kod bulunamadı. Yaklaşın, ışığı artırın veya telefonu daha düz tutun.';
+
+  @override
+  String get autopoolScanUnreadable => 'Görüntü okunamadı.';
+
+  @override
+  String get autopoolScanPhotoFailed => 'Kamera uygulaması açılamadı.';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return '“$field” alanına ne girilsin?';
+  }
+
+  @override
+  String get autopoolScanWhole => 'tüm içerik';
+
+  @override
   String get moveUp => 'Yukarı taşı';
 
   @override

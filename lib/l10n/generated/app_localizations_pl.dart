@@ -455,6 +455,38 @@ class AppLocalizationsPl extends AppLocalizations {
   String get autopoolScanCameraError => 'Nie udało się uruchomić aparatu.';
 
   @override
+  String get autopoolScanPhoto => 'Zdjęcie';
+
+  @override
+  String get autopoolScanGallery => 'Galeria';
+
+  @override
+  String get autopoolScanSmallHint =>
+      'Mały kod? Powiększ dwoma palcami lub dotknij „Zdjęcie”';
+
+  @override
+  String get autopoolScanSearching => 'Szukanie kodów…';
+
+  @override
+  String get autopoolScanNothing =>
+      'Nie znaleziono kodu. Podejdź bliżej, dodaj światła lub trzymaj telefon prościej.';
+
+  @override
+  String get autopoolScanUnreadable => 'Nie udało się odczytać obrazu.';
+
+  @override
+  String get autopoolScanPhotoFailed =>
+      'Nie udało się otworzyć aplikacji aparatu.';
+
+  @override
+  String autopoolScanChoose(String field) {
+    return 'Co ma trafić do „$field”?';
+  }
+
+  @override
+  String get autopoolScanWhole => 'cała zawartość';
+
+  @override
   String get moveUp => 'W górę';
 
   @override
