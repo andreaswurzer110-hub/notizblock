@@ -102,6 +102,15 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
 
 ## Offen fürs nächste Release
 
+- **1.33.3 (2026-10-30) – nur Windows:** Das Hauptfenster öffnet wieder dort, wo es
+  zuletzt war (vorher fest bei (10, 10), hinter Andis linker Taskleiste). Beim ersten
+  Start öffnet es mittig im freien Bereich. Gemeinsamer Code `windows/runner/win32_window.cpp`
+  (wie Wetter AW, Registry `HKCU\Software\AW\Fensterlage`). Notizzettel (`--sticky-note`)
+  bekommen in `main.cpp` `SetRememberPlacement(false)` und merken ihre Lage weiter selbst.
+  Ausgeliefert: hier lokal installiert (`Release.ps1 -Plattform Windows -SkipRelease`, alle
+  4 Notizzettel wieder da), Store-MSIX `E:\Notizblock-1.33.3.0-Store.msix` reicht Andi ein.
+  Android und Linux bleiben auf 1.33.2.
+
 - **1.33.2 (2026-10-21) – Sync: keine falschen Konfliktwarnungen, alle Plattformen.**
   Andi bekam am Handy die rote Konfliktwarnung, obwohl er nur dort geändert hatte (PC
   lief mit offenen Notizzetteln). Ursache + Fix: `docs/archiv/stolpersteine.md`, Eintrag
@@ -110,6 +119,10 @@ Vollständige alte Fassung dieser Datei: `docs/archiv/CLAUDE.md.vollstaendig-202
   damit ausdrücklich mit in die Prüfung), Snap **edge** Rev. 54, Windows hier lokal
   installiert; Store-MSIX `build\msix\Notizblock-1.33.2.0-Store.msix` reicht Andi selbst
   ein. Wirkt erst, wenn ALLE Geräte (Handy, PC, Linux-Laptop) 1.33.2 haben.
+  **2026-10-22 per API in Produktion** (Andis Auftrag): Hochstufen in der Console
+  scheiterte an „Track verfügt bereits über einen Versionsentwurf“ – im Track
+  production lag neben dem fertigen 1.33.1 ein alter 1.33.1-Entwurf. Den Track per
+  `edits.tracks.update` nur mit 1.33.2 (`completed`) gesetzt, das ersetzt den Entwurf.
   Nebenbei: `output_name` der Test-MSIX in `pubspec.yaml` steht noch auf 1.31.12.0
   (nur der Dateiname, Inhalt stimmt).
 
